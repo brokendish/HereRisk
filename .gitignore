@@ -14,3 +14,12 @@ dist/
 build/
 coverage/
 *.log
+
+# AI workspace
+/workspace/
+
+# Local environment secrets
+/env/**/*.local
+/env/**/*.local.*
+/env/**/*.secret
+/env/**/*.secret.*
