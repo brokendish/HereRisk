@@ -11,7 +11,8 @@ HereRiskは、現在地の災害リスクを調べ、
 - [プロジェクト定義書](docs/project-charter.md)
 - [AI共通作業規約](docs/development/ai-development-policy.md)
 - [公開検証サマリー](reviews/README.md)
-- アーキテクチャ設計書（作成予定）
+- [Dataset Registry設計書 v0.1](docs/architecture/dataset-registry-v0.1.md)
+- 全体アーキテクチャ設計書（作成予定）
 - API契約書（作成予定）
 
 ## 開発方針
