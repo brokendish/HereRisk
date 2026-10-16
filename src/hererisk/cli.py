@@ -94,7 +94,7 @@ def _init_fixture_root(data_root: Path) -> int:
         sys.stderr.write("hererisk-pipeline: fixture root must be outside the repository\n")
         return EXIT_USAGE
     try:
-        init_fixture_data_root(data_root)
+        init_fixture_data_root(data_root, protected_roots=(REPO_ROOT,))
     except (StorageError, OSError):
         sys.stderr.write(
             "hererisk-pipeline: fixture root must be an existing, empty, non-production directory\n"

@@ -55,9 +55,18 @@ fixture実行のデータルートは、空の一時ディレクトリを `init-
 
 - マーカーがない
 - `/data` 配下
-- 設定・Schemaのルート（リポジトリ）やfixture定義ツリーの配下（symlinkは解決したうえで判定）
+- 設定・Schemaのルート（リポジトリ）やfixture定義ツリーの配下
 
-`init-fixture-root` は、存在する空ディレクトリだけを受け付ける。
+判定は、固定（pin）したデータrootのディレクトリ自体に対して行う。パス名だけでは判定しない。手順は次のとおり。
+
+1. データrootを一度だけ正規化する。
+2. `/` から各階層を `O_NOFOLLOW` で辿って開き、そのFDを固定する。途中にsymlinkが差し込まれていれば `PERMISSION_DENIED` で停止する。
+3. 辿った各ディレクトリの識別子（dev, inode）と、正規化後のパスの両方で、保護対象rootの配下でないことを確認する。識別子での比較は、macOSの `/System/Volumes/Data/...` のように `realpath` で正規化されない別名にも有効である。
+4. マーカーも、同じFDから読む。
+
+マーカーは、管理者が「使い捨てfixture rootとして使う」という意図を記録するものであり、認証情報ではない。
+
+`init-fixture-root` は、存在する空ディレクトリだけを受け付ける。リポジトリと `/data` の配下は、同じく識別子でも判定して拒否する。
 
 ```sh
 DATA_ROOT="$(mktemp -d)"
@@ -141,7 +150,9 @@ $DATA_ROOT/elevation/
 SHA-256は、偶発的・部分的な破損を検出するためのもので、改竄者を認証しない。API領域の `work/` と `records/` に書き込める主体は、整合する一式を偽造できる。したがって、これらの領域はパイプライン管理ユーザーだけが書き込める権限で運用することを前提とする（本番の所有者・権限設計は未決定）。保存層は次のように動作する。
 
 - 呼出元から任意のPathを受け取らない。API内の許可領域（`work/download`・`work/acquisitions`・`work/locks`・`records/configurations`・`records/acquisitions`・`records/commits`）だけを操作する。`dl/`・`rel/`・Registryは読み書きともできない
-- データrootをディレクトリFDとして固定し、各階層を `O_NOFOLLOW` で辿る。途中の階層がsymlinkに差し替えられても、領域外への読み書きは起きない（安全側に `PERMISSION_DENIED`）
+- データrootは、検査より前に `/` から `O_NOFOLLOW` で辿ってFDとして固定する。以後の検査とI/Oはすべてこの同じFDを基点に行い、パスを再resolveしない。固定前・固定後のどちらでも、rootや途中の階層をsymlinkに差し替えて領域外へ誘導することはできない（安全側に `PERMISSION_DENIED`）
+- 残余条件（防止しない）: FDを保持したディレクトリそのものが、書込み権限を持つ主体によって別の場所へ移動されると、I/Oはその同じディレクトリで続く。差し替え先へ追従することはない。データ領域の書込み権限を管理ユーザーに限るという前提で許容する
+- 開いたFDは、その後の検査（fstat等）が失敗した場合も必ず閉じる。OSErrorは保存層の共通エラーに分類する
 - 確定物として読み込むファイルは、通常ファイルで、実行ユーザー所有、リンク数1であることを要求する。外部hardlinkの別名がある場合は `RECOVERY_REQUIRED`
 - `dir_fd` / `O_NOFOLLOW` を使えない環境では、すべての操作を拒否する
 
@@ -183,8 +194,16 @@ fixtureの承認はSource Definition原文のSHA-256に結び付いているた�
 | 同じrun_id・異なる設定 | FAILED / INVALID_INPUT。何も書き込まない |
 | 同じrun_idに未確定物（.part、markerなしの原本・Record）や照合不一致 | BLOCKED / RECOVERY_REQUIRED。削除・上書きしない |
 | 同じsourceを同時実行 | 後発はBLOCKED / TARGET_BUSY（flock。プロセス終了で解放） |
-| 未確定取得物（`work/download/<run>/<acq>`）がデータroot全体でポリシー上限（fixtureは8件）以上 | 新しいrunもBLOCKED / RECOVERY_REQUIRED（転送0回）。自動削除しない |
+| 未確定取得物がデータroot全体でポリシー上限（fixtureは8件）以上 | 新しいrunはスナップショット保存前にBLOCKED / RECOVERY_REQUIRED（転送0回・書込み0件）。自動削除しない |
 | 同じrun_idで、他のmarkerが破損・解析不能 | BLOCKED / RECOVERY_REQUIRED（帰属を判定できないため安全側に倒す） |
+
+未確定取得物は、取得IDごとに1件として数える。含まれる状態は次のとおり。
+
+- `.part` や予約だけの段階（`work/download`）
+- 原本のみ、Recordのみ、markerのみ
+- 書込み途中の一時ファイル
+
+marker・Record・原本がすべて揃い、part・一時ファイルが残っていない取得だけが確定済みで、計上しない。枠の確認と予約（`work/download/<run>/<acq>` の作成）は、API共通のロック（`work/locks/download-quota.lock`）の下で一体に行う。このため、異なるsource_refを同時に実行しても上限を超えない。新しいrunは、最初の取得枠を予約してからスナップショットを保存する。
 
 **自動回復処理は未実装。** RECOVERY_REQUIREDとなった未確定物は、管理者が調査したうえで新しいrunで再取得する。契約第6節の回復案（排他・実行者不在の確認 → 原本・Record・設定が完全なら照合して確定を完了 → 証拠不足なら隔離して新run）は今後の実装対象。
 

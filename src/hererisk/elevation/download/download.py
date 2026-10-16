@@ -25,6 +25,7 @@ SUCCESS only when every requested tile passed step 8. Download never touches
 from __future__ import annotations
 
 import hashlib
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable
@@ -57,6 +58,12 @@ MAX_RECORD_BYTES = 64 * 1024
 MAX_MARKER_BYTES = 16 * 1024
 
 TileKey = tuple[int, int, int]
+
+# API-wide lock serialising capacity checks + reservations across all sources.
+QUOTA_LOCK = ("work", "locks", "download-quota.lock")
+_ID = r"[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}"
+_JSON_RE = re.compile(rf"^(?P<id>{_ID})\.json$")
+_TMP_RE = re.compile(rf"^\.(?P<id>{_ID})\.json\.tmp-[0-9a-f]{{32}}$")
 
 
 def _utc_now() -> datetime:
@@ -128,21 +135,50 @@ class ElevationDownload:
                 raise PipelineError("INVALID_CONFIGURATION", "source alias overlaps")
 
     # -- execution -----------------------------------------------------
+    def reserve_capacity(self, plan: DownloadPlan, area: ApiDataArea) -> str:
+        """Reserve one uncommitted-acquisition slot under the API-wide quota lock.
+
+        Counts every uncommitted acquisition in the data area by id (see
+        :func:`pending_acquisitions`). At or above the fixture policy's
+        ``max_pending_acquisitions`` nothing is created and RECOVERY_REQUIRED is
+        raised. Otherwise the slot is taken by creating
+        ``work/download/<run>/<acq>`` before the lock is released, so concurrent
+        runs of any source_ref cannot exceed the limit together.
+        """
+        limit = plan.authorization.policy["max_pending_acquisitions"]
+        with area.exclusive_lock(area.path(*QUOTA_LOCK), blocking=True):
+            try:
+                pending = pending_acquisitions(area)
+            except StorageError as exc:
+                raise PipelineError("RECOVERY_REQUIRED", "pending area unreadable") from exc
+            if len(pending) >= limit:
+                raise PipelineError("RECOVERY_REQUIRED", "too many uncommitted acquisitions")
+            acquisition_id = self._id_factory()
+            area.ensure_dir(area.path("work", "download", plan.run_id, acquisition_id))
+        return acquisition_id
+
     def execute(
-        self, plan: DownloadPlan, area: ApiDataArea, logger: StructuredLogger
+        self,
+        plan: DownloadPlan,
+        area: ApiDataArea,
+        logger: StructuredLogger,
+        *,
+        reserved_acquisition_id: str | None = None,
     ) -> ModuleResult:
         log = logger.bind(module=MODULE)
         # Artifacts are always reported in tile order, reused or newly acquired.
         committed: dict[TileKey, Artifact] = {}
         keys = plan_tiles(plan)
+        reserved = reserved_acquisition_id
         try:
             if plan.resume:
                 committed.update(reconcile_run(area, plan))
-            check_pending_limit(area, plan)
             for key in keys:
                 if key in committed:
                     continue
-                committed[key] = self._acquire(plan, area, *key)
+                acquisition_id = reserved or self.reserve_capacity(plan, area)
+                reserved = None
+                committed[key] = self._acquire(plan, area, acquisition_id, *key)
                 log.info("Acquisition committed")
         except (PipelineError, StorageError) as exc:
             log.error("Acquisition stopped", error_code=exc.error_code)
@@ -156,8 +192,9 @@ class ElevationDownload:
         artifacts = () if code == "RECOVERY_REQUIRED" else tuple(committed)
         return ModuleResult.error(plan.run_id, MODULE, code, artifacts)
 
-    def _acquire(self, plan: DownloadPlan, area: ApiDataArea, z: int, x: int, y: int) -> Artifact:
-        acquisition_id = self._id_factory()
+    def _acquire(
+        self, plan: DownloadPlan, area: ApiDataArea, acquisition_id: str, z: int, x: int, y: int
+    ) -> Artifact:
         run_id = plan.run_id
         url = tile_url(plan.source["acquisition"]["url_template"], z, x, y)
         max_bytes = plan.authorization.policy["max_tile_bytes"]
@@ -419,20 +456,41 @@ def reconcile_run(area: ApiDataArea, plan: DownloadPlan) -> dict[TileKey, Artifa
     return done
 
 
-def check_pending_limit(area: ApiDataArea, plan: DownloadPlan) -> None:
-    """Block new transfers once too many uncommitted acquisitions exist (F11).
+def _classify(names: list[str], ids: set[str], temps: set[str], unknown: set[str],
+              where: str) -> None:
+    for name in names:
+        if m := _JSON_RE.match(name):
+            ids.add(m["id"])
+        elif m := _TMP_RE.match(name):
+            temps.add(m["id"])
+        else:
+            unknown.add(f"{where}/{name}")
 
-    Uncommitted ``work/download/<run>/<acq>`` entries are never deleted
-    automatically; past the fixture policy's ``max_pending_acquisitions`` the
-    data root needs operator recovery (see usage doc).
+
+def pending_acquisitions(area: ApiDataArea) -> set[str]:
+    """Ids of every uncommitted acquisition in the API data area (R1-02).
+
+    An acquisition counts as committed only when its marker, Record and artifact
+    directory all exist and no part directory or temporary file remains for it.
+    Everything else is pending, whatever the stage it stopped at: reserved or
+    partial (``work/download``), artifact only, Record only, marker only,
+    interrupted temp files. Each id is counted once. Unrecognised entries are
+    counted individually (conservative). Nothing is deleted.
     """
-    limit = plan.authorization.policy["max_pending_acquisitions"]
-    try:
-        pending = sum(
-            len(area.list_dir(area.path("work", "download", run)))
-            for run in area.list_dir(area.path("work", "download"))
-        )
-    except StorageError as exc:
-        raise PipelineError("RECOVERY_REQUIRED", "pending area unreadable") from exc
-    if pending >= limit:
-        raise PipelineError("RECOVERY_REQUIRED", "too many uncommitted acquisitions")
+    parts: set[str] = set()
+    artifacts: set[str] = set()
+    records: set[str] = set()
+    markers: set[str] = set()
+    temps: set[str] = set()
+    unknown: set[str] = set()
+    for run in area.list_dir(area.path("work", "download")):
+        parts.update(area.list_dir(area.path("work", "download", run)))
+    for run in area.list_dir(area.path("work", "acquisitions")):
+        artifacts.update(area.list_dir(area.path("work", "acquisitions", run)))
+    for run in area.list_dir(area.path("records", "acquisitions")):
+        names = area.list_dir(area.path("records", "acquisitions", run))
+        _classify(names, records, temps, unknown, f"records/acquisitions/{run}")
+    _classify(area.list_dir(area.path("records", "commits")), markers, temps, unknown,
+              "records/commits")
+    committed = (markers & records & artifacts) - parts - temps
+    return (parts | artifacts | records | markers | temps | unknown) - committed

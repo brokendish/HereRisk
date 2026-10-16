@@ -84,8 +84,16 @@ class DownloadModule(Protocol):
     def preflight(self, plan: DownloadPlan) -> None:
         """Validate acquisition-specific preconditions without any I/O."""
 
+    def reserve_capacity(self, plan: DownloadPlan, area: ApiDataArea) -> str:
+        """Reserve one acquisition slot (or raise) before a new run persists anything."""
+
     def execute(
-        self, plan: DownloadPlan, area: ApiDataArea, logger: StructuredLogger
+        self,
+        plan: DownloadPlan,
+        area: ApiDataArea,
+        logger: StructuredLogger,
+        *,
+        reserved_acquisition_id: str | None = None,
     ) -> ModuleResult: ...
 
 
@@ -144,8 +152,7 @@ class Orchestrator:
             effective = _canonical_json(effective_doc)
             area = self._area_factory(self._data_root, request.api_id)
             with area:
-                if authorization.context is ExecutionContext.FIXTURE and not area.has_fixture_marker():
-                    raise PipelineError("INVALID_INPUT", "data root is not a fixture root")
+                self._check_pinned_root(area, authorization)
                 self._prepare_area(area)
                 result = self._run_locked(area, run_id, request, definition, authorization,
                                           module, effective, log)
@@ -181,8 +188,11 @@ class Orchestrator:
         module.preflight(plan)
         lock = area.path("work", "locks", f"{OPERATION}-{request.source_ref}.lock")
         with area.exclusive_lock(lock):
+            # Capacity is checked and a slot reserved before anything is
+            # persisted for a new run (R1-02); resumes persist nothing new.
+            reserved = None if plan.resume else module.reserve_capacity(plan, area)
             self._persist_snapshot(area, plan, effective)
-            return module.execute(plan, area, log)
+            return module.execute(plan, area, log, reserved_acquisition_id=reserved)
 
     # -- steps ---------------------------------------------------------
     def _check_request(self, request: DownloadRequest) -> DownloadModule:
@@ -246,18 +256,33 @@ class Orchestrator:
             raise PipelineError("APPROVAL_REQUIRED", "transport context mismatch")
         return authorization
 
-    def _check_data_root(self, authorization: Authorization) -> None:
-        """Fixture runs may only write to a dedicated, explicitly marked root (F12).
+    def _protected_roots(self) -> tuple[Path, ...]:
+        return (PRODUCTION_DATA_ROOT, self._config.schema_root, self._config.definition_root)
 
-        Refused: anything under /data and anything inside the configuration /
-        fixture definition trees (e.g. the repository). The marker file itself
-        is checked through the area's root fd before any directory is created.
-        """
+    def _check_data_root(self, authorization: Authorization) -> None:
+        """Cheap lexical pre-check (fail fast). Not the security decision:
+        :meth:`_check_pinned_root` decides on the pinned root fd."""
         if authorization.context is not ExecutionContext.FIXTURE:
             return
-        protected = (PRODUCTION_DATA_ROOT, self._config.schema_root, self._config.definition_root)
-        if any(is_within(self._data_root, root) for root in protected):
+        if any(is_within(self._data_root, root) for root in self._protected_roots()):
             raise PipelineError("INVALID_INPUT", "fixture data root not allowed")
+
+    def _check_pinned_root(self, area: ApiDataArea, authorization: Authorization) -> None:
+        """Fixture runs may only write to a dedicated, explicitly marked root (F12, R1-01).
+
+        The root is pinned first (fd opened from ``/`` without following any
+        symlink); the protected-root decision and the marker check are then made
+        on that same pinned directory, and all later I/O goes through it. The
+        marker only records the operator's intent to use the directory as a
+        disposable fixture root; it is not an authentication credential.
+        """
+        area.pin()
+        if authorization.context is not ExecutionContext.FIXTURE:
+            return
+        if area.root_within(self._protected_roots()):
+            raise PipelineError("INVALID_INPUT", "fixture data root not allowed")
+        if not area.has_fixture_marker():
+            raise PipelineError("INVALID_INPUT", "data root is not a fixture root")
 
     @staticmethod
     def _prepare_area(area: ApiDataArea) -> None:

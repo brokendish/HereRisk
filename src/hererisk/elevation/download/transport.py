@@ -98,12 +98,19 @@ class FixtureTransport:
         finally:
             if fd >= 0:
                 os.close(fd)
-        st = os.fstat(file_fd)
-        if not stat.S_ISREG(st.st_mode):
+        # file_fd is owned here until os.fdopen succeeds; close it on any failure.
+        try:
+            st = os.fstat(file_fd)
+            if not stat.S_ISREG(st.st_mode):
+                raise PipelineError("HTTP_404", "fixture not a regular file")
+            size = st.st_size
+            handle = os.fdopen(file_fd, "rb")
+        except OSError as exc:
             os.close(file_fd)
-            raise PipelineError("HTTP_404", "fixture not a regular file")
-        size = st.st_size
-        handle = os.fdopen(file_fd, "rb")
+            raise PipelineError("TRANSFER_INTERRUPTED", "fixture unreadable") from exc
+        except BaseException:
+            os.close(file_fd)
+            raise
         return TransportResponse(
             effective_url=url,
             content_type="image/png",

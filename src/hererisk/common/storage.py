@@ -10,12 +10,23 @@ Trust boundary
   a tuple of path components *relative to this API's directory*, and checks it
   against ``WRITABLE_AREAS`` (writes) or ``READABLE_AREAS`` (reads) on every call.
   A ``pathlib.Path`` is refused, so holding a path grants nothing.
-* The data root is opened once as a directory fd. All traversal is relative to
-  that fd, one component at a time, with ``O_NOFOLLOW | O_DIRECTORY``; mkdir,
+* The data root is canonicalised once (at construction) and then *pinned*: it is
+  opened by walking from ``/`` one component at a time with ``O_NOFOLLOW |
+  O_DIRECTORY``, so a symlink swapped into the root or any ancestor before the
+  pin is refused, and the (st_dev, st_ino) of every directory on the walked
+  chain is recorded. Protected-root checks (:meth:`ApiDataArea.root_within`)
+  and the fixture marker are evaluated on that pinned chain / fd, never by
+  re-resolving the path. All traversal is relative to the pinned fd, one
+  component at a time, with ``O_NOFOLLOW | O_DIRECTORY``; mkdir,
   open, link, unlink, rmdir, stat, lock and directory fsync all use ``dir_fd``.
   Replacing any directory (including parents) with a symlink after a check
   cannot redirect an operation outside the area: an operation either uses the
   directory fd already held or fails with PERMISSION_DENIED.
+* Residual (documented, not prevented): a directory whose fd is already held
+  can itself be *moved* elsewhere by a principal with write access to its
+  parent; I/O then continues in that same directory (the pinned inode), never
+  in an attacker-chosen replacement. The data area must therefore be writable
+  only by the pipeline management user.
 * Platforms lacking ``dir_fd`` / ``O_NOFOLLOW`` support are refused (fail safe).
 * Files read back as committed evidence must be regular files owned by the
   current user with exactly one link (no external hardlink alias).
@@ -123,6 +134,88 @@ def fsync_fd(fd: int) -> None:
     os.fsync(fd)
 
 
+def _fsync_classified(fd: int) -> None:
+    try:
+        fsync_fd(fd)
+    except OSError as exc:
+        raise _oserror(exc, "fsync") from exc
+
+
+def _checked_dir(fd: int) -> int:
+    """Take ownership of ``fd``; return it only if it is a directory, else close it."""
+    try:
+        is_dir = stat.S_ISDIR(os.fstat(fd).st_mode)
+    except OSError as exc:
+        os.close(fd)
+        raise _oserror(exc, "fstat") from exc
+    except BaseException:
+        os.close(fd)
+        raise
+    if not is_dir:
+        os.close(fd)
+        raise StorageError("PERMISSION_DENIED", "not a directory")
+    return fd
+
+
+def _open_dir_chain(path: Path) -> tuple[int, frozenset[tuple[int, int]]]:
+    """Open absolute ``path`` from ``/`` without following any symlink.
+
+    Returns the directory fd and the (st_dev, st_ino) of every directory on the
+    walked chain (``/`` .. ``path``). Any symlink or non-directory on the way
+    (e.g. an ancestor swapped after canonicalisation) fails with PERMISSION_DENIED.
+    """
+    if not path.is_absolute():
+        raise StorageError("PERMISSION_DENIED", "data root must be absolute")
+    chain: set[tuple[int, int]] = set()
+    try:
+        fd = _checked_dir(os.open("/", _DIR_FLAGS))
+    except OSError as exc:
+        raise _oserror(exc, "root") from exc
+    try:
+        for part in path.parts[1:]:
+            st = os.fstat(fd)
+            chain.add((st.st_dev, st.st_ino))
+            try:
+                child = os.open(part, _DIR_FLAGS, dir_fd=fd)
+            except FileNotFoundError as exc:
+                raise StorageError("STORAGE_INTEGRITY_FAILED", "data root missing") from exc
+            except OSError as exc:
+                raise _oserror(exc, "data root path") from exc
+            child = _checked_dir(child)
+            os.close(fd)
+            fd = child
+        st = os.fstat(fd)
+        chain.add((st.st_dev, st.st_ino))
+    except OSError as exc:
+        os.close(fd)
+        raise _oserror(exc, "data root") from exc
+    except BaseException:
+        os.close(fd)
+        raise
+    return fd, frozenset(chain)
+
+
+def _chain_within(
+    canonical: Path, chain: frozenset[tuple[int, int]], protected_roots: tuple[Path, ...]
+) -> bool:
+    """Is a pinned directory (canonical path + walked identity chain) inside a protected root?
+
+    Identity catches aliases that realpath() keeps distinct (e.g. macOS firmlinks
+    under /System/Volumes/Data); the lexical test covers roots that do not exist.
+    """
+    for root in protected_roots:
+        root_canonical = Path(os.path.realpath(root))
+        if canonical == root_canonical or canonical.is_relative_to(root_canonical):
+            return True
+        try:
+            st = os.stat(root_canonical)
+        except OSError:
+            continue
+        if (st.st_dev, st.st_ino) in chain:
+            return True
+    return False
+
+
 def _platform_supported() -> bool:
     needed_dir_fd = (os.open, os.mkdir, os.link, os.unlink, os.rmdir, os.stat)
     return (
@@ -158,7 +251,13 @@ class NewFile:
     """Write handle for a newly created file; keeps its parent directory fd."""
 
     def __init__(self, fd: int, parent_fd: int) -> None:
-        self._file = os.fdopen(fd, "wb")
+        # Takes ownership of both fds, also when construction fails.
+        try:
+            self._file = os.fdopen(fd, "wb")
+        except BaseException:
+            os.close(fd)
+            os.close(parent_fd)
+            raise
         self._parent_fd: int | None = parent_fd
 
     def write(self, data: bytes) -> int:
@@ -195,27 +294,42 @@ class ApiDataArea:
     def __init__(self, data_root: Path, api_id: str) -> None:
         if not isinstance(api_id, str) or not _PART_RE.match(api_id):
             raise ValueError("invalid api_id")
-        self.data_root = Path(data_root).resolve()
+        # Canonicalised exactly once; never re-resolved afterwards.
+        self.data_root = Path(os.path.realpath(data_root))
         self.api_id = api_id
         self.root = self.data_root / api_id  # informational; never used for I/O
         self._root_fd: int | None = None
+        self._root_chain: frozenset[tuple[int, int]] = frozenset()
 
     # -- lifecycle -------------------------------------------------------
     def _rootfd(self) -> int:
+        """Pin the data root (see module doc) on first use and return its fd."""
         if self._root_fd is None:
             if not _platform_supported():
                 raise StorageError("PERMISSION_DENIED", "platform lacks safe dir_fd ops")
-            try:
-                fd = os.open(self.data_root, _DIR_FLAGS)
-            except OSError as exc:
-                raise StorageError("STORAGE_INTEGRITY_FAILED", "data root unusable") from exc
+            fd, chain = _open_dir_chain(self.data_root)
             self._root_fd = fd
+            self._root_chain = chain
         return self._root_fd
+
+    def pin(self) -> None:
+        """Pin the data root now (before any check or I/O)."""
+        self._rootfd()
+
+    def root_within(self, protected_roots: tuple[Path, ...]) -> bool:
+        """True if the pinned root is, or is inside, any protected root.
+
+        Decided on the identities recorded while pinning (so a later swap of
+        the pathname cannot change the answer), plus a lexical check on the
+        canonical path for protected roots that do not exist (e.g. /data).
+        """
+        self._rootfd()
+        return _chain_within(self.data_root, self._root_chain, protected_roots)
 
     def close(self) -> None:
         if self._root_fd is not None:
-            os.close(self._root_fd)
-            self._root_fd = None
+            fd, self._root_fd = self._root_fd, None
+            os.close(fd)
 
     def __enter__(self) -> ApiDataArea:
         return self
@@ -261,10 +375,7 @@ class ApiDataArea:
             fd = os.open(name, _DIR_FLAGS, dir_fd=parent_fd)
         except OSError as exc:
             raise _oserror(exc, "directory") from exc
-        if not stat.S_ISDIR(os.fstat(fd).st_mode):
-            os.close(fd)
-            raise StorageError("PERMISSION_DENIED", "not a directory")
-        return fd
+        return _checked_dir(fd)
 
     def _child_dir(self, parent_fd: int, name: str, create: bool) -> int:
         try:
@@ -278,7 +389,7 @@ class ApiDataArea:
             pass
         except OSError as exc:
             raise _oserror(exc, "mkdir") from exc
-        fsync_fd(parent_fd)
+        _fsync_classified(parent_fd)
         return self._opendir(parent_fd, name)
 
     def _walk(self, parts: tuple[str, ...], create: bool) -> int:
@@ -342,6 +453,8 @@ class ApiDataArea:
             fd = self._walk(tuple(loc), create=False)
             try:
                 devices.add(os.fstat(fd).st_dev)
+            except OSError as exc:
+                raise _oserror(exc) from exc
             finally:
                 os.close(fd)
         return len(devices) == 1
@@ -354,7 +467,7 @@ class ApiDataArea:
                 os.rmdir(loc.name, dir_fd=pfd)
             except OSError:
                 return  # not empty or already gone: leave it
-            fsync_fd(pfd)
+            _fsync_classified(pfd)
         finally:
             os.close(pfd)
 
@@ -470,7 +583,10 @@ class ApiDataArea:
         finally:
             os.close(pfd)
         try:
-            st = os.fstat(fd)
+            try:
+                st = os.fstat(fd)
+            except OSError as exc:
+                raise _oserror(exc) from exc
             if not stat.S_ISREG(st.st_mode):
                 raise StorageError("STORAGE_INTEGRITY_FAILED", "not a regular file")
             if st.st_nlink != 1:
@@ -518,12 +634,13 @@ class ApiDataArea:
 
     # -- locking ---------------------------------------------------------------
     @contextmanager
-    def exclusive_lock(self, loc: Loc) -> Iterator[None]:
-        """Non-blocking exclusive flock bound to this process's lifetime.
+    def exclusive_lock(self, loc: Loc, *, blocking: bool = False) -> Iterator[None]:
+        """Exclusive flock bound to this process's lifetime.
 
-        Raises ``StorageError("TARGET_BUSY")`` if another holder exists. The
-        kernel releases the lock if the process dies; PIDs are never used to
-        steal a lock. Single-host only.
+        Non-blocking by default: raises ``StorageError("TARGET_BUSY")`` if
+        another holder exists. ``blocking=True`` waits (only for short critical
+        sections). The kernel releases the lock if the process dies; PIDs are
+        never used to steal a lock. Single-host only.
         """
         self._check(loc, WRITABLE_AREAS)
         pfd = self._walk(tuple(loc.parent), create=True)
@@ -535,12 +652,18 @@ class ApiDataArea:
         finally:
             os.close(pfd)
         try:
-            if not stat.S_ISREG(os.fstat(fd).st_mode):
+            try:
+                mode = os.fstat(fd).st_mode
+            except OSError as exc:
+                raise _oserror(exc) from exc
+            if not stat.S_ISREG(mode):
                 raise StorageError("PERMISSION_DENIED", "lock is not a regular file")
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(fd, fcntl.LOCK_EX if blocking else fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError as exc:
                 raise StorageError("TARGET_BUSY") from exc
+            except OSError as exc:
+                raise _oserror(exc) from exc
             try:
                 yield
             finally:
@@ -561,6 +684,8 @@ class ApiDataArea:
             if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_uid != os.geteuid():
                 return False
             return os.read(fd, len(FIXTURE_ROOT_MARKER_CONTENT) + 1) == FIXTURE_ROOT_MARKER_CONTENT
+        except OSError:
+            return False
         finally:
             os.close(fd)
 
@@ -571,19 +696,22 @@ def is_within(path: Path, root: Path) -> bool:
     return resolved == base or resolved.is_relative_to(base)
 
 
-def init_fixture_data_root(data_root: Path) -> None:
+def init_fixture_data_root(data_root: Path, protected_roots: tuple[Path, ...] = ()) -> None:
     """Mark an existing, empty directory as a disposable fixture data root.
 
-    Refuses production locations (``/data``). Callers add further checks
-    (e.g. repository trees). Never touches a non-empty directory.
+    Refuses production locations (``/data``) and anything inside
+    ``protected_roots`` (decided on the pinned directory, by identity as well).
+    Never touches a non-empty directory. The marker records intent only; it is
+    not an authentication credential.
     """
     root = Path(data_root)
     if root.is_symlink() or not root.is_dir():
         raise StorageError("PERMISSION_DENIED", "fixture root must be an existing directory")
-    if is_within(root, PRODUCTION_DATA_ROOT):
-        raise StorageError("PERMISSION_DENIED", "production data root")
-    fd = os.open(root.resolve(), _DIR_FLAGS)
+    canonical = Path(os.path.realpath(root))
+    fd, chain = _open_dir_chain(canonical)
     try:
+        if _chain_within(canonical, chain, (PRODUCTION_DATA_ROOT, *protected_roots)):
+            raise StorageError("PERMISSION_DENIED", "protected location")
         if os.listdir(fd):
             raise StorageError("PERMISSION_DENIED", "fixture root must be empty")
         mfd = os.open(FIXTURE_ROOT_MARKER, _NEW_FLAGS, 0o640, dir_fd=fd)

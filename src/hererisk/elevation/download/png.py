@@ -5,7 +5,10 @@ Container rules only; no decompression or pixel decoding:
     dimensions / bit depth / colour type and compression=0, filter=0,
     interlace in {0, 1}
   * chunk boundaries and CRCs; chunk types are four ASCII letters
-  * unknown *critical* chunks rejected; PLTE (optional for RGB) before IDAT
+  * unknown *critical* chunks rejected
+  * PLTE: at most once, before IDAT, payload 3..768 bytes and a multiple of 3
+    (1..256 entries); forbidden for greyscale (0, 4); required for indexed
+    colour (3) with at most 2**bit_depth entries; optional for RGB (2, 6)
   * at least one IDAT, all IDAT chunks consecutive
   * IEND last, length 0, no trailing bytes
 Elevation value quality and coverage are Validate's responsibility.
@@ -63,7 +66,15 @@ def check_png(data: bytes, *, width: int, height: int, bit_depth: int, color_typ
         elif ctype == b"PLTE":
             if b"PLTE" in seen or idat_state != "before":
                 raise invalid("PLTE order")
+            if color_type in (0, 4):
+                raise invalid("PLTE not allowed for greyscale")
+            if length == 0 or length % 3 or length > 768:
+                raise invalid("PLTE length")
+            if color_type == 3 and length // 3 > (1 << bit_depth):
+                raise invalid("PLTE too many entries")
         elif ctype == b"IDAT":
+            if color_type == 3 and b"PLTE" not in seen:
+                raise invalid("PLTE required for indexed colour")
             if idat_state == "after":
                 raise invalid("IDAT not consecutive")
             idat_state = "inside"
