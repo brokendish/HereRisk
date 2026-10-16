@@ -1,0 +1,270 @@
+{
+  "$schema": "./elevation.schema.json",
+  "schema_version": "0.1",
+  "definition_revision": "draft-1",
+  "hazard": "elevation",
+  "sources": {
+    "gsi-dem10b-candidate": {
+      "provider": {
+        "id": "gsi",
+        "name": "国土地理院"
+      },
+      "name": "標高PNGタイル（DEM10B候補）",
+      "official_page_url": "https://maps.gsi.go.jp/development/ichiran.html",
+      "documentation_checked_on": "2026-10-16",
+      "acquisition": {
+        "method": "xyz_png",
+        "url_template": "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png",
+        "zoom": 14,
+        "tiles": null
+      },
+      "vertical_reference": null,
+      "usage": {
+        "terms_url": "https://www.gsi.go.jp/kikakuchousei/kikakuchousei40182.html",
+        "attribution_text": null,
+        "review_ref": null
+      },
+      "pipeline": null,
+      "approval_ref": null
+    }
+  },
+  "prefectures": {
+    "01": {
+      "name": "北海道",
+      "targeted": false,
+      "source_refs": []
+    },
+    "02": {
+      "name": "青森県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "03": {
+      "name": "岩手県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "04": {
+      "name": "宮城県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "05": {
+      "name": "秋田県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "06": {
+      "name": "山形県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "07": {
+      "name": "福島県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "08": {
+      "name": "茨城県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "09": {
+      "name": "栃木県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "10": {
+      "name": "群馬県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "11": {
+      "name": "埼玉県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "12": {
+      "name": "千葉県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "13": {
+      "name": "東京都",
+      "targeted": true,
+      "source_refs": [
+        "gsi-dem10b-candidate"
+      ]
+    },
+    "14": {
+      "name": "神奈川県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "15": {
+      "name": "新潟県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "16": {
+      "name": "富山県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "17": {
+      "name": "石川県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "18": {
+      "name": "福井県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "19": {
+      "name": "山梨県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "20": {
+      "name": "長野県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "21": {
+      "name": "岐阜県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "22": {
+      "name": "静岡県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "23": {
+      "name": "愛知県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "24": {
+      "name": "三重県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "25": {
+      "name": "滋賀県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "26": {
+      "name": "京都府",
+      "targeted": false,
+      "source_refs": []
+    },
+    "27": {
+      "name": "大阪府",
+      "targeted": false,
+      "source_refs": []
+    },
+    "28": {
+      "name": "兵庫県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "29": {
+      "name": "奈良県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "30": {
+      "name": "和歌山県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "31": {
+      "name": "鳥取県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "32": {
+      "name": "島根県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "33": {
+      "name": "岡山県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "34": {
+      "name": "広島県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "35": {
+      "name": "山口県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "36": {
+      "name": "徳島県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "37": {
+      "name": "香川県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "38": {
+      "name": "愛媛県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "39": {
+      "name": "高知県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "40": {
+      "name": "福岡県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "41": {
+      "name": "佐賀県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "42": {
+      "name": "長崎県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "43": {
+      "name": "熊本県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "44": {
+      "name": "大分県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "45": {
+      "name": "宮崎県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "46": {
+      "name": "鹿児島県",
+      "targeted": false,
+      "source_refs": []
+    },
+    "47": {
+      "name": "沖縄県",
+      "targeted": false,
+      "source_refs": []
+    }
+  }
+}

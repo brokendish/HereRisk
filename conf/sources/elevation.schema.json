@@ -1,0 +1,1033 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HereRisk elevation source definition v0.1 (PROVISIONAL)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "definition_revision",
+    "hazard",
+    "sources",
+    "prefectures"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./elevation.schema.json"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "definition_revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hazard": {
+      "const": "elevation"
+    },
+    "sources": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "prefectures": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "01",
+        "02",
+        "03",
+        "04",
+        "05",
+        "06",
+        "07",
+        "08",
+        "09",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33",
+        "34",
+        "35",
+        "36",
+        "37",
+        "38",
+        "39",
+        "40",
+        "41",
+        "42",
+        "43",
+        "44",
+        "45",
+        "46",
+        "47"
+      ],
+      "properties": {
+        "01": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "北海道"
+                }
+              }
+            }
+          ]
+        },
+        "02": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "青森県"
+                }
+              }
+            }
+          ]
+        },
+        "03": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "岩手県"
+                }
+              }
+            }
+          ]
+        },
+        "04": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "宮城県"
+                }
+              }
+            }
+          ]
+        },
+        "05": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "秋田県"
+                }
+              }
+            }
+          ]
+        },
+        "06": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "山形県"
+                }
+              }
+            }
+          ]
+        },
+        "07": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "福島県"
+                }
+              }
+            }
+          ]
+        },
+        "08": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "茨城県"
+                }
+              }
+            }
+          ]
+        },
+        "09": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "栃木県"
+                }
+              }
+            }
+          ]
+        },
+        "10": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "群馬県"
+                }
+              }
+            }
+          ]
+        },
+        "11": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "埼玉県"
+                }
+              }
+            }
+          ]
+        },
+        "12": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "千葉県"
+                }
+              }
+            }
+          ]
+        },
+        "13": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "東京都"
+                }
+              }
+            }
+          ]
+        },
+        "14": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "神奈川県"
+                }
+              }
+            }
+          ]
+        },
+        "15": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "新潟県"
+                }
+              }
+            }
+          ]
+        },
+        "16": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "富山県"
+                }
+              }
+            }
+          ]
+        },
+        "17": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "石川県"
+                }
+              }
+            }
+          ]
+        },
+        "18": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "福井県"
+                }
+              }
+            }
+          ]
+        },
+        "19": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "山梨県"
+                }
+              }
+            }
+          ]
+        },
+        "20": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "長野県"
+                }
+              }
+            }
+          ]
+        },
+        "21": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "岐阜県"
+                }
+              }
+            }
+          ]
+        },
+        "22": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "静岡県"
+                }
+              }
+            }
+          ]
+        },
+        "23": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "愛知県"
+                }
+              }
+            }
+          ]
+        },
+        "24": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "三重県"
+                }
+              }
+            }
+          ]
+        },
+        "25": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "滋賀県"
+                }
+              }
+            }
+          ]
+        },
+        "26": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "京都府"
+                }
+              }
+            }
+          ]
+        },
+        "27": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "大阪府"
+                }
+              }
+            }
+          ]
+        },
+        "28": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "兵庫県"
+                }
+              }
+            }
+          ]
+        },
+        "29": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "奈良県"
+                }
+              }
+            }
+          ]
+        },
+        "30": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "和歌山県"
+                }
+              }
+            }
+          ]
+        },
+        "31": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "鳥取県"
+                }
+              }
+            }
+          ]
+        },
+        "32": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "島根県"
+                }
+              }
+            }
+          ]
+        },
+        "33": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "岡山県"
+                }
+              }
+            }
+          ]
+        },
+        "34": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "広島県"
+                }
+              }
+            }
+          ]
+        },
+        "35": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "山口県"
+                }
+              }
+            }
+          ]
+        },
+        "36": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "徳島県"
+                }
+              }
+            }
+          ]
+        },
+        "37": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "香川県"
+                }
+              }
+            }
+          ]
+        },
+        "38": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "愛媛県"
+                }
+              }
+            }
+          ]
+        },
+        "39": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "高知県"
+                }
+              }
+            }
+          ]
+        },
+        "40": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "福岡県"
+                }
+              }
+            }
+          ]
+        },
+        "41": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "佐賀県"
+                }
+              }
+            }
+          ]
+        },
+        "42": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "長崎県"
+                }
+              }
+            }
+          ]
+        },
+        "43": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "熊本県"
+                }
+              }
+            }
+          ]
+        },
+        "44": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "大分県"
+                }
+              }
+            }
+          ]
+        },
+        "45": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "宮崎県"
+                }
+              }
+            }
+          ]
+        },
+        "46": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "鹿児島県"
+                }
+              }
+            }
+          ]
+        },
+        "47": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/region"
+            },
+            {
+              "properties": {
+                "name": {
+                  "const": "沖縄県"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "name",
+        "official_page_url",
+        "documentation_checked_on",
+        "acquisition",
+        "vertical_reference",
+        "usage",
+        "pipeline",
+        "approval_ref"
+      ],
+      "properties": {
+        "provider": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "name"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "official_page_url": {
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "documentation_checked_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "acquisition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "method",
+            "url_template",
+            "zoom",
+            "tiles"
+          ],
+          "properties": {
+            "method": {
+              "const": "xyz_png"
+            },
+            "url_template": {
+              "type": "string",
+              "pattern": "^https://[^\\s?#]+/\\{z\\}/\\{x\\}/\\{y\\}\\.png$"
+            },
+            "zoom": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "tiles": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "x",
+                      "y"
+                    ],
+                    "properties": {
+                      "x": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "y": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "vertical_reference": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "usage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "terms_url",
+            "attribution_text",
+            "review_ref"
+          ],
+          "properties": {
+            "terms_url": {
+              "type": "string",
+              "format": "uri",
+              "pattern": "^https://"
+            },
+            "attribution_text": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "review_ref": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          }
+        },
+        "pipeline": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "version"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "version": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "approval_ref": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "approval_ref": {
+                "type": "string"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "vertical_reference": {
+                "type": "string",
+                "minLength": 1
+              },
+              "pipeline": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "version": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "usage": {
+                "properties": {
+                  "attribution_text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "review_ref": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "acquisition": {
+                "properties": {
+                  "tiles": {
+                    "type": "array",
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "region": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "targeted",
+        "source_refs"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targeted": {
+          "type": "boolean"
+        },
+        "source_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "targeted": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "source_refs": {
+                "minItems": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "source_refs": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
