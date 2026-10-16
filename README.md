@@ -18,6 +18,8 @@ HereRiskは、現在地の災害リスクを調べ、
 - [MVP 0 標高API詳細契約案 v0.1](docs/api/elevation-contract-v0.1.md)
 - [データソース定義・全国対応設計 v0.1](docs/architecture/data-source-definition-v0.1.md)
 
+- [Phase 1-A Download / Acquisition Record実装契約案 v0.1](docs/pipeline/elevation-download-contract-v0.1.md)
+
 ## 開発方針
 
 - UNIX哲学
