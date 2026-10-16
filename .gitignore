@@ -23,3 +23,4 @@ coverage/
 /env/**/*.local.*
 /env/**/*.secret
 /env/**/*.secret.*
+*.egg-info/

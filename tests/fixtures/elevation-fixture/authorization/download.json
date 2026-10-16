@@ -1,0 +1,28 @@
+{
+  "authorization_ref": "fixture-auth-elevation-download",
+  "execution_context": "fixture",
+  "api_id": "elevation",
+  "operation": "download",
+  "grants": [
+    {
+      "source_ref": "fixture-dem-png-tokyo",
+      "region_codes": [
+        "13"
+      ],
+      "definition_raw_sha256": "8e1b2b81d5123db90451e822aae19d54fc75f9cc40da1d5236509ed782816e0a"
+    },
+    {
+      "source_ref": "fixture-dem-png-osaka",
+      "region_codes": [
+        "27"
+      ],
+      "definition_raw_sha256": "8e1b2b81d5123db90451e822aae19d54fc75f9cc40da1d5236509ed782816e0a"
+    }
+  ],
+  "policy": {
+    "policy_id": "fixture-download-policy",
+    "version": "0.1",
+    "max_tile_bytes": 1048576,
+    "max_tiles_per_request": 16
+  }
+}

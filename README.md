@@ -19,6 +19,7 @@ HereRiskは、現在地の災害リスクを調べ、
 - [データソース定義・全国対応設計 v0.1](docs/architecture/data-source-definition-v0.1.md)
 
 - [Phase 1-A Download / Acquisition Record実装契約案 v0.1](docs/pipeline/elevation-download-contract-v0.1.md)
+- [Phase 1-A.1 Download Fixture MVP 使い方](docs/development/phase1a1-download-fixture-usage.md)（[検証サマリー](reviews/phase1/phase1a1-elevation-download-fixture-mvp.md)）
 
 ## 開発方針
 
