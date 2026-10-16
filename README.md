@@ -15,6 +15,7 @@ HereRiskは、現在地の災害リスクを調べ、
 - [Data Publish設計書 v0.1](docs/architecture/data-publish-v0.1.md)
 - [基本アーキテクチャ設計書 v0.1](docs/architecture/basic-architecture-v0.1.md)
 - [Common Hazard API契約書 v0.1](docs/api/common-contract-v0.1.md)
+- [MVP 0 標高API詳細契約案 v0.1](docs/api/elevation-contract-v0.1.md)
 
 ## 開発方針
 
