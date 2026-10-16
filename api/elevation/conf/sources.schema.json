@@ -13,7 +13,7 @@
   ],
   "properties": {
     "$schema": {
-      "const": "./elevation.schema.json"
+      "const": "./sources.schema.json"
     },
     "schema_version": {
       "const": "0.1"

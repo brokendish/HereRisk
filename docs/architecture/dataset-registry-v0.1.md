@@ -21,7 +21,7 @@ OWNERが共有した既存フィールド一覧を初期ドラフトとして反
 | Download / Normalize / Validate | 取得・正規化・検証を行う。公開Registryを変更しない |
 | Hazard API | 公開Registryを読み取り専用で参照し、実データに基づき評価する。Registryを書き換えない |
 | common / Dataset Selector | 明確な契約を通じて地域・対象範囲・災害種別等から選択する。判定処理や公開管理の責務を引き取らない |
-| `conf/pipelines/`（将来） | パイプラインの処理定義を管理する。今回ディレクトリ・設定を作成しない |
+| API固有conf / conf/common（将来） | パイプラインの処理定義を管理する。今回ディレクトリ・設定を作成しない |
 
 公開失敗時は旧Registryと旧公開データを維持する。取得元、取得方式、処理方法、公開データの参照を区別し、互いを追跡可能にする。Coverageは都道府県をまたぐ収録範囲を許容する。
 
@@ -142,7 +142,7 @@ Dataset共通のパスは `datasets[]` 内を基点とする。Identityのid/nam
 
 旧案は検討経緯として保持し、現在の必須フィールドへ追加しない。原則として処理識別を `pipeline.id` と `pipeline.version` に集約する。pipeline.nameは表示用とする。
 
-Registryには実行コード、コマンド、処理手順の定義を埋め込まない。将来の `conf/pipelines/` が実行定義を管理し、Registryはどの処理を使ったかを記録する。定義の詳細形式はUNDECIDED。取得パラメータは取得条件の記録であり、実行定義の複製にしない。
+Registryには実行コード、コマンド、処理手順の定義を埋め込まない。将来の `api/<api>/conf/` または `conf/common/` が責務に応じて実行定義を管理し、Registryはどの処理を使ったかを記録する。定義の詳細形式はUNDECIDED。取得パラメータは取得条件の記録であり、実行定義の複製にしない。
 
 出典表記や利用条件を確認できないデータに無条件で公開資格を与えない。attributionが条件付き必須であることは、この確認の省略を認めない。
 
@@ -261,3 +261,9 @@ Registryから取得元・取得方式・実際に使用した `pipeline.id` と
 - PROVISIONALな取得方式分類・追加パラメータ、Transformation領域の独立性、パイプライン定義の詳細形式、旧処理・入力・設定の再現条件と保持方式。
 
 以上は未決定のまま管理し、実装着手前に必要な範囲をレビュー・承認する。
+
+## API独立性との接続（2026-10-16契約改訂）
+
+Source Definitionは各 `api/<api>/conf/sources.json` に配置し、共通Configuration Managerでスコープ付き解決を行う。公開Registryのフィールド・公開資格は変更しない。APIは原則自APIの公開データのみ読み取り、他APIの内部Registry・実体を直接参照しない。共通管理処理は認可されたAPI領域に限って処理する。
+
+公開実体は論理領域 `/data/<api>/rel/versions/`、取得・処理証跡は `/data/<api>/records/` の責務に属する。Registryの物理配置は未決定。API識別・公開版・実体と証跡の対応をバックアップ・復元でも維持し、ディレクトリ名やSource Definitionから公開状態を決めない。Publishのみ更新、Generation/Restoreは直接更新しない原則を維持する。

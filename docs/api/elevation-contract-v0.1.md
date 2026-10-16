@@ -192,12 +192,12 @@ pixel_x = ix mod 256; pixel_y = iy mod 256
 | Configuration Manager | 共通入口で設定検証・有効値解決。要求開始時の値を処理中固定 |
 | Publish・管理 | APIから呼ばない。データ準備の別経路、認証・認可された操作に限定 |
 
-設定の階層はconfの定義・デフォルト、Data Managerの永続運用値、許可済みリクエスト値。MVP 0のリクエスト上書き許可項目は空集合という案にする。管理画面・運用値の保存基盤は先行実装せず、MVP 0はconf値のみを共通入口で解決する案。運用値を追加する場合も既存の型・範囲・権限検証、履歴、デフォルト復帰要件を満たす。
+設定の階層はconf/commonとapi/elevation/confの責務別定義・デフォルト、Data Managerの永続運用値、許可済みリクエスト値。MVP 0のリクエスト上書き許可項目は空集合という案にする。管理画面・運用値の保存基盤は先行実装せず、MVP 0はconf値のみを共通入口で解決する案。運用値を追加する場合も既存の型・範囲・権限検証、履歴、デフォルト復帰要件を満たす。
 
 | 最小設定候補 | 値・型の提案 | 管理・API変更 |
 |---|---|---|
-| request_body_max_bytes | integer、1024、許容256～4096 | conf定義。MVP 0で管理/API上書きなし |
-| evaluation_timeout_ms | integer、3000、許容100～10000 | conf定義。要求開始時固定。期限超過は503。値の妥当性は後続負荷試験 |
+| request_body_max_bytes | integer、1024、許容256～4096 | api/elevation/conf定義。MVP 0で管理/API上書きなし |
+| evaluation_timeout_ms | integer、3000、許容100～10000 | api/elevation/conf定義。要求開始時固定。期限超過は503。値の妥当性は後続負荷試験 |
 | 公開Registry参照先・公開データroot | 環境ごとの検証済み内部参照 | env管理、一般API・管理画面から変更不可 |
 | ログ収集先等 | 環境依存 | env管理。秘密情報をconf・Registryへ埋め込まない |
 
@@ -532,3 +532,9 @@ PROVISIONAL: API側はサーバー生成のランダムなrequest_idを内部ロ
 | O09 | 根拠応答 | datasetの必須情報、元データ日null、失敗時の信頼条件 | 不明な情報を捏造しない |
 
 O01～O09はUNDECIDED（提案の採否待ち）。採用案の承認とデータ準備を終えれば、第3～10節を実装・テストに使える。全国拡張時の複数ソース優先順位、正式な公開単位、元データ日、外部APIアダプター、無停止更新等は後続判断とし、MVP 0で先行実装しない。
+
+## 設定配置・データ領域の改訂（2026-10-16）
+
+標高固有定義は `api/elevation/conf/`、共有定義は `conf/common/` に分離する。共通Configuration ManagerにAPI識別子・設定種別を渡して解決し、他APIの設定・データへの直接依存を作らない。詳細は[基本アーキテクチャ](../architecture/basic-architecture-v0.1.md)に従う。
+
+標高公開APIは原則 `/data/elevation/rel/versions/` 内の公開Registryが指す実体のみを読み、dl/work/recordsを評価根拠として参照しない。共通管理処理は認可された対象領域だけを扱う。取得設定のAPI配下配置は公開APIへのDownload・Validate・Publish実行権限を意味しない。物理保存先はenvで切り替え、Docker実装は未決定。HTTP・JSON応答・MVP 0範囲・未承認の取得条件を本改訂では変更しない。

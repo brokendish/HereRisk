@@ -1,5 +1,5 @@
 {
-  "$schema": "./elevation.schema.json",
+  "$schema": "./sources.schema.json",
   "schema_version": "0.1",
   "definition_revision": "draft-1",
   "hazard": "elevation",

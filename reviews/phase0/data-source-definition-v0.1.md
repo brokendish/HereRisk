@@ -14,8 +14,8 @@
 
 ## Changes
 
-- [Source Definition](../../conf/sources/elevation.json)：47都道府県を登録。13のみtargeted=true、46件はfalse/空参照。
-- [JSON Schema](../../conf/sources/elevation.schema.json)：Draft 2020-12。型・47コード/名称・候補null・承認参照記入時の必須条件を機械検証するため追加。
+- [Source Definition](../../api/elevation/conf/sources.json)：47都道府県を登録。13のみtargeted=true、46件はfalse/空参照。
+- [JSON Schema](../../api/elevation/conf/sources.schema.json)：Draft 2020-12。型・47コード/名称・候補null・承認参照記入時の必須条件を機械検証するため追加。
 - [設計書](../../docs/architecture/data-source-definition-v0.1.md)：3正本の分離、取得記録、共通Orchestrator、設定・公開境界、検証仕様とOWNER判断を整理。
 - [README](../../README.md)：設計書リンク追加。
 - 本レビューと同一Task IDの非公開報告書を作成。
@@ -50,3 +50,5 @@ jsonschema 4.23.0をリポジトリ外の一時環境へ導入して検証した
 ## Conclusion
 
 文書・初期設定の静的自己確認はPASS WITH FINDINGS。次工程では本文U01～U08を判断し、取得条件と実行契約を具体化する。実ダウンロード・実装は行っていない。OWNERの共有許可に基づき、本記録を含む設定・文書変更をcommit・pushする。
+
+移動注記（2026-10-16）：API独立性契約改訂に伴い成果物リンクのみ現配置へ更新。上記の当時の検証結果・対象コミットを再検証結果へ読み替えない。

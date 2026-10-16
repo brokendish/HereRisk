@@ -4,12 +4,12 @@
 - Date: 2026-10-16
 - Status: Draft / OWNERレビュー対象
 - 基準main: `42891811b979863f9164cf44344056eabfcacf43`（originをfetchし、HEADとorigin/mainの一致を確認）
-- 成果物: [elevation.json](../../conf/sources/elevation.json)、[最小JSON Schema](../../conf/sources/elevation.schema.json)
+- 成果物: [sources.json](../../api/elevation/conf/sources.json)、[最小JSON Schema](../../api/elevation/conf/sources.schema.json)
 - 対象: 設計、設定JSON、検証定義のみ。データ取得・パイプライン・管理画面の実装はしない。
 
 ## 1. 方針・確定度・参照
 
-**FIXED**: ハザード別のSource Definitionをconf/sourcesに置く。今回作成するデータソース定義はelevation.jsonだけとし、全国47都道府県の管理エントリを最初から用意する。将来のflood.json、tsunami.json、storm_surge.json、landslide.jsonも別ファイルとする。一つのJSONへ全ハザードを統合しない。
+**FIXED（2026-10-16契約改訂）**: Source Definitionは `api/<api>/conf/sources.json` に置く。今回存在するのは標高APIの定義とSchemaだけで、全国47都道府県の管理エントリを維持する。他ハザードも各API配下へ独立して追加し、一つのJSONへ統合しない。これはOWNER承認済みのルートconf集中管理からAPI別配置への改訂である。
 
 **FIXED**: OWNERが今回承認した標高取得方式は、国土地理院の標高PNGを事前取得してローカル保持・検証・Publishした後にAPIから参照する方式。毎リクエストの外部標高API直接利用は採用しない。東京都だけをMVP 0の取得対象に選定する。
 
@@ -43,7 +43,7 @@
 
 | パス | 型・意味 | 初期値・制約 |
 |---|---|---|
-| $schema | string、ローカルSchemaへの参照 | ./elevation.schema.json。JSON Schema自身のdialect URIとは別 |
+| $schema | string、ローカルSchemaへの参照 | ./sources.schema.json。JSON Schema自身のdialect URIとは別 |
 | schema_version | string、Source Definition契約版 | 0.1。Registry/API/処理版とは別 |
 | definition_revision | 非空string、設定内容の版ラベル | draft-1。内容変更時に更新、再現性には内容スナップショットとhashも使う |
 | hazard | string | elevation。将来の別ハザードは専用JSON・必要なSchemaで定義 |
@@ -110,7 +110,7 @@ Schemaは東京だけを特別扱いしない。「初期ファイルは13だけ
 
 ### 5.2 設定階層
 
-confのDefinitionは既定の取得定義。Data Managerの永続運用変更値は別保管とし、confファイルを書き換える運用UIとはしない。一般APIから本定義・取得元・公開状態・Registry参照先・認証情報は変更不可。環境固有の保存root、認証情報、ネットワーク制約はenvの責務とする。
+api/<api>/confのDefinitionは当該APIの既定の取得定義。共通設定はconf/commonへ分離し、共通Configuration ManagerがAPI識別付きで解決する。Data Managerの永続運用変更値は別保管とし、confファイルを書き換える運用UIとはしない。一般APIから本定義・取得元・公開状態・Registry参照先・認証情報は変更不可。環境固有の保存root、認証情報、ネットワーク制約はenvの責務とする。
 
 MVP 0の案では、運用上書きと一般API個別設定の許可項目は空集合。管理側の実行要求は既存の地域コード/取得設定IDを選ぶだけで、URL・タイル条件・処理コマンドを渡して変更できない。将来の上書きは項目ごとの型・範囲・権限と履歴、既定値復帰を定義してから追加する。
 
@@ -151,11 +151,11 @@ flowchart TD
 
 共通Pipeline Execution Contractの8原則を継承する。実行結果と構造化ログはrun_idで対応付け、INFO/WARNING/ERRORをsyslog/journaldで追えることを要件とする。ログの有無やWARNINGで成功を判定しない。利用者の詳細位置・認証情報・秘密情報は記録しない。固定取得タイル座標は取得記録の業務メタデータであり、利用者リクエスト位置の保存ではない。
 
-将来の管理画面も同じOrchestratorへ操作依頼し、専用Downloaderを作らない。JSONに実行コマンド・コード・任意モジュールパスは格納しない。pipeline.id/versionは将来conf/pipelines等で管理する承認済み処理定義の参照であり、今回その定義や架空の実行IDを作成しない。
+将来の管理画面も同じOrchestratorへ操作依頼し、専用Downloaderを作らない。JSONに実行コマンド・コード・任意モジュールパスは格納しない。pipeline.id/versionは将来API固有confまたは共通confで責務別に管理する承認済み処理定義の参照であり、今回その定義や架空の実行IDを作成しない。
 
 ## 7. Acquisition Record設計案
 
-保存候補は環境設定で指定する非公開のデータ運用root下 `acquisitions/<run_id>/<acquisition_id>.json`。これは配置案であり、ディレクトリ・ストア・実行履歴は今回作成しない。conf、公開Registry、AI用workspaceに履歴を蓄積しない。
+保存候補はAPI別の論理領域 `/data/<api>/records/` 下の `acquisitions/<run_id>/<acquisition_id>.json`。Mac/VPSの物理rootは環境設定で解決する。これは配置案であり、ディレクトリ・ストア・実行履歴は今回作成しない。conf、公開Registry、AI用workspaceに履歴を蓄積しない。
 
 一取得実体（初期は一PNG）ごとの確定レコードを追加保存する案。取得失敗の試行は別の実行結果で追跡し、未取得なのにsha256/size/取得日時を生成しない。正常取得済みだが後段Validate失敗のRecordは削除・成功へ書換えない。
 
@@ -217,11 +217,11 @@ def strict_object(pairs):
 def invalid_constant(value):
     raise ValueError("non-JSON constant: " + value)
 
-root = Path("conf/sources")
-definition = json.loads((root / "elevation.json").read_text(),
+root = Path("api/elevation/conf")
+definition = json.loads((root / "sources.json").read_text(),
                         object_pairs_hook=strict_object,
                         parse_constant=invalid_constant)
-schema = json.loads((root / "elevation.schema.json").read_text(),
+schema = json.loads((root / "sources.schema.json").read_text(),
                     object_pairs_hook=strict_object,
                     parse_constant=invalid_constant)
 Draft202012Validator.check_schema(schema)
@@ -271,7 +271,7 @@ S09の成功は他県の実データ取得成功でも実行許可でもない�
 
 | 参照 | 整合と差異 |
 |---|---|
-| Charter・基本アーキテクチャ | 全国設計／東京検証、conf/env、設定固定、common責務、MVP 0を維持。新規conf/sourcesは今回OWNER指示で許可された配置 |
+| Charter・基本アーキテクチャ | 全国設計／東京検証、conf/env、設定固定、common責務、MVP 0を維持。API固有confへの移動はOWNER承認済みの契約改訂。設定発見・解決は共通基盤の責務 |
 | Registry | Source Definitionは別契約。管理地域≠Coverage、実行履歴非格納、公開資格・処理版追跡を維持 |
 | Publish | Orchestratorのみ順序制御、SUCCESSのみ進行、唯一の公開更新、世代・復元分離を維持 |
 | 共通API | 公開Registryと実体だけを参照。Source Definitionを公開可否やno_dataの直接の根拠にしない |
@@ -295,3 +295,11 @@ S09の成功は他県の実データ取得成功でも実行許可でもない�
 | U08 | 将来の複数提供元・地域横断データ重複、地域別参照分割、管理画面の運用変更項目 |
 
 今回確定したローカル公開方式と全国構造を次工程の最小データパイプライン実装設計へ渡す。未準備の東京候補を勝手に実行可能にせず、未決定事項を承認してから対象JSON・処理定義を具体化する。
+
+## API独立性改訂の適用（2026-10-16）
+
+`api-isolation-contract-revision-v0.1` により設定配置を改訂した。共通Configuration Managerのスコープ付き発見・解決規則とAPI別権限は[基本アーキテクチャ](basic-architecture-v0.1.md)に従う。本書の静的検証スニペット中のパスは検証対象を指定するもので、APIコードに独自ローダーを追加する規約ではない。
+
+元DLは `/data/elevation/dl/current/` と `dl/archive/`、作業候補は `work/`、公開実体は `rel/versions/`、Recordは `records/` の論理領域へ分離する。物理rootはenvで解決する。DLの原則3世代と公開の原則3世代を別管理し、取得実績・設定版・処理証跡を対応させる。実行中参照を保護し、復元候補の公開はPublishを経由する。
+
+47都道府県、13のみtargeted、候補条件・null・承認保留は変更していない。DefinitionをAPI配下へ置いても、公開APIがDownloadやPublishを実行できるようにはしない。Schema参照の移動によって原文hashは変わるため、将来の取得記録は実際に使用した移動後の原文hashを記録する。既存取得実績を遡及改変しない。definition_revisionは取得条件を変更していないためdraft-1を維持し、版ラベルだけで内容同一性を判断しない。
