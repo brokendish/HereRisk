@@ -5,8 +5,10 @@ single placement rule, validates it, and returns an immutable snapshot.
 
 Implemented now:
   * identifier allow-list (no arbitrary paths, no cross-API lookup)
+  * bounded reads of regular files (no symlink at the final component)
   * strict JSON parsing (UTF-8, duplicate keys and NaN/Infinity rejected)
-  * JSON Schema (Draft 2020-12 + FormatChecker) validation
+  * JSON Schema (Draft 2020-12 + FormatChecker) validation; only local ``#...``
+    references are allowed and nothing is ever retrieved (no network)
   * semantic checks for Source Definitions (region <-> source_ref consistency)
   * immutable snapshot holding the exact raw bytes and their SHA-256
 
@@ -18,13 +20,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Callable, Mapping
+from urllib.parse import urlsplit
 
 import jsonschema
+from referencing import Registry
 
 # Allowed configuration identifiers. Adding an API = adding an entry here plus
 # the files under api/<api_id>/conf/. Format of this list is UNDECIDED upstream.
@@ -32,6 +38,10 @@ KNOWN_CONFIGS: frozenset[tuple[str, str, str]] = frozenset({("api", "elevation",
 
 _ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 PREFECTURE_CODES: tuple[str, ...] = tuple(f"{i:02d}" for i in range(1, 48))
+
+# Upper bound for any configuration / schema / authorization file (bytes).
+MAX_CONFIG_BYTES = 1024 * 1024
+_REF_KEYS = ("$ref", "$dynamicRef")
 
 
 class ConfigurationError(Exception):
@@ -89,21 +99,102 @@ def thaw(value: Any) -> Any:
     return value
 
 
+def read_limited(path: Path, max_bytes: int = MAX_CONFIG_BYTES) -> bytes:
+    """Read a regular file (final component not a symlink) of at most ``max_bytes``."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    except OSError as exc:
+        raise ConfigurationError("configuration file unreadable") from exc
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode):
+            raise ConfigurationError("configuration file is not a regular file")
+        if st.st_size > max_bytes:
+            raise ConfigurationError("configuration file too large")
+        data = os.read(fd, max_bytes + 1)
+        if len(data) > max_bytes:
+            raise ConfigurationError("configuration file too large")
+        return data
+    except OSError as exc:
+        raise ConfigurationError("configuration file unreadable") from exc
+    finally:
+        os.close(fd)
+
+
+def _check_local_refs(node: Any) -> None:
+    """Allow only same-document references; forbid base-URI changes."""
+    if isinstance(node, Mapping):
+        for key, value in node.items():
+            if key in _REF_KEYS and not (isinstance(value, str) and value.startswith("#")):
+                raise ConfigurationError("non-local schema reference")
+            if key == "$id":
+                raise ConfigurationError("schema $id not allowed")
+            _check_local_refs(value)
+    elif isinstance(node, (list, tuple)):
+        for value in node:
+            _check_local_refs(value)
+
+
+def _deny_retrieve(uri: str) -> Any:
+    raise ConfigurationError("schema retrieval disabled")
+
+
+# Empty registry whose retrieval always fails: jsonschema never fetches a URI.
+_NO_RETRIEVAL = Registry(retrieve=_deny_retrieve)  # type: ignore[call-arg]
+
+
 def validate_with_schema(data: Any, schema: Mapping[str, Any]) -> None:
+    _check_local_refs(schema)
     validator_cls = jsonschema.Draft202012Validator
-    validator_cls.check_schema(schema)
-    validator = validator_cls(schema, format_checker=jsonschema.FormatChecker())
-    errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+    try:
+        validator_cls.check_schema(schema)
+        validator = validator_cls(
+            schema, format_checker=jsonschema.FormatChecker(), registry=_NO_RETRIEVAL
+        )
+        errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
+    except ConfigurationError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - unresolvable refs, bad schema
+        raise ConfigurationError("schema unusable") from exc
     if errors:
         raise ConfigurationError(f"schema violation at {list(errors[0].absolute_path)}")
 
 
+def assert_persistable(value: Any) -> None:
+    """Refuse values that must not be written to snapshots or records.
+
+    Every string that looks like a URL must be ``https`` with no userinfo,
+    query, fragment or explicit port. The offending value is never echoed.
+    """
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            assert_persistable(key)
+            assert_persistable(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            assert_persistable(item)
+    elif isinstance(value, str) and ("://" in value or value.lower().startswith(("http:", "https:"))):
+        try:
+            parts = urlsplit(value)
+            port = parts.port
+        except ValueError as exc:
+            raise ConfigurationError("URL not persistable") from exc
+        if (
+            parts.scheme != "https"
+            or not parts.hostname
+            or "@" in parts.netloc
+            or port is not None
+            or parts.query
+            or parts.fragment
+            or "?" in value
+            or "#" in value
+        ):
+            raise ConfigurationError("URL not persistable")
+
+
 def load_validated_json(path: Path, schema: Mapping[str, Any]) -> tuple[bytes, Any]:
-    """Shared primitive: read bytes, strict-parse, schema-validate."""
-    try:
-        raw = path.read_bytes()
-    except OSError as exc:
-        raise ConfigurationError("configuration file unreadable") from exc
+    """Shared primitive: bounded read, strict-parse, schema-validate."""
+    raw = read_limited(path)
     data = parse_strict_json(raw)
     validate_with_schema(data, schema)
     return raw, data
@@ -172,14 +263,13 @@ class ConfigurationManager:
     def load(self, scope: str, api_id: str, kind: str) -> ConfigSnapshot:
         self._check_identifier(scope, api_id, kind)
         schema_path = self.schema_root / self._relative(api_id, kind, ".schema.json")
-        try:
-            schema = parse_strict_json(schema_path.read_bytes())
-        except OSError as exc:
-            raise ConfigurationError("schema unreadable") from exc
+        schema = parse_strict_json(read_limited(schema_path))
         raw, data = load_validated_json(self.definition_path(scope, api_id, kind), schema)
         semantic = SEMANTIC_VALIDATORS.get(kind)
         if semantic is not None:
             semantic(api_id, data)
+        # Definitions are persisted verbatim in run snapshots: refuse secrets now.
+        assert_persistable(data)
         return ConfigSnapshot(
             scope=scope,
             api_id=api_id,

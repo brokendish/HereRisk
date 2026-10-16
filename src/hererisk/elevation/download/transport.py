@@ -7,7 +7,9 @@ network policy (contract section 7) is approved.
 
 from __future__ import annotations
 
+import os
 import re
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Protocol
@@ -75,17 +77,33 @@ class FixtureTransport:
         if match is None:
             raise PipelineError("INVALID_CONFIGURATION", "URL is not a fixture URL")
         layer, z, x, y = match.groups()
-        path = self._root / layer / z / x / f"{y}.png"
-        if path.is_symlink() or not path.resolve().is_relative_to(self._root):
-            raise PipelineError("HTTP_404", "fixture outside root")
+        # Walk from the fixture root fd without following symlinks at any level,
+        # then take the size from the opened fd (no stat/open race).
+        dir_flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+        fd = -1
         try:
-            size = path.stat().st_size
-            handle = path.open("rb")
+            fd = os.open(self._root, dir_flags)
+            for part in (layer, z, x):
+                child = os.open(part, dir_flags, dir_fd=fd)
+                os.close(fd)
+                fd = child
+            file_fd = os.open(
+                f"{y}.png", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC, dir_fd=fd
+            )
         except FileNotFoundError as exc:
             # The fixture equivalent of "source object not found".
             raise PipelineError("HTTP_404", "fixture missing") from exc
-        except OSError as exc:
-            raise PipelineError("TRANSFER_INTERRUPTED", "fixture unreadable") from exc
+        except OSError as exc:  # symlink, non-directory, permission ...
+            raise PipelineError("HTTP_404", "fixture not servable") from exc
+        finally:
+            if fd >= 0:
+                os.close(fd)
+        st = os.fstat(file_fd)
+        if not stat.S_ISREG(st.st_mode):
+            os.close(file_fd)
+            raise PipelineError("HTTP_404", "fixture not a regular file")
+        size = st.st_size
+        handle = os.fdopen(file_fd, "rb")
         return TransportResponse(
             effective_url=url,
             content_type="image/png",

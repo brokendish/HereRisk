@@ -6,9 +6,10 @@ Records are append-only: written once under a new name, never replaced.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any, Mapping
 
-from hererisk.common.config import validate_with_schema
+from hererisk.common.config import ConfigurationError, validate_with_schema
 
 RECORD_SCHEMA_VERSION = "0.1"
 MARKER_SCHEMA_VERSION = "0.1"
@@ -121,6 +122,11 @@ def to_bytes(document: Mapping[str, Any]) -> bytes:
 
 def validate_record(record: Mapping[str, Any]) -> None:
     validate_with_schema(record, RECORD_SCHEMA)
+    # The pattern only constrains shape; the timestamp must also be a real date/time.
+    try:
+        datetime.strptime(record["acquired_at"], "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError as exc:
+        raise ConfigurationError("acquired_at is not a valid UTC timestamp") from exc
 
 
 def validate_marker(marker: Mapping[str, Any]) -> None:

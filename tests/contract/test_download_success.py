@@ -8,8 +8,7 @@ from datetime import datetime, timezone
 
 import fixture_builder as fb
 from hererisk.common.result import Status
-from hererisk.elevation.download.download import ElevationDownload, verify_commit
-from hererisk.common.storage import ApiDataArea
+from hererisk.elevation.download.download import ElevationDownload
 
 
 def test_fixture_download_success(harness) -> None:
@@ -65,10 +64,13 @@ def test_fixture_download_success(harness) -> None:
         assert record["source_definition"]["raw_sha256"] == hashlib.sha256(source_raw).hexdigest()
         assert json.loads(effective)["execution_context"] == "fixture"
 
-        verify_commit(ApiDataArea(harness.data_root, "elevation"), result.run_id, art.acquisition_id)
-
     # No uncommitted leftovers after success.
     assert list((root / "work/download").rglob("*.part")) == []
+    # Full semantic re-verification of the committed set (resume path), no transfer.
+    harness.transport.requested_urls.clear()
+    again = harness.run(resume=result.run_id)
+    assert again.status is Status.SUCCESS and again.artifacts == result.artifacts
+    assert harness.transport.requested_urls == []
 
 
 def test_injected_ids_and_clock_propagate(harness) -> None:

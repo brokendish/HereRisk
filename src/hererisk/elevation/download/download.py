@@ -3,12 +3,20 @@
 Per tile (contract 6, 確定手順案):
   1. receive bytes from the Transport into ``work/download/<run>/<acq>/original.part``
   2. confirm complete receipt (length, size limit), flush + fsync
-  3. re-read the part file and compare size / SHA-256 with the streamed values
+  3. re-read the part file (bounded) and compare size / SHA-256 with the streamed values
   4. check the PNG container
   5. finalise to ``work/acquisitions/<run>/<acq>/original.png`` (same-FS, no-clobber)
   6. commit the Acquisition Record ``records/acquisitions/<run>/<acq>.json``
   7. commit the marker ``records/commits/<acq>.json``
-  8. re-verify marker <-> record <-> artifact before counting the tile as done
+  8. verify marker <-> record <-> artifact <-> fixed plan before counting the tile
+
+Verification (step 8 and resume) rebuilds the Record expected from the fixed
+plan (definition hash, effective configuration, source, URL, tile, regions,
+pipeline, usage) and requires an exact match; only ``acquired_at`` comes from
+the Record and must be a valid UTC timestamp. Hashes detect accidental or
+partial corruption; they do NOT authenticate. Anyone able to write the API's
+``records`` and ``work`` areas can forge a consistent set, so those areas must
+be writable only by the pipeline management user (see usage doc, trust model).
 
 SUCCESS only when every requested tile passed step 8. Download never touches
 ``dl/``, ``rel/`` or any Registry and never invokes a later stage.
@@ -19,7 +27,7 @@ from __future__ import annotations
 import hashlib
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Callable, Mapping
+from typing import Any, Callable
 from urllib.parse import urlsplit
 
 from hererisk.common.config import ConfigurationError, parse_strict_json, thaw
@@ -44,6 +52,12 @@ TILE_COLOR_TYPE = 2  # truecolour RGB
 PART_NAME = "original.part"
 ARTIFACT_NAME = "original.png"
 
+# Read limits for committed evidence (bytes). Records are ~2 KiB, markers ~0.5 KiB.
+MAX_RECORD_BYTES = 64 * 1024
+MAX_MARKER_BYTES = 16 * 1024
+
+TileKey = tuple[int, int, int]
+
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -55,6 +69,11 @@ def _rfc3339(moment: datetime) -> str:
 
 def tile_url(template: str, z: int, x: int, y: int) -> str:
     return template.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+
+
+def plan_tiles(plan: DownloadPlan) -> list[TileKey]:
+    acquisition = plan.source["acquisition"]
+    return sorted((acquisition["zoom"], t["x"], t["y"]) for t in acquisition["tiles"])
 
 
 class ElevationDownload:
@@ -114,12 +133,12 @@ class ElevationDownload:
     ) -> ModuleResult:
         log = logger.bind(module=MODULE)
         # Artifacts are always reported in tile order, reused or newly acquired.
-        committed: dict[tuple[int, int, int], Artifact] = {}
-        acquisition = plan.source["acquisition"]
-        keys = sorted((acquisition["zoom"], t["x"], t["y"]) for t in acquisition["tiles"])
+        committed: dict[TileKey, Artifact] = {}
+        keys = plan_tiles(plan)
         try:
             if plan.resume:
-                committed.update(self._inspect_existing(plan, area))
+                committed.update(reconcile_run(area, plan))
+            check_pending_limit(area, plan)
             for key in keys:
                 if key in committed:
                     continue
@@ -179,7 +198,7 @@ class ElevationDownload:
             raise PipelineError("TRANSFER_INTERRUPTED", "length mismatch")
         sha256 = hasher.hexdigest()
 
-        stored = area.read_bytes(part)
+        stored = area.read_bytes(part, max_bytes)
         if len(stored) != size or hashlib.sha256(stored).hexdigest() != sha256:
             raise PipelineError("STORAGE_INTEGRITY_FAILED", "re-read mismatch")
         check_png(
@@ -190,202 +209,230 @@ class ElevationDownload:
             color_type=TILE_COLOR_TYPE,
         )
 
-        artifact_dir = area.path("work", "acquisitions", run_id, acquisition_id)
-        area.ensure_dir(artifact_dir)
-        artifact_path = artifact_dir / ARTIFACT_NAME
-        area.link_no_clobber(part, artifact_path)
+        artifact = area.path("work", "acquisitions", run_id, acquisition_id, ARTIFACT_NAME)
+        area.link_no_clobber(part, artifact)
         area.remove_empty_dir(download_dir)
-        final = area.read_bytes(artifact_path)
-        if len(final) != size or hashlib.sha256(final).hexdigest() != sha256:
-            raise PipelineError("STORAGE_INTEGRITY_FAILED", "final mismatch")
 
-        record = self._build_record(plan, acquisition_id, url, response.effective_url,
-                                    acquired_at, z, x, y, size, sha256)
-        record_bytes = rec.to_bytes(record)
-        record_dir = area.path("records", "acquisitions", run_id)
-        record_path = record_dir / f"{acquisition_id}.json"
-        marker_path = area.path("records", "commits", f"{acquisition_id}.json")
+        record_bytes = rec.to_bytes(build_record(plan, acquisition_id, (z, x, y), acquired_at,
+                                                 size, sha256))
+        record_loc = area.path("records", "acquisitions", run_id, f"{acquisition_id}.json")
         try:
-            area.ensure_dir(record_dir)
-            area.write_new(record_path, record_bytes)
+            area.write_new(record_loc, record_bytes)
         except StorageError as exc:
             raise PipelineError("RECORD_COMMIT_FAILED", "record") from exc
         marker = {
             "schema_version": rec.MARKER_SCHEMA_VERSION,
             "acquisition_id": acquisition_id,
-            "record_ref": area.relative(record_path, "records"),
+            "record_ref": area.relative(record_loc, "records"),
             "record_sha256": hashlib.sha256(record_bytes).hexdigest(),
-            "artifact_ref": area.relative(artifact_path, "work"),
+            "artifact_ref": area.relative(artifact, "work"),
             "artifact_sha256": sha256,
         }
         rec.validate_marker(marker)
         try:
-            area.write_new(marker_path, rec.to_bytes(marker))
+            area.write_new(area.path("records", "commits", f"{acquisition_id}.json"),
+                           rec.to_bytes(marker))
         except StorageError as exc:
             raise PipelineError("RECORD_COMMIT_FAILED", "marker") from exc
 
         try:
-            return verify_commit(area, run_id, acquisition_id)
+            artifact_entry, key = verify_commit(area, plan, acquisition_id)
         except PipelineError as exc:
             raise PipelineError("STORAGE_INTEGRITY_FAILED", "post-commit verification") from exc
-
-    @staticmethod
-    def _build_record(
-        plan: DownloadPlan,
-        acquisition_id: str,
-        requested_url: str,
-        effective_url: str,
-        acquired_at: str,
-        z: int,
-        x: int,
-        y: int,
-        size: int,
-        sha256: str,
-    ) -> dict[str, Any]:
-        source = plan.source
-        data = plan.definition.data
-        record = {
-            "record_schema_version": rec.RECORD_SCHEMA_VERSION,
-            "acquisition_id": acquisition_id,
-            "run_id": plan.run_id,
-            "api_id": plan.api_id,
-            "provider": thaw(source["provider"]),
-            "data_name": source["name"],
-            "data_type": "elevation_png",
-            "requested_url": requested_url,
-            "effective_url": effective_url,
-            "official_page_url": source["official_page_url"],
-            "acquired_at": acquired_at,
-            "management_prefectures": list(plan.region_codes),
-            "tile": {"z": z, "x": x, "y": y},
-            "size_bytes": size,
-            "sha256": sha256,
-            "source_definition": {
-                "schema_version": data["schema_version"],
-                "definition_revision": data["definition_revision"],
-                "source_ref": plan.source_ref,
-                "raw_sha256": plan.definition.raw_sha256,
-            },
-            "effective_configuration": {
-                "snapshot_ref": plan.effective_configuration_ref,
-                "sha256": plan.effective_configuration_sha256,
-            },
-            "pipeline": {"id": PIPELINE_ID, "version": PIPELINE_VERSION},
-            # Provider version / reference date are unknown for fixtures: null,
-            # never inferred from acquisition time.
-            "original_version": None,
-            "data_reference_date": None,
-            "source_metadata_evidence": None,
-            "usage_snapshot": {
-                "terms_url": source["usage"]["terms_url"],
-                "attribution_text": source["usage"]["attribution_text"],
-                "review_ref": source["usage"]["review_ref"],
-                "approval_ref": source["approval_ref"],
-            },
-        }
-        try:
-            rec.validate_record(record)
-        except ConfigurationError as exc:
-            raise PipelineError("INTERNAL_ERROR", "record failed own schema") from exc
-        return record
-
-    # -- resume ----------------------------------------------------------
-    def _inspect_existing(
-        self, plan: DownloadPlan, area: ApiDataArea
-    ) -> dict[tuple[int, int, int], Artifact]:
-        """Classify what a previous attempt of this run left behind.
-
-        Committed acquisitions (marker + record + artifact consistent) are reused
-        without transfer. Anything uncommitted or inconsistent blocks the run as
-        RECOVERY_REQUIRED; nothing is deleted or overwritten here.
-        """
-        run_id = plan.run_id
-        acquisition_ids: set[str] = set()
-        for parts in (("work", "download"), ("work", "acquisitions")):
-            directory = area.path(*parts, run_id)
-            if directory.exists():
-                acquisition_ids.update(p.name for p in directory.iterdir())
-        record_dir = area.path("records", "acquisitions", run_id)
-        if record_dir.exists():
-            for entry in record_dir.iterdir():
-                if entry.name.startswith(".") or entry.suffix != ".json":
-                    raise PipelineError("RECOVERY_REQUIRED", "unexpected record entry")
-                acquisition_ids.add(entry.stem)
-
-        done: dict[tuple[int, int, int], Artifact] = {}
-        for acquisition_id in sorted(acquisition_ids):
-            try:
-                artifact = verify_commit(area, run_id, acquisition_id)
-            except (PipelineError, StorageError) as exc:
-                raise PipelineError("RECOVERY_REQUIRED", "uncommitted artifact") from exc
-            pending = area.path("work", "download", run_id, acquisition_id)
-            if pending.exists():
-                raise PipelineError("RECOVERY_REQUIRED", "leftover part directory")
-            record = parse_strict_json(
-                area.read_bytes(area.path("records", "acquisitions", run_id, f"{acquisition_id}.json"))
-            )
-            if (
-                record["effective_configuration"]["sha256"] != plan.effective_configuration_sha256
-                or record["source_definition"]["source_ref"] != plan.source_ref
-            ):
-                raise PipelineError("RECOVERY_REQUIRED", "record from different configuration")
-            tile = record["tile"]
-            key = (tile["z"], tile["x"], tile["y"])
-            if key in done:
-                raise PipelineError("RECOVERY_REQUIRED", "duplicate acquisition for tile")
-            done[key] = artifact
-        return done
+        if key != (z, x, y):
+            raise PipelineError("STORAGE_INTEGRITY_FAILED", "post-commit tile mismatch")
+        return artifact_entry
 
 
-def verify_commit(area: ApiDataArea, run_id: str, acquisition_id: str) -> Artifact:
-    """Check marker <-> record <-> artifact consistency; raise if not committed."""
+def build_record(
+    plan: DownloadPlan,
+    acquisition_id: str,
+    tile: TileKey,
+    acquired_at: str,
+    size: int,
+    sha256: str,
+) -> dict[str, Any]:
+    """The Record fully determined by the fixed plan plus the acquisition facts."""
+    z, x, y = tile
+    source = plan.source
+    data = plan.definition.data
+    url = tile_url(source["acquisition"]["url_template"], z, x, y)
+    record = {
+        "record_schema_version": rec.RECORD_SCHEMA_VERSION,
+        "acquisition_id": acquisition_id,
+        "run_id": plan.run_id,
+        "api_id": plan.api_id,
+        "provider": thaw(source["provider"]),
+        "data_name": source["name"],
+        "data_type": "elevation_png",
+        # Redirects are rejected, so the effective URL is always the requested one.
+        "requested_url": url,
+        "effective_url": url,
+        "official_page_url": source["official_page_url"],
+        "acquired_at": acquired_at,
+        "management_prefectures": list(plan.region_codes),
+        "tile": {"z": z, "x": x, "y": y},
+        "size_bytes": size,
+        "sha256": sha256,
+        "source_definition": {
+            "schema_version": data["schema_version"],
+            "definition_revision": data["definition_revision"],
+            "source_ref": plan.source_ref,
+            "raw_sha256": plan.definition.raw_sha256,
+        },
+        "effective_configuration": {
+            "snapshot_ref": plan.effective_configuration_ref,
+            "sha256": plan.effective_configuration_sha256,
+        },
+        "pipeline": {"id": PIPELINE_ID, "version": PIPELINE_VERSION},
+        # Provider version / reference date are unknown for fixtures: null,
+        # never inferred from acquisition time.
+        "original_version": None,
+        "data_reference_date": None,
+        "source_metadata_evidence": None,
+        "usage_snapshot": {
+            "terms_url": source["usage"]["terms_url"],
+            "attribution_text": source["usage"]["attribution_text"],
+            "review_ref": source["usage"]["review_ref"],
+            "approval_ref": source["approval_ref"],
+        },
+    }
+    try:
+        rec.validate_record(record)
+    except ConfigurationError as exc:
+        raise PipelineError("INTERNAL_ERROR", "record failed own schema") from exc
+    return record
+
+
+def verify_commit(area: ApiDataArea, plan: DownloadPlan, acquisition_id: str) -> tuple[Artifact, TileKey]:
+    """Check one acquisition against marker, Record, artifact and the fixed plan.
+
+    Raises ``PipelineError("RECOVERY_REQUIRED")`` on any inconsistency.
+    """
 
     def fail(reason: str) -> PipelineError:
         return PipelineError("RECOVERY_REQUIRED", reason)
 
     try:
-        uuid.UUID(acquisition_id)
+        if str(uuid.UUID(acquisition_id)) != acquisition_id:
+            raise ValueError
     except ValueError as exc:
         raise fail("malformed acquisition id") from exc
-    marker_path = area.path("records", "commits", f"{acquisition_id}.json")
-    if not marker_path.is_file():
-        raise fail("marker missing")
+    run_id = plan.run_id
+    record_loc = area.path("records", "acquisitions", run_id, f"{acquisition_id}.json")
+    artifact_dir = area.path("work", "acquisitions", run_id, acquisition_id)
+    artifact_loc = artifact_dir / ARTIFACT_NAME
     try:
-        marker = parse_strict_json(area.read_bytes(marker_path))
+        marker = parse_strict_json(
+            area.read_bytes(area.path("records", "commits", f"{acquisition_id}.json"),
+                            MAX_MARKER_BYTES)
+        )
         rec.validate_marker(marker)
-    except ConfigurationError as exc:
-        raise fail("marker invalid") from exc
-    record_path = area.path("records", "acquisitions", run_id, f"{acquisition_id}.json")
-    artifact_path = area.path("work", "acquisitions", run_id, acquisition_id, ARTIFACT_NAME)
-    if (
-        marker["acquisition_id"] != acquisition_id
-        or marker["record_ref"] != area.relative(record_path, "records")
-        or marker["artifact_ref"] != area.relative(artifact_path, "work")
-    ):
-        raise fail("marker references mismatch")
-    record_bytes = area.read_bytes(record_path)
-    if hashlib.sha256(record_bytes).hexdigest() != marker["record_sha256"]:
-        raise fail("record hash mismatch")
-    try:
-        record: Mapping[str, Any] = parse_strict_json(record_bytes)
+        if (
+            marker["acquisition_id"] != acquisition_id
+            or marker["record_ref"] != area.relative(record_loc, "records")
+            or marker["artifact_ref"] != area.relative(artifact_loc, "work")
+        ):
+            raise fail("marker references mismatch")
+        record_bytes = area.read_bytes(record_loc, MAX_RECORD_BYTES)
+        if hashlib.sha256(record_bytes).hexdigest() != marker["record_sha256"]:
+            raise fail("record hash mismatch")
+        record = parse_strict_json(record_bytes)
         rec.validate_record(record)
-    except ConfigurationError as exc:
-        raise fail("record invalid") from exc
-    artifact = area.read_bytes(artifact_path)
-    sha256 = hashlib.sha256(artifact).hexdigest()
-    if (
-        record["acquisition_id"] != acquisition_id
-        or record["run_id"] != run_id
-        or sha256 != marker["artifact_sha256"]
-        or sha256 != record["sha256"]
-        or len(artifact) != record["size_bytes"]
-    ):
-        raise fail("artifact mismatch")
-    return Artifact(
+        tile = record["tile"]
+        key = (tile["z"], tile["x"], tile["y"])
+        if key not in plan_tiles(plan):
+            raise fail("tile not in plan")
+        if area.list_dir(artifact_dir) != [ARTIFACT_NAME]:
+            raise fail("unexpected entries beside artifact")
+        sha256, size = area.hash_file(artifact_loc, plan.authorization.policy["max_tile_bytes"])
+    except (StorageError, ConfigurationError) as exc:
+        raise fail("unreadable or invalid evidence") from exc
+    if sha256 != marker["artifact_sha256"]:
+        raise fail("artifact hash mismatch")
+    expected = build_record(plan, acquisition_id, key, record["acquired_at"], size, sha256)
+    if record != expected:
+        raise fail("record does not match the fixed plan")
+    artifact = Artifact(
         artifact_id=acquisition_id,
         acquisition_id=acquisition_id,
         record_ref=marker["record_ref"],
         sha256=sha256,
-        size_bytes=len(artifact),
+        size_bytes=size,
     )
+    return artifact, key
 
+
+def _markers_for_run(area: ApiDataArea, run_id: str) -> set[str]:
+    """All acquisition ids whose marker points into ``run_id`` (strict scan)."""
+    prefix = f"acquisitions/{run_id}/"
+    found: set[str] = set()
+    for name in area.list_dir(area.path("records", "commits")):
+        stem, dot, ext = name.rpartition(".")
+        if name.startswith(".") or not dot or ext != "json":
+            raise PipelineError("RECOVERY_REQUIRED", "unexpected entry in commits")
+        try:
+            marker = parse_strict_json(
+                area.read_bytes(area.path("records", "commits", name), MAX_MARKER_BYTES)
+            )
+            rec.validate_marker(marker)
+        except (StorageError, ConfigurationError) as exc:
+            raise PipelineError("RECOVERY_REQUIRED", "unreadable marker") from exc
+        if marker["acquisition_id"] != stem:
+            raise PipelineError("RECOVERY_REQUIRED", "marker name mismatch")
+        if marker["record_ref"].startswith(prefix) or marker["artifact_ref"].startswith(prefix):
+            found.add(stem)
+    return found
+
+
+def reconcile_run(area: ApiDataArea, plan: DownloadPlan) -> dict[TileKey, Artifact]:
+    """Verify everything a previous attempt of this run left behind.
+
+    The sets of acquisition ids found via markers, Records and artifacts must be
+    identical and fully verified; any uncommitted leftover (``.part``, Record or
+    artifact without marker, marker without Record/artifact, temp files) makes
+    the run RECOVERY_REQUIRED. Nothing is deleted, moved or overwritten here.
+    """
+    run_id = plan.run_id
+    try:
+        if area.list_dir(area.path("work", "download", run_id)):
+            raise PipelineError("RECOVERY_REQUIRED", "uncommitted part data")
+        artifact_ids = set(area.list_dir(area.path("work", "acquisitions", run_id)))
+        record_ids = set()
+        for name in area.list_dir(area.path("records", "acquisitions", run_id)):
+            stem, dot, ext = name.rpartition(".")
+            if name.startswith(".") or not dot or ext != "json":
+                raise PipelineError("RECOVERY_REQUIRED", "unexpected record entry")
+            record_ids.add(stem)
+        marker_ids = _markers_for_run(area, run_id)
+    except StorageError as exc:
+        raise PipelineError("RECOVERY_REQUIRED", "run evidence unreadable") from exc
+    if not artifact_ids == record_ids == marker_ids:
+        raise PipelineError("RECOVERY_REQUIRED", "evidence sets differ")
+
+    done: dict[TileKey, Artifact] = {}
+    for acquisition_id in sorted(marker_ids):
+        artifact, key = verify_commit(area, plan, acquisition_id)
+        if key in done:
+            raise PipelineError("RECOVERY_REQUIRED", "duplicate acquisition for tile")
+        done[key] = artifact
+    return done
+
+
+def check_pending_limit(area: ApiDataArea, plan: DownloadPlan) -> None:
+    """Block new transfers once too many uncommitted acquisitions exist (F11).
+
+    Uncommitted ``work/download/<run>/<acq>`` entries are never deleted
+    automatically; past the fixture policy's ``max_pending_acquisitions`` the
+    data root needs operator recovery (see usage doc).
+    """
+    limit = plan.authorization.policy["max_pending_acquisitions"]
+    try:
+        pending = sum(
+            len(area.list_dir(area.path("work", "download", run)))
+            for run in area.list_dir(area.path("work", "download"))
+        )
+    except StorageError as exc:
+        raise PipelineError("RECOVERY_REQUIRED", "pending area unreadable") from exc
+    if pending >= limit:
+        raise PipelineError("RECOVERY_REQUIRED", "too many uncommitted acquisitions")

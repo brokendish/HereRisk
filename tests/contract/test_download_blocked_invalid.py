@@ -10,6 +10,7 @@ from hererisk.common.config import ConfigurationManager
 from hererisk.common.logging import ListSink, StructuredLogger
 from hererisk.common.orchestrator import DownloadRequest, Orchestrator
 from hererisk.common.result import Status
+from hererisk.common.storage import FIXTURE_ROOT_MARKER
 from hererisk.elevation.download.download import ElevationDownload
 from hererisk.elevation.download.transport import FixtureTransport, UnavailableTransport
 
@@ -39,7 +40,8 @@ def test_production_definition_is_blocked(harness) -> None:
     result = orch.run_download(DownloadRequest("elevation", ("13",), "gsi-dem10b-candidate"))
     assert result.status is Status.BLOCKED and result.error_code == "APPROVAL_REQUIRED"
     assert result.exit_code == 3
-    assert harness.files() == {} and list(harness.data_root.iterdir()) == []
+    assert harness.files() == {}
+    assert [p.name for p in harness.data_root.iterdir()] == [FIXTURE_ROOT_MARKER]
 
 
 def test_fixture_approval_cannot_authorize_production_definition(harness) -> None:

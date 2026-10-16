@@ -109,12 +109,21 @@ FIXTURE_AUTHORIZATION_SCHEMA: dict[str, Any] = {
         "policy": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["policy_id", "version", "max_tile_bytes", "max_tiles_per_request"],
+            "required": [
+                "policy_id",
+                "version",
+                "max_tile_bytes",
+                "max_tiles_per_request",
+                "max_pending_acquisitions",
+            ],
             "properties": {
                 "policy_id": _FIXTURE_ID,
                 "version": {"type": "string", "minLength": 1},
-                "max_tile_bytes": {"type": "integer", "minimum": 1},
+                "max_tile_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216},
                 "max_tiles_per_request": {"type": "integer", "minimum": 1},
+                # Uncommitted acquisitions (.part) tolerated in the data root
+                # before new runs are BLOCKED; bounds disk use without deleting.
+                "max_pending_acquisitions": {"type": "integer", "minimum": 1},
             },
         },
     },

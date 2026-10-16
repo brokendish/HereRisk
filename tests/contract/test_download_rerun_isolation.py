@@ -24,7 +24,7 @@ def crash_area(fragment: str, *, after: bool, nth: int = 1):
 
     class CrashArea(ApiDataArea):
         def write_new(self, path, data):
-            hit = fragment in path.as_posix()
+            hit = fragment in str(path)
             if hit:
                 seen["n"] += 1
             if hit and seen["n"] == nth and not after:

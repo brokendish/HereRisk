@@ -21,16 +21,24 @@ from typing import Any, Callable, Mapping, Protocol
 
 from hererisk.common.authorization import Authorization, Authorizer, ExecutionContext
 from hererisk.common.config import (
+    MAX_CONFIG_BYTES,
     PREFECTURE_CODES,
     ConfigSnapshot,
     ConfigurationError,
     ConfigurationManager,
+    assert_persistable,
     sha256_hex,
     thaw,
 )
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.result import ModuleResult, PipelineError
-from hererisk.common.storage import WRITABLE_AREAS, ApiDataArea, StorageError
+from hererisk.common.storage import (
+    PRODUCTION_DATA_ROOT,
+    WRITABLE_AREAS,
+    ApiDataArea,
+    StorageError,
+    is_within,
+)
 
 MODULE = "download"
 OPERATION = "download"
@@ -124,31 +132,57 @@ class Orchestrator:
             definition = self._load_definition(request.api_id)
             self._check_target(request, definition, module)
             authorization = self._authorize(request, definition, module)
-            area = self._area_factory(self._data_root, request.api_id)
-            self._prepare_area(area)
-            effective = self._effective_bytes(run_id, request, definition, authorization, module)
-            plan = DownloadPlan(
-                run_id=run_id,
-                api_id=request.api_id,
-                source_ref=request.source_ref,
-                region_codes=tuple(sorted(request.region_codes)),
-                definition=definition,
-                effective_configuration_ref=f"configurations/{run_id}/effective.json",
-                effective_configuration_sha256=sha256_hex(effective),
-                authorization=authorization,
-                resume=request.resume_run_id is not None,
+            self._check_data_root(authorization)
+            effective_doc = self._effective_document(
+                run_id, request, definition, authorization, module
             )
-            module.preflight(plan)
-            lock = area.path("work", "locks", f"{OPERATION}-{request.source_ref}.lock")
-            with area.exclusive_lock(lock):
-                self._persist_snapshot(area, plan, effective)
-                result = module.execute(plan, area, log)
+            try:
+                # Nothing is persisted unless every saved value is allowed (F08).
+                assert_persistable(effective_doc)
+            except ConfigurationError as exc:
+                raise PipelineError("INVALID_CONFIGURATION", "not persistable") from exc
+            effective = _canonical_json(effective_doc)
+            area = self._area_factory(self._data_root, request.api_id)
+            with area:
+                if authorization.context is ExecutionContext.FIXTURE and not area.has_fixture_marker():
+                    raise PipelineError("INVALID_INPUT", "data root is not a fixture root")
+                self._prepare_area(area)
+                result = self._run_locked(area, run_id, request, definition, authorization,
+                                          module, effective, log)
         except (PipelineError, StorageError) as exc:
             return self._finish(run_id, request.api_id, exc.error_code)
         except Exception:  # noqa: BLE001 - never leak exception text to users
             return self._finish(run_id, request.api_id, "INTERNAL_ERROR")
         self._log_result(log, result)
         return result
+
+    def _run_locked(
+        self,
+        area: ApiDataArea,
+        run_id: str,
+        request: DownloadRequest,
+        definition: ConfigSnapshot,
+        authorization: Authorization,
+        module: DownloadModule,
+        effective: bytes,
+        log: StructuredLogger,
+    ) -> ModuleResult:
+        plan = DownloadPlan(
+            run_id=run_id,
+            api_id=request.api_id,
+            source_ref=request.source_ref,
+            region_codes=tuple(sorted(request.region_codes)),
+            definition=definition,
+            effective_configuration_ref=f"configurations/{run_id}/effective.json",
+            effective_configuration_sha256=sha256_hex(effective),
+            authorization=authorization,
+            resume=request.resume_run_id is not None,
+        )
+        module.preflight(plan)
+        lock = area.path("work", "locks", f"{OPERATION}-{request.source_ref}.lock")
+        with area.exclusive_lock(lock):
+            self._persist_snapshot(area, plan, effective)
+            return module.execute(plan, area, log)
 
     # -- steps ---------------------------------------------------------
     def _check_request(self, request: DownloadRequest) -> DownloadModule:
@@ -212,6 +246,19 @@ class Orchestrator:
             raise PipelineError("APPROVAL_REQUIRED", "transport context mismatch")
         return authorization
 
+    def _check_data_root(self, authorization: Authorization) -> None:
+        """Fixture runs may only write to a dedicated, explicitly marked root (F12).
+
+        Refused: anything under /data and anything inside the configuration /
+        fixture definition trees (e.g. the repository). The marker file itself
+        is checked through the area's root fd before any directory is created.
+        """
+        if authorization.context is not ExecutionContext.FIXTURE:
+            return
+        protected = (PRODUCTION_DATA_ROOT, self._config.schema_root, self._config.definition_root)
+        if any(is_within(self._data_root, root) for root in protected):
+            raise PipelineError("INVALID_INPUT", "fixture data root not allowed")
+
     @staticmethod
     def _prepare_area(area: ApiDataArea) -> None:
         dirs = [area.path(*parts) for parts in sorted(WRITABLE_AREAS)]
@@ -222,16 +269,15 @@ class Orchestrator:
             raise StorageError("STORAGE_INTEGRITY_FAILED", "areas on different filesystems")
 
     @staticmethod
-    def _effective_bytes(
+    def _effective_document(
         run_id: str,
         request: DownloadRequest,
         definition: ConfigSnapshot,
         authorization: Authorization,
         module: DownloadModule,
-    ) -> bytes:
+    ) -> dict[str, Any]:
         data = definition.data
-        return _canonical_json(
-            {
+        return {
                 "effective_configuration_schema_version": EFFECTIVE_SCHEMA_VERSION,
                 "run_id": run_id,
                 "api_id": request.api_id,
@@ -249,7 +295,6 @@ class Orchestrator:
                 "policy": thaw(authorization.policy),
                 "pipeline": {"id": module.pipeline[0], "version": module.pipeline[1]},
             }
-        )
 
     @staticmethod
     def _persist_snapshot(area: ApiDataArea, plan: DownloadPlan, effective: bytes) -> None:
@@ -258,17 +303,22 @@ class Orchestrator:
         effective_path = directory / "effective.json"
         if plan.resume:
             # Same run_id is only accepted with byte-identical configuration.
-            if not directory.is_dir():
+            if not area.dir_exists(directory):
                 raise PipelineError("INVALID_INPUT", "unknown run_id")
-            if not (source_path.is_file() and effective_path.is_file()):
+            names = set(area.list_dir(directory))
+            if names != {"source.json", "effective.json"}:
                 raise PipelineError("RECOVERY_REQUIRED", "incomplete configuration snapshot")
-            if (
-                area.read_bytes(source_path) != plan.definition.raw_bytes
-                or area.read_bytes(effective_path) != effective
-            ):
+            try:
+                same = (
+                    area.read_bytes(source_path, MAX_CONFIG_BYTES) == plan.definition.raw_bytes
+                    and area.read_bytes(effective_path, MAX_CONFIG_BYTES) == effective
+                )
+            except StorageError as exc:
+                raise PipelineError("RECOVERY_REQUIRED", "snapshot unreadable") from exc
+            if not same:
                 raise PipelineError("INVALID_INPUT", "configuration differs for run_id")
             return
-        if directory.exists():
+        if area.dir_exists(directory):
             raise PipelineError("INTERNAL_ERROR", "run_id collision")
         area.ensure_dir(directory)
         area.write_new(source_path, plan.definition.raw_bytes)

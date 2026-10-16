@@ -1,8 +1,14 @@
 """PNG container check for transferred tiles (contract 7: 転送検査).
 
-Checks signature, IHDR first with expected dimensions / bit depth / colour type,
-chunk boundaries and CRCs, IEND last and no trailing bytes. Elevation value
-quality and coverage are Validate's responsibility, not checked here.
+Container rules only; no decompression or pixel decoding:
+  * signature, then IHDR first (exactly once, length 13) with the expected
+    dimensions / bit depth / colour type and compression=0, filter=0,
+    interlace in {0, 1}
+  * chunk boundaries and CRCs; chunk types are four ASCII letters
+  * unknown *critical* chunks rejected; PLTE (optional for RGB) before IDAT
+  * at least one IDAT, all IDAT chunks consecutive
+  * IEND last, length 0, no trailing bytes
+Elevation value quality and coverage are Validate's responsibility.
 """
 
 from __future__ import annotations
@@ -13,6 +19,7 @@ import zlib
 from hererisk.common.result import PipelineError
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+_KNOWN_CRITICAL = {b"IHDR", b"PLTE", b"IDAT", b"IEND"}
 
 
 def check_png(data: bytes, *, width: int, height: int, bit_depth: int, color_type: int) -> None:
@@ -22,8 +29,9 @@ def check_png(data: bytes, *, width: int, height: int, bit_depth: int, color_typ
     if not data.startswith(PNG_SIGNATURE):
         raise invalid("signature")
     pos = len(PNG_SIGNATURE)
-    first = True
-    seen_idat = False
+    index = 0
+    seen: set[bytes] = set()
+    idat_state = "before"  # before -> inside -> after
     while True:
         if pos + 8 > len(data):
             raise invalid("truncated chunk header")
@@ -32,23 +40,45 @@ def check_png(data: bytes, *, width: int, height: int, bit_depth: int, color_typ
         body_end = pos + 8 + length
         if length > 0x7FFFFFFF or body_end + 4 > len(data):
             raise invalid("chunk exceeds data")
+        if not ctype.isalpha() or not ctype.isascii():
+            raise invalid("chunk type")
         body = data[pos + 8 : body_end]
         (crc,) = struct.unpack(">I", data[body_end : body_end + 4])
         if zlib.crc32(ctype + body) & 0xFFFFFFFF != crc:
             raise invalid("crc")
-        if first:
+
+        critical = ctype[0:1].isupper()
+        if index == 0:
             if ctype != b"IHDR" or length != 13:
                 raise invalid("IHDR not first")
-            w, h, depth, ctype_png, _comp, _filt, _inter = struct.unpack(">IIBBBBB", body)
+            w, h, depth, ctype_png, comp, filt, inter = struct.unpack(">IIBBBBB", body)
             if (w, h, depth, ctype_png) != (width, height, bit_depth, color_type):
                 raise invalid("unexpected image format")
-            first = False
+            if comp != 0 or filt != 0 or inter not in (0, 1):
+                raise invalid("unsupported IHDR method")
+        elif ctype == b"IHDR":
+            raise invalid("duplicate IHDR")
+        elif critical and ctype not in _KNOWN_CRITICAL:
+            raise invalid("unknown critical chunk")
+        elif ctype == b"PLTE":
+            if b"PLTE" in seen or idat_state != "before":
+                raise invalid("PLTE order")
         elif ctype == b"IDAT":
-            seen_idat = True
+            if idat_state == "after":
+                raise invalid("IDAT not consecutive")
+            idat_state = "inside"
+        elif ctype == b"IEND":
+            if length != 0:
+                raise invalid("IEND length")
+        elif idat_state == "inside":
+            idat_state = "after"
+
+        seen.add(ctype)
+        index += 1
         pos = body_end + 4
         if ctype == b"IEND":
             break
-    if not seen_idat:
+    if b"IDAT" not in seen:
         raise invalid("no IDAT")
     if pos != len(data):
         raise invalid("trailing data")

@@ -127,6 +127,7 @@ def authorization(definition_bytes: bytes, sources: dict[str, dict[str, Any]]) -
             "version": "0.1",
             "max_tile_bytes": 1048576,
             "max_tiles_per_request": 16,
+            "max_pending_acquisitions": 8,
         },
     }
 

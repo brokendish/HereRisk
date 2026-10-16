@@ -128,19 +128,19 @@ class _FullHandle:
 class DiskFullArea(ApiDataArea):
     def open_exclusive(self, path):
         handle = super().open_exclusive(path)
-        return _FullHandle(handle) if path.suffix == ".part" else handle
+        return _FullHandle(handle) if path.name.endswith(".part") else handle
 
 
 class CorruptReadArea(ApiDataArea):
-    def read_bytes(self, path):
-        data = super().read_bytes(path)
-        return data[:-1] + bytes([data[-1] ^ 1]) if path.suffix == ".part" else data
+    def read_bytes(self, path, max_bytes):
+        data = super().read_bytes(path, max_bytes)
+        return data[:-1] + bytes([data[-1] ^ 1]) if path.name.endswith(".part") else data
 
 
 def failing_write_area(fragment: str, *, after: bool = False, exc: BaseException | None = None):
     class FailingWriteArea(ApiDataArea):
         def write_new(self, path, data):
-            hit = fragment in path.as_posix()
+            hit = fragment in str(path)
             if hit and not after:
                 raise exc or StorageError("STORAGE_INTEGRITY_FAILED", "injected")
             super().write_new(path, data)

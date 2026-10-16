@@ -20,7 +20,7 @@ from hererisk.common.authorization import FixtureAuthorizer
 from hererisk.common.config import ConfigurationManager
 from hererisk.common.logging import ListSink, StructuredLogger
 from hererisk.common.orchestrator import DownloadRequest, Orchestrator
-from hererisk.common.storage import ApiDataArea
+from hererisk.common.storage import FIXTURE_ROOT_MARKER, ApiDataArea, init_fixture_data_root
 from hererisk.elevation.download.download import ElevationDownload
 from hererisk.elevation.download.transport import FixtureTransport
 
@@ -89,7 +89,7 @@ class Harness:
         """Relative path -> sha256 of every file under the data root."""
         out: dict[str, str] = {}
         for path in sorted(self.data_root.rglob("*")):
-            if path.is_file():
+            if path.is_file() and path.name != FIXTURE_ROOT_MARKER:
                 out[path.relative_to(self.data_root).as_posix()] = hashlib.sha256(
                     path.read_bytes()
                 ).hexdigest()
@@ -101,6 +101,7 @@ def harness(tmp_path: Path) -> Harness:
     fixture_root = fb.build_tree(tmp_path / "fixture")
     data_root = tmp_path / "data"
     data_root.mkdir()
+    init_fixture_data_root(data_root)
     return Harness(
         fixture_root=fixture_root,
         data_root=data_root,

@@ -93,3 +93,65 @@ def test_logger_fields_and_binding() -> None:
     assert sink.entries[1]["level"] == "ERROR" and sink.entries[1]["error_code"] == "HTTP_404"
     with pytest.raises(ValueError):
         log.log("DEBUG", "x")
+
+
+# -- F07: container rules ------------------------------------------------------------
+def _c(ctype: bytes, body: bytes) -> bytes:
+    return struct.pack(">I", len(body)) + ctype + body + struct.pack(
+        ">I", zlib.crc32(ctype + body) & 0xFFFFFFFF)
+
+
+def _parts(png: bytes) -> tuple[bytes, bytes, bytes]:
+    """(IHDR chunk, IDAT chunk, IEND chunk) of a builder PNG."""
+    ihdr = png[8:33]
+    iend = png[-12:]
+    return ihdr, png[33:-12], iend
+
+
+def _ihdr(comp=0, filt=0, inter=0) -> bytes:
+    return _c(b"IHDR", struct.pack(">IIBBBBB", 256, 256, 8, 2, comp, filt, inter))
+
+
+SIG = b"\x89PNG\r\n\x1a\n"
+_IHDR, _IDAT, _IEND = _parts(GOOD)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        SIG + _ihdr(comp=99) + _IDAT + _IEND,
+        SIG + _ihdr(filt=1) + _IDAT + _IEND,
+        SIG + _ihdr(inter=2) + _IDAT + _IEND,
+        SIG + _IHDR + _IDAT + _c(b"IEND", b"bad"),
+        SIG + _IHDR + _IHDR + _IDAT + _IEND,  # duplicate IHDR
+        SIG + _IHDR + _IDAT + _IHDR + _IEND,  # IHDR later
+        SIG + _IDAT + _IHDR + _IEND,  # IHDR not first
+        SIG + _IHDR + _IDAT + _c(b"tEXt", b"k\x00v") + _IDAT + _IEND,  # IDAT split
+        SIG + _IHDR + _IDAT + _c(b"PLTE", b"\x00" * 3) + _IEND,  # PLTE after IDAT
+        SIG + _IHDR + _c(b"PLTE", b"\x00" * 3) + _c(b"PLTE", b"\x00" * 3) + _IDAT + _IEND,
+        SIG + _IHDR + _c(b"ABCD", b"") + _IDAT + _IEND,  # unknown critical chunk
+        SIG + _IHDR + _c(b"a1cd", b"") + _IDAT + _IEND,  # non-letter chunk type
+        SIG + _IHDR + _IEND,  # no IDAT
+        SIG + _IHDR + _IDAT + _IEND + _IEND,  # data after IEND
+    ],
+    ids=["comp", "filter", "interlace", "iend-len", "dup-ihdr", "late-ihdr", "ihdr-not-first",
+         "idat-split", "plte-after-idat", "dup-plte", "unknown-critical", "bad-type",
+         "no-idat", "after-iend"],
+)
+def test_png_container_rules(data: bytes) -> None:
+    with pytest.raises(PipelineError) as err:
+        check(data)
+    assert err.value.error_code == "PNG_INVALID"
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        SIG + _ihdr(inter=1) + _IDAT + _IEND,  # Adam7 is a valid container
+        SIG + _IHDR + _c(b"tEXt", b"k\x00v") + _IDAT + _c(b"tEXt", b"k\x00v") + _IEND,
+        SIG + _IHDR + _c(b"PLTE", b"\x00" * 3) + _IDAT + _IEND,  # optional PLTE for RGB
+    ],
+    ids=["interlace-1", "ancillary", "plte"],
+)
+def test_png_container_valid_variants(data: bytes) -> None:
+    check(data)
