@@ -66,3 +66,7 @@ Runbookの第1〜10章は、Debian 13のVPS上で未実行である。特に次�
 ## Conclusion
 
 Macで実施できる検証はすべてPASSした。VPSでの受入は、OWNERがRunbookに従って実行する。
+
+## Addendum（2026-10-18）
+
+本サマリーはClaudeによるMac上の検証記録である。その後、OWNERがVPSで実機受入を行った（[Phase 1-I VPS受入](phase1i-vps-owner-acceptance.md): PASS）。また、OWNERが既存のCaddyでHTTPS接続を追加した（[Phase 1-J HTTPS受入](phase1j-https-owner-acceptance.md): 主要機能PASS、運用上の未実施項目あり）。本文の「VPSでの実機受入は未実施」「Caddyでの公開は今回の範囲外」は、作成時点の記録である。

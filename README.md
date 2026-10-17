@@ -25,7 +25,8 @@ HereRiskは、現在地の災害リスクを調べ、
 - [決定記録: 標高 契約改訂P1〜P7の正式採用（2026-10-17）](docs/decisions/2026-10-17-elevation-p1-p7.md)（[反映の検証サマリー](reviews/phase1/phase1f-owner-approval-p1-p7.md)）
 - [Phase 1-G 個人実験環境](reviews/phase1/phase1g-private-experiment.md): [運用区分と個人実験の契約](docs/architecture/private-experiment-v0.1.md)、[Mac・VPS本人専用Runbook](docs/operations/elevation-private-experiment-runbook-v0.1.md)（一般公開はBLOCKEDのまま。APIは共通Bearer Token認証: [検証サマリー](reviews/phase1/phase1g-api-bearer-auth.md)）
 - [Phase 1-H 実GSI個人実験の準備](reviews/phase1/phase1h-gsi-private-acceptance.md): [決定記録](docs/decisions/2026-10-17-private-experiment-operation.md)、[Mac受入手順（1タイル）](docs/operations/elevation-private-acceptance-mac-v0.1.md)
-- [Phase 1-I Fixture VPS受入](reviews/phase1/phase1i-fixture-vps-deploy.md): [VPS Runbook（Docker Compose）](docs/operations/elevation-fixture-vps-runbook-v0.1.md)
+- Phase 1-I Fixture VPS受入: **PASS（VPS Fixture実機受入、OWNER 2026-10-17〜18）** — [OWNER受入記録](reviews/phase1/phase1i-vps-owner-acceptance.md)、[Mac事前検証](reviews/phase1/phase1i-fixture-vps-deploy.md)、[VPS Runbook（Docker Compose）](docs/operations/elevation-fixture-vps-runbook-v0.1.md)
+- Phase 1-J HTTPS / Caddy: **PASS（HTTPS主要機能受入）／運用上の未実施項目あり** — [OWNER受入記録](reviews/phase1/phase1j-https-owner-acceptance.md)。VPSにはFixtureデータのみ。実GSIデータの一般公開はBLOCKED（国土地理院の回答待ち）
 
 ## 開発方針
 
