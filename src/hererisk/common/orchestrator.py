@@ -6,8 +6,13 @@ execution-context checks, per-``(api_id, source_ref)`` exclusion, persisting the
 fixed configuration snapshot, invoking the API's Download module and returning
 its result.
 
-This Orchestrator never starts Normalize / Validate / Publish / Generation; the
-next stage is decided by a caller only when the result is SUCCESS.
+``run_download`` runs Download alone. ``run_fixture_pipeline`` (Phase 1-B.3-B)
+runs the API's registered later stages (elevation: Normalize, Validate) after
+it, fixture context only: every stage is authorized for its own operation
+before anything is written, all stages run inside the same per-source lock
+(taken once), with the same run_id and fixed plan, and the next stage starts
+only after a SUCCESS. Modules never start each other. Publish / Generation are
+never started.
 """
 
 from __future__ import annotations
@@ -17,7 +22,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Mapping, Protocol
+from typing import Any, Callable, Mapping, Protocol, Sequence
 
 from hererisk.common.authorization import Authorization, Authorizer, ExecutionContext
 from hererisk.common.config import (
@@ -31,7 +36,7 @@ from hererisk.common.config import (
     thaw,
 )
 from hererisk.common.logging import StructuredLogger
-from hererisk.common.result import ModuleResult, PipelineError
+from hererisk.common.result import ModuleResult, PipelineError, Status
 from hererisk.common.storage import (
     DOWNLOAD_AREAS,
     PRODUCTION_DATA_ROOT,
@@ -76,6 +81,13 @@ class DownloadPlan:
         return self.definition.data["sources"][self.source_ref]
 
 
+class _StageBlocked(Exception):
+    def __init__(self, operation: str, code: str) -> None:
+        super().__init__(code)
+        self.operation = operation
+        self.code = code
+
+
 class DownloadModule(Protocol):
     api_id: str
     pipeline: tuple[str, str]
@@ -94,6 +106,22 @@ class DownloadModule(Protocol):
         logger: StructuredLogger,
         *,
         reserved_acquisition_id: str | None = None,
+    ) -> ModuleResult: ...
+
+
+class PipelineStage(Protocol):
+    """A later stage (e.g. normalize, validate) run by the Orchestrator only."""
+
+    operation: str
+
+    def run(
+        self,
+        plan: DownloadPlan,
+        previous: ModuleResult,
+        area: ApiDataArea,
+        logger: StructuredLogger,
+        *,
+        authorization: Authorization,
     ) -> ModuleResult: ...
 
 
@@ -118,6 +146,7 @@ class Orchestrator:
         logger: StructuredLogger,
         id_factory: Callable[[], str] = new_run_id,
         area_factory: Callable[[Path, str], ApiDataArea] = ApiDataArea,
+        stages: Mapping[str, Sequence[PipelineStage]] | None = None,
     ) -> None:
         self._config = config_manager
         self._authorizer = authorizer
@@ -126,12 +155,31 @@ class Orchestrator:
         self._logger = logger
         self._id_factory = id_factory
         self._area_factory = area_factory
+        self._stages = {api: tuple(seq) for api, seq in (stages or {}).items()}
 
     def run_download(self, request: DownloadRequest) -> ModuleResult:
+        """Download only (unchanged behaviour)."""
+        return self._execute(request, ())[0]
+
+    def run_fixture_pipeline(self, request: DownloadRequest) -> tuple[ModuleResult, ...]:
+        """Download -> registered later stages, fixture only.
+
+        Returns the results of the stages that ran, in order; the pipeline
+        succeeded only if every registered stage ran and returned SUCCESS.
+        """
+        stages = self._stages.get(request.api_id)
+        if not stages:
+            run_id = request.resume_run_id or self._id_factory()
+            return (self._finish(run_id, request.api_id, "INVALID_INPUT"),)
+        return self._execute(request, stages)
+
+    def _execute(
+        self, request: DownloadRequest, stages: tuple[PipelineStage, ...]
+    ) -> tuple[ModuleResult, ...]:
         run_id = self._id_factory()
         if request.resume_run_id is not None:
             if not _UUID_RE.match(request.resume_run_id):
-                return self._finish(run_id, request.api_id, "INVALID_INPUT")
+                return (self._finish(run_id, request.api_id, "INVALID_INPUT"),)
             run_id = request.resume_run_id
         log = self._logger.bind(module=MODULE, api_id=self._log_api(request.api_id), run_id=run_id)
         log.info("Download requested")
@@ -140,6 +188,7 @@ class Orchestrator:
             definition = self._load_definition(request.api_id)
             self._check_target(request, definition, module)
             authorization = self._authorize(request, definition, module)
+            stage_authorizations = self._authorize_stages(request, definition, stages)
             self._check_data_root(authorization)
             effective_doc = self._effective_document(
                 run_id, request, definition, authorization, module
@@ -154,14 +203,17 @@ class Orchestrator:
             with area:
                 self._check_pinned_root(area, authorization)
                 self._prepare_area(area)
-                result = self._run_locked(area, run_id, request, definition, authorization,
-                                          module, effective, log)
+                results = self._run_locked(area, run_id, request, definition, authorization,
+                                           module, effective, log,
+                                           tuple(zip(stages, stage_authorizations)))
+        except _StageBlocked as blocked:
+            return (self._finish(run_id, request.api_id, blocked.code, module=blocked.operation),)
         except (PipelineError, StorageError) as exc:
-            return self._finish(run_id, request.api_id, exc.error_code)
+            return (self._finish(run_id, request.api_id, exc.error_code),)
         except Exception:  # noqa: BLE001 - never leak exception text to users
-            return self._finish(run_id, request.api_id, "INTERNAL_ERROR")
-        self._log_result(log, result)
-        return result
+            return (self._finish(run_id, request.api_id, "INTERNAL_ERROR"),)
+        self._log_result(log, results[0])
+        return results
 
     def _run_locked(
         self,
@@ -173,7 +225,8 @@ class Orchestrator:
         module: DownloadModule,
         effective: bytes,
         log: StructuredLogger,
-    ) -> ModuleResult:
+        stages: tuple[tuple[PipelineStage, Authorization], ...] = (),
+    ) -> tuple[ModuleResult, ...]:
         plan = DownloadPlan(
             run_id=run_id,
             api_id=request.api_id,
@@ -192,7 +245,19 @@ class Orchestrator:
             # persisted for a new run (R1-02); resumes persist nothing new.
             reserved = None if plan.resume else module.reserve_capacity(plan, area)
             self._persist_snapshot(area, plan, effective)
-            return module.execute(plan, area, log, reserved_acquisition_id=reserved)
+            results = [module.execute(plan, area, log, reserved_acquisition_id=reserved)]
+            # Later stages run under the same lock (taken once), strictly in
+            # order, each only after the previous stage returned SUCCESS.
+            for stage, stage_authorization in stages:
+                if results[-1].status is not Status.SUCCESS:
+                    break
+                try:
+                    result = stage.run(plan, results[-1], area, log,
+                                       authorization=stage_authorization)
+                except Exception:  # noqa: BLE001 - never leak exception text
+                    result = ModuleResult.error(run_id, stage.operation, "INTERNAL_ERROR")
+                results.append(result)
+            return tuple(results)
 
     # -- steps ---------------------------------------------------------
     def _check_request(self, request: DownloadRequest) -> DownloadModule:
@@ -241,6 +306,29 @@ class Orchestrator:
         pipeline = source["pipeline"]
         if (pipeline["id"], pipeline["version"]) != module.pipeline:
             raise PipelineError("APPROVAL_REQUIRED", "pipeline version not implemented")
+
+    def _authorize_stages(
+        self, request: DownloadRequest, definition: ConfigSnapshot,
+        stages: tuple[PipelineStage, ...],
+    ) -> list[Authorization]:
+        """Authorize every later stage for its own operation before any write."""
+        authorizations = []
+        for stage in stages:
+            try:
+                authorization = self._authorizer.authorize(
+                    api_id=request.api_id,
+                    operation=stage.operation,
+                    source_ref=request.source_ref,
+                    region_codes=tuple(sorted(request.region_codes)),
+                    definition=definition,
+                )
+            except PipelineError as exc:
+                raise _StageBlocked(stage.operation, exc.error_code) from exc
+            if authorization.context is not ExecutionContext.FIXTURE or \
+                    authorization.operation != stage.operation:
+                raise _StageBlocked(stage.operation, "APPROVAL_REQUIRED")
+            authorizations.append(authorization)
+        return authorizations
 
     def _authorize(
         self, request: DownloadRequest, definition: ConfigSnapshot, module: DownloadModule
@@ -354,9 +442,9 @@ class Orchestrator:
         # Never echo unvalidated request text into logs.
         return api_id if api_id in self._modules else None
 
-    def _finish(self, run_id: str, api_id: str, error_code: str) -> ModuleResult:
-        result = ModuleResult.error(run_id, MODULE, error_code)
-        log = self._logger.bind(module=MODULE, api_id=self._log_api(api_id), run_id=run_id)
+    def _finish(self, run_id: str, api_id: str, error_code: str, *, module: str = MODULE) -> ModuleResult:
+        result = ModuleResult.error(run_id, module, error_code)
+        log = self._logger.bind(module=module, api_id=self._log_api(api_id), run_id=run_id)
         self._log_result(log, result)
         return result
 

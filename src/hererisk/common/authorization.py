@@ -6,7 +6,10 @@ No production acquisition can be authorized by this code.
 
 Fixture: :class:`FixtureAuthorizer` reads a fixture-only authorization file that
 binds ``(api_id, operation, source_ref, regions)`` to the exact SHA-256 of the
-fixture Source Definition bytes. Every identifier must carry the ``fixture-``
+fixture Source Definition bytes. Each operation has its own file next to the
+download one (``download.json``, ``normalize.json``, ``validate.json``) and the
+document's ``operation`` must equal the requested operation, so a download
+grant is never read as permission for a later stage. Every identifier must carry the ``fixture-``
 prefix, so a fixture approval can never be presented as a production approval,
 and a changed definition invalidates the fixture approval.
 """
@@ -27,6 +30,7 @@ from hererisk.common.config import (
 from hererisk.common.result import PipelineError
 
 FIXTURE_PREFIX = "fixture-"
+OPERATIONS = ("download", "normalize", "validate")
 
 
 class ExecutionContext(str, Enum):
@@ -80,13 +84,16 @@ FIXTURE_AUTHORIZATION_SCHEMA: dict[str, Any] = {
         "api_id",
         "operation",
         "grants",
-        "policy",
     ],
+    # The acquisition safety policy belongs to download grants only.
+    "if": {"properties": {"operation": {"const": "download"}}},
+    "then": {"required": ["policy"]},
+    "else": {"not": {"required": ["policy"]}},
     "properties": {
         "authorization_ref": _FIXTURE_ID,
         "execution_context": {"const": "fixture"},
         "api_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-        "operation": {"const": "download"},
+        "operation": {"enum": ["download", "normalize", "validate"]},
         "grants": {
             "type": "array",
             "minItems": 1,
@@ -148,11 +155,14 @@ class FixtureAuthorizer:
         region_codes: tuple[str, ...],
         definition: ConfigSnapshot,
     ) -> Authorization:
+        if operation not in OPERATIONS:
+            raise PipelineError("APPROVAL_REQUIRED", "unknown operation")
+        path = self._path.with_name(f"{operation}.json")
         try:
-            _, doc = load_validated_json(self._path, FIXTURE_AUTHORIZATION_SCHEMA)
+            _, doc = load_validated_json(path, FIXTURE_AUTHORIZATION_SCHEMA)
         except ConfigurationError as exc:
             raise PipelineError("APPROVAL_REQUIRED", "fixture authorization invalid") from exc
-        if self._path.resolve().is_relative_to(self._production_root / "api"):
+        if path.resolve().is_relative_to(self._production_root / "api"):
             raise PipelineError("APPROVAL_REQUIRED", "fixture authorization in production conf")
         if doc["api_id"] != api_id or doc["operation"] != operation:
             raise PipelineError("APPROVAL_REQUIRED", "api/operation not granted")
@@ -176,6 +186,6 @@ class FixtureAuthorizer:
                     operation=operation,
                     source_ref=source_ref,
                     region_codes=region_codes,
-                    policy=freeze(doc["policy"]),
+                    policy=freeze(doc.get("policy", {})),
                 )
         raise PipelineError("APPROVAL_REQUIRED", "no matching fixture grant")

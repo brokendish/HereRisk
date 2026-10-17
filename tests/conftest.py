@@ -60,7 +60,8 @@ class Harness:
     def api_root(self) -> Path:
         return self.data_root / "elevation"
 
-    def orchestrator(self, authorizer: Any = None, module: Any = None) -> Orchestrator:
+    def orchestrator(self, authorizer: Any = None, module: Any = None,
+                     stages: Any = None) -> Orchestrator:
         return Orchestrator(
             config_manager=ConfigurationManager(self.fixture_root, REPO_ROOT),
             authorizer=authorizer
@@ -71,6 +72,7 @@ class Harness:
             data_root=self.data_root,
             logger=StructuredLogger(self.sink),
             area_factory=self.area_factory,
+            stages=stages,
         )
 
     def run(self, regions=("13",), source="fixture-dem-png-tokyo", resume=None, **kw):

@@ -41,6 +41,8 @@ ERROR_CODES: dict[str, tuple[Status, int]] = {
     "CONTENT_TYPE_INVALID": (Status.FAILED, 11),
     "SIZE_INVALID": (Status.FAILED, 11),
     "PNG_INVALID": (Status.FAILED, 11),
+    # Candidate failed the Validate profile (format / value / count checks).
+    "VALIDATION_FAILED": (Status.FAILED, 11),
     # FAILED: storage / hash.
     "STORAGE_FULL": (Status.FAILED, 12),
     "PERMISSION_DENIED": (Status.FAILED, 12),
@@ -65,6 +67,7 @@ MESSAGES: dict[str | None, str] = {
     "CONTENT_TYPE_INVALID": "Content type is invalid",
     "SIZE_INVALID": "Content size is invalid",
     "PNG_INVALID": "PNG container is invalid",
+    "VALIDATION_FAILED": "Candidate failed validation",
     "STORAGE_FULL": "Storage is full",
     "PERMISSION_DENIED": "Storage permission denied",
     "HASH_FAILED": "Hash could not be computed",

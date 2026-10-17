@@ -76,7 +76,7 @@ def test_missing_authorization_is_blocked(harness) -> None:
 def test_authorization_inside_production_conf_rejected(harness, tmp_path) -> None:
     # A fixture authorization file must not live in the production conf tree.
     prod_root = tmp_path / "prod"
-    planted = prod_root / "api" / "elevation" / "conf" / "download-authorization.json"
+    planted = prod_root / "api" / "elevation" / "conf" / "download.json"
     planted.parent.mkdir(parents=True)
     planted.write_bytes((harness.fixture_root / "authorization/download.json").read_bytes())
     result = harness.run(authorizer=FixtureAuthorizer(planted, prod_root))

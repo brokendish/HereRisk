@@ -71,7 +71,9 @@ NORMALIZE_AREAS: frozenset[tuple[str, str]] = frozenset(
         ("records", "normalizations"),
     }
 )
-WRITABLE_AREAS: frozenset[tuple[str, str]] = DOWNLOAD_AREAS | NORMALIZE_AREAS
+# Per-run Validate record (Phase 1-B.3-B). Validate writes no candidate data.
+VALIDATE_AREAS: frozenset[tuple[str, str]] = frozenset({("records", "validations")})
+WRITABLE_AREAS: frozenset[tuple[str, str]] = DOWNLOAD_AREAS | NORMALIZE_AREAS | VALIDATE_AREAS
 # Pipeline management code only reads back evidence it wrote itself.
 # dl/, rel/ and any Registry are neither readable nor writable through this class.
 READABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
@@ -82,7 +84,7 @@ READABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
         ("records", "acquisitions"),
         ("records", "commits"),
     }
-) | NORMALIZE_AREAS
+) | NORMALIZE_AREAS | VALIDATE_AREAS
 
 PRODUCTION_DATA_ROOT = Path("/data")
 FIXTURE_ROOT_MARKER = ".hererisk-fixture-data-root"

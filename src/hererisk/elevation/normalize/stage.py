@@ -35,7 +35,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from hererisk.common.authorization import ExecutionContext
+from hererisk.common.authorization import Authorization, ExecutionContext
 from hererisk.common.config import ConfigurationError, MAX_CONFIG_BYTES, parse_strict_json, validate_with_schema
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadPlan
@@ -121,8 +121,21 @@ def _max_png_bytes(plan: DownloadPlan) -> int:
     return value
 
 
+def check_stage_authorization(plan: DownloadPlan, authorization: Authorization,
+                              operation: str) -> None:
+    """The stage's own fixture authorization, bound to the same API/source/regions."""
+    if not isinstance(authorization, Authorization) \
+            or authorization.context is not ExecutionContext.FIXTURE \
+            or authorization.operation != operation \
+            or authorization.api_id != plan.api_id \
+            or authorization.source_ref != plan.source_ref \
+            or tuple(sorted(authorization.region_codes)) != tuple(plan.region_codes):
+        raise PipelineError("APPROVAL_REQUIRED", f"{operation} not authorized for this plan")
+
+
 class NormalizeStage:
     api_id = "elevation"
+    operation = MODULE
     pipeline = (PIPELINE_ID, PIPELINE_VERSION)
 
     def __init__(self, *, clock: Callable[[], datetime] = _utc_now) -> None:
@@ -134,10 +147,14 @@ class NormalizeStage:
         download_result: ModuleResult,
         area: ApiDataArea,
         logger: StructuredLogger,
+        *,
+        authorization: Authorization,
     ) -> ModuleResult:
         log = logger.bind(module=MODULE, api_id=plan.api_id, run_id=plan.run_id)
         log.info("Normalize requested")
         try:
+            check_stage_authorization(plan, authorization, MODULE)
+            self._authorization = authorization
             inputs, verified = self._preconditions(plan, download_result, area)
             existing = self._existing(plan, area, inputs)
             if existing is not None:
@@ -287,9 +304,7 @@ class NormalizeStage:
             "run_id": plan.run_id,
             "api_id": plan.api_id,
             "execution_context": plan.authorization.context.value,
-            # Stage-specific authorization is not implemented yet: the run's
-            # (download) fixture authorization is recorded as the governing one.
-            "authorization_ref": plan.authorization.authorization_ref,
+            "authorization_ref": self._authorization.authorization_ref,
             "pipeline": {"id": PIPELINE_ID, "version": PIPELINE_VERSION},
             "profile": FORMAT,
             "source_raw_sha256": plan.definition.raw_sha256,

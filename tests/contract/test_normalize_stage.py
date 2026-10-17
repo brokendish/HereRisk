@@ -48,10 +48,17 @@ def build_plan(harness, result, regions=("13",), source="fixture-dem-png-tokyo")
         effective_configuration_sha256=sha256_hex(effective), authorization=auth, resume=False)
 
 
-def normalize(harness, plan, result, *, area_cls=ApiDataArea, stage=None):
+def stage_authorization(harness, plan, operation="normalize"):
+    return harness.orchestrator()._authorizer.authorize(
+        api_id="elevation", operation=operation, source_ref=plan.source_ref,
+        region_codes=plan.region_codes, definition=plan.definition)
+
+
+def normalize(harness, plan, result, *, area_cls=ApiDataArea, stage=None, authorization=None):
     with area_cls(harness.data_root, "elevation") as area:
         return (stage or NormalizeStage(clock=lambda: FIXED_NOW)).run(
-            plan, result, area, StructuredLogger(ListSink()))
+            plan, result, area, StructuredLogger(ListSink()),
+            authorization=authorization or stage_authorization(harness, plan))
 
 
 def downloaded(harness, regions=("13",), source="fixture-dem-png-tokyo"):

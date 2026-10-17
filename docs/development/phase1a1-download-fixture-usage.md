@@ -179,6 +179,8 @@ fixtureの承認はSource Definition原文のSHA-256に結び付いているた�
 - fixture定義は `tests/fixtures/` のみに置き、本番 `api/elevation/conf/sources.json` は変更しない。Schemaは本番のものをそのまま使う。
 - fixtureの承認ID・source_ref・ポリシーIDはすべて `fixture-` 接頭辞を必須とする。fixture承認は本番source（`gsi-dem10b-candidate` 等）を認可できない。
 - fixture承認ファイルが本番の `api/` 配下にある場合は拒否する。
+- 承認ファイルは工程ごとに分ける（`authorization/download.json`・`normalize.json`・`validate.json`）。各ファイルの `operation` は、要求された工程と一致しなければならない。download用の承認を、後段の工程の承認として読み替えることはしない。取得の安全ポリシー（`policy`）はdownload用の承認だけに含める。
+- Phase 1-B.3-BのパイプラインはOrchestratorの `run_fixture_pipeline` から呼び出す（CLIは未追加）。全工程の承認を、何も書き込む前に確認する。そのうえで、同じsourceロックを一度だけ取得し、Download → Normalize → Validate の順に、直前の工程がSUCCESSの場合だけ次へ進む。
 - 取得URLは予約TLDの `https://fixture.invalid/...` だけで、FixtureTransportは他のURLを受け付けない。
 - 本番コンテキストには承認機構もネットワークTransportも存在しないため、常に `APPROVAL_REQUIRED` で止まる。
 - fixture用の上限値（1タイル1MiB、1要求16タイル、未確定取得物8件）はfixture承認ファイル内のポリシーであり、本番のコード既定値ではない。

@@ -108,12 +108,13 @@ def dump(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
 
 
-def authorization(definition_bytes: bytes, sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    return {
-        "authorization_ref": "fixture-auth-elevation-download",
+def authorization(definition_bytes: bytes, sources: dict[str, dict[str, Any]],
+                  operation: str = "download") -> dict[str, Any]:
+    doc = {
+        "authorization_ref": f"fixture-auth-elevation-{operation}",
         "execution_context": "fixture",
         "api_id": "elevation",
-        "operation": "download",
+        "operation": operation,
         "grants": [
             {
                 "source_ref": ref,
@@ -130,6 +131,9 @@ def authorization(definition_bytes: bytes, sources: dict[str, dict[str, Any]]) -
             "max_pending_acquisitions": 8,
         },
     }
+    if operation != "download":
+        del doc["policy"]  # the acquisition safety policy belongs to download only
+    return doc
 
 
 def build_tree(
@@ -147,7 +151,9 @@ def build_tree(
     (conf / "sources.json").write_bytes(definition_bytes)
     auth_dir = root / "authorization"
     auth_dir.mkdir(parents=True, exist_ok=True)
-    (auth_dir / "download.json").write_bytes(dump(authorization(definition_bytes, sources)))
+    for operation in ("download", "normalize", "validate"):
+        (auth_dir / f"{operation}.json").write_bytes(
+            dump(authorization(definition_bytes, sources, operation)))
     for seed, (x, y) in enumerate(
         sorted({t for spec in sources.values() for t in (spec["tiles"] or [])})
     ):
