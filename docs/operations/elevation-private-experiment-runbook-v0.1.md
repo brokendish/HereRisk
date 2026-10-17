@@ -3,6 +3,7 @@
 - Task ID: `phase1g-private-experiment`
 - 対象: OWNERが許可した少数のDEM10B Z14タイルについて、実GSI取得 → Normalize → Validate → Private Publish → 本人専用のHTTP標高取得を行う
 - アクセス制御: 共通Bearer Token（2026-10-17 OWNER方針変更。SSHトンネル必須の方式から変更。SSHトンネルは保守用の代替として残す）
+- **通常のMacでの受入は、短い[受入手順](elevation-private-acceptance-mac-v0.1.md)を使う**（Phase 1-H）。補助コマンド `private-init`・`private-definition`・`approval-register`・`approval-revoke`・`private-status` と、`--private-base` で、手入力のJSON編集・SHA-256計算・コピーを不要にした。本書は、各段階の詳細と VPS の手順として残す。
 - **本書のコマンドは、OWNERだけが実行する。** 本書の作成時（Claude）には、実GSIへの通信、Private Publish、VPSの変更をいずれも実行していない。
 - 契約: [運用区分と個人実験の契約](../architecture/private-experiment-v0.1.md)。利用条件: [GSI利用条件チェックリスト 第5章](gsi-dem10b-usage-checklist-v0.1.md)。一般公開の手順は[本番化Runbook](elevation-production-runbook-v0.1.md)（BLOCKED）。
 

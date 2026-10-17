@@ -127,7 +127,10 @@ def build_server(data_root: Path, host: str, port: int, *, fixture_demo: bool = 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="hererisk-elevation-api")
-    parser.add_argument("--data-root", required=True, type=Path)
+    parser.add_argument("--data-root", type=Path)
+    parser.add_argument("--private-base", type=Path,
+                        help="with --private-experiment: OWNER private base "
+                             "(data root and token file are derived from it)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--fixture-demo", action="store_true",
@@ -139,6 +142,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="shared Bearer token file (outside Git, 0600)")
     args = parser.parse_args(argv)
     logger = StructuredLogger()
+    if args.private_base is not None:
+        if not args.private_experiment or args.data_root is not None \
+                or args.auth_token_file is not None:
+            sys.stderr.write("hererisk-elevation-api: --private-base needs --private-experiment "
+                             "and replaces --data-root / --auth-token-file\n")
+            return 2
+        args.data_root = args.private_base / "data"
+        args.auth_token_file = args.private_base / "secrets" / "api-token"
+    if args.data_root is None:
+        sys.stderr.write("hererisk-elevation-api: --data-root or --private-base is required\n")
+        return 2
     try:
         server = build_server(args.data_root, args.host, args.port,
                               fixture_demo=args.fixture_demo,

@@ -134,8 +134,12 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--region", required=True, action="append", dest="regions",
                     help="prefecture code 01-47; repeatable")
     pl.add_argument("--source", required=True, help="source_ref in the Source Definition")
-    pl.add_argument("--data-root", required=True, type=Path,
-                    help="an initialised fixture data root")
+    pl.add_argument("--data-root", type=Path,
+                    help="data root (fixture: an initialised fixture root); "
+                         "derived from --private-base when given")
+    pl.add_argument("--private-base", type=Path,
+                    help="private_experiment only: OWNER private base (data, approvals, "
+                         "private Source Definition)")
     target = pl.add_mutually_exclusive_group(required=True)
     target.add_argument("--fixture", type=Path, metavar="FIXTURE_ROOT",
                         help="fixture tree (fixture context)")
@@ -178,7 +182,9 @@ def build_parser() -> argparse.ArgumentParser:
     ac.add_argument("--api", required=True)
     ac.add_argument("--region", required=True, action="append", dest="regions")
     ac.add_argument("--source", required=True)
-    ac.add_argument("--approval-root", required=True, type=Path)
+    ac.add_argument("--approval-root", type=Path)
+    ac.add_argument("--private-base", type=Path,
+                    help="private base: implies --context private_experiment")
     ac.add_argument("--publish", action="store_true", help="also check the publish operation")
     ac.add_argument("--context", choices=("production", "private_experiment"),
                     default="production", help="operating mode of the records to evaluate")
@@ -187,6 +193,41 @@ def build_parser() -> argparse.ArgumentParser:
     ip.add_argument("--data-root", required=True, type=Path)
     ad = sub.add_parser("approval-digest", help="print record_sha256 of an approval record")
     ad.add_argument("--record", required=True, type=Path)
+    pi = sub.add_parser("private-init", help="OWNER: create a private base layout (once)")
+    pi.add_argument("--base", required=True, type=Path)
+    pd = sub.add_parser("private-definition",
+                        help="OWNER: write the private Source Definition (outside Git)")
+    pd.add_argument("--base", required=True, type=Path)
+    pd.add_argument("--approval-id", required=True)
+    pd.add_argument("--tile", required=True, action="append", help="X,Y at zoom 14; repeatable")
+    pd.add_argument("--attribution-text", required=True)
+    pd.add_argument("--vertical-reference", required=True)
+    pd.add_argument("--review-ref", required=True)
+    pd.add_argument("--revision", default="private-1")
+    pd.add_argument("--replace", action="store_true")
+    ar = sub.add_parser("approval-register",
+                        help="OWNER: register (or --replace) a private approval record")
+    ar.add_argument("--base", required=True, type=Path)
+    ar.add_argument("--approval-id", required=True)
+    ar.add_argument("--confirm", required=True, help="repeat the approval id")
+    ar.add_argument("--operations", required=True,
+                    help="comma list: download,normalize,validate[,publish]")
+    ar.add_argument("--region", required=True, action="append", dest="regions")
+    ar.add_argument("--approved-by", required=True)
+    ar.add_argument("--basis-ref", required=True)
+    ar.add_argument("--valid-days", required=True, type=int)
+    ar.add_argument("--replace", action="store_true")
+    ar.add_argument("--license")
+    ar.add_argument("--attribution-url")
+    ar.add_argument("--usage-review-ref")
+    ar.add_argument("--reviewed-run-id")
+    rv = sub.add_parser("approval-revoke", help="OWNER: revoke a private approval")
+    rv.add_argument("--base", required=True, type=Path)
+    rv.add_argument("--approval-id", required=True)
+    rv.add_argument("--confirm", required=True)
+    rv.add_argument("--reason-ref", required=True)
+    ps = sub.add_parser("private-status", help="OWNER: read-only summary of a private base")
+    ps.add_argument("--base", required=True, type=Path)
     tg = sub.add_parser("api-token-generate", help="create a Bearer token file (0600, no output)")
     tg.add_argument("--output", required=True, type=Path)
     tg.add_argument("--append", action="store_true", help="add a second token (rotation)")
@@ -209,7 +250,10 @@ def build_orchestrator(args: argparse.Namespace, logger: StructuredLogger) -> Or
         )
         transport = FixtureTransport(fixture_root / "tiles")
     else:
-        config = ConfigurationManager(definition_root=REPO_ROOT, schema_root=REPO_ROOT)
+        # Only a private base supplies a definition root other than the repository.
+        config = ConfigurationManager(
+            definition_root=getattr(args, "definition_root", None) or REPO_ROOT,
+            schema_root=REPO_ROOT)
         context = (ExecutionContext.PRIVATE_EXPERIMENT if getattr(args, "private_experiment", False)
                    else ExecutionContext.PRODUCTION)
         # Deny by default: without --approval-root nothing is ever granted.
@@ -276,6 +320,58 @@ def _init_fixture_root(data_root: Path) -> int:
     return 0
 
 
+def _private_ops(args: argparse.Namespace) -> int:
+    """OWNER helpers (hererisk.elevation.private_ops). One JSON line on stdout."""
+    from hererisk.elevation import private_ops as po
+
+    try:
+        base = po.private_base(args.base, REPO_ROOT)
+        if args.command == "private-init":
+            po.init_base(base, REPO_ROOT)
+            doc: dict = {"base": "created"}
+        elif args.command == "private-definition":
+            tiles = []
+            for value in args.tile:
+                x, _, y = value.partition(",")
+                if not (x.isdigit() and y.isdigit()):
+                    raise po.PrivateOpsError("tile must be X,Y")
+                tiles.append((int(x), int(y)))
+            sha = po.write_definition(
+                base, REPO_ROOT, approval_id=args.approval_id, tiles=tiles,
+                attribution_text=args.attribution_text,
+                vertical_reference=args.vertical_reference, review_ref=args.review_ref,
+                revision=args.revision, replace=args.replace)
+            doc = {"definition_raw_sha256": sha}
+        elif args.command == "approval-register":
+            ops = [o.strip() for o in args.operations.split(",") if o.strip()]
+            record = po.register_approval(
+                base, REPO_ROOT, approval_id=args.approval_id, confirm=args.confirm,
+                operations=ops, regions=args.regions, approved_by=args.approved_by,
+                basis_ref=args.basis_ref,
+                valid_days=args.valid_days, replace=args.replace, license_text=args.license,
+                attribution_url=args.attribution_url, usage_review_ref=args.usage_review_ref,
+                reviewed_run_id=args.reviewed_run_id)
+            doc = {"approval_id": record["approval_id"], "operations": record["operations"],
+                   "valid_from": record["valid_from"], "expires_at": record["expires_at"],
+                   "record_sha256": record["record_sha256"]}
+        elif args.command == "approval-revoke":
+            po.revoke_approval(base, approval_id=args.approval_id, confirm=args.confirm,
+                               reason_ref=args.reason_ref)
+            doc = {"revoked": args.approval_id}
+        else:
+            doc = po.status(base, REPO_ROOT)
+    except po.PrivateOpsError as exc:
+        sys.stdout.write(json.dumps({"status": "REFUSED", "reason": str(exc)},
+                                    ensure_ascii=False) + "\n")
+        return EXIT_USAGE
+    except Exception:  # noqa: BLE001 - never leak paths / exception text
+        sys.stdout.write(json.dumps({"status": "REFUSED", "reason": "failed (see docs)"}) + "\n")
+        return EXIT_USAGE
+    sys.stdout.write(json.dumps({"status": "SUCCESS", **doc}, ensure_ascii=False,
+                                sort_keys=True) + "\n")
+    return 0
+
+
 def _api_token(args: argparse.Namespace) -> int:
     """Token file maintenance. Prints only a fixed status line (never the token)."""
     from hererisk.common.api_auth import TokenFileError, remove_token, write_new_token_file
@@ -318,6 +414,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _init_private_root(args.data_root)
     if args.command in ("api-token-generate", "api-token-retire"):
         return _api_token(args)
+    if args.command in ("private-init", "private-definition", "approval-register",
+                        "approval-revoke", "private-status"):
+        return _private_ops(args)
     logger = StructuredLogger()
     if args.command == "pipeline":
         return _run_pipeline(args, logger)
@@ -354,7 +453,9 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
         resume_run_id=args.resume_run_id,
     )
     real = args.production or args.private_experiment
-    if (args.allow_network or args.approval_root is not None) and not real:
+    if not _apply_private_base(args, pipeline=True) or args.data_root is None:
+        results = (ModuleResult.error(new_run_id(), "download", "INVALID_INPUT"),)
+    elif (args.allow_network or args.approval_root is not None) and not real:
         results = (ModuleResult.error(new_run_id(), "download", "INVALID_INPUT"),)
     else:
         context = (ExecutionContext.PRODUCTION if args.production else
@@ -370,13 +471,44 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
     return code
 
 
+def _apply_private_base(args: argparse.Namespace, *, pipeline: bool) -> bool:
+    """Fill data root / approval store / definition root from ``--private-base``.
+
+    Only for the private_experiment context; explicit paths may not be mixed in.
+    """
+    args.definition_root = None
+    if getattr(args, "private_base", None) is None:
+        return True
+    from hererisk.elevation.private_ops import PrivateOpsError, private_base
+
+    if pipeline and (not args.private_experiment or args.data_root is not None):
+        return False
+    if args.approval_root is not None:
+        return False
+    try:
+        base = private_base(args.private_base, REPO_ROOT)
+    except PrivateOpsError:
+        return False
+    if pipeline:
+        args.data_root = base.data
+    else:
+        args.context = "private_experiment"
+    args.approval_root = base.approvals
+    args.definition_root = base.config
+    return True
+
+
 def _approval_check(args: argparse.Namespace) -> int:
     """Evaluate every operation's production authorization; print one JSON line."""
     operations = ["download", "normalize", "validate"] + (["publish"] if args.publish else [])
+    if not _apply_private_base(args, pipeline=False) or args.approval_root is None:
+        sys.stderr.write(USAGE_ERROR)
+        return EXIT_USAGE
     doc: dict = {"status": "BLOCKED", "context": args.context, "definition_revision": None,
                  "definition_raw_sha256": None, "operations": []}
     try:
-        definition = ConfigurationManager(REPO_ROOT, REPO_ROOT).load("api", args.api, "sources")
+        definition = ConfigurationManager(args.definition_root or REPO_ROOT, REPO_ROOT).load(
+            "api", args.api, "sources")
     except Exception:  # noqa: BLE001 - never leak exception text
         doc["error_code"] = "INVALID_CONFIGURATION"
         sys.stdout.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
