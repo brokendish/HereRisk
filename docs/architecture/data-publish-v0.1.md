@@ -1,7 +1,7 @@
 # HereRisk — Data Publish Design v0.1
 
 **Document:** `docs/architecture/data-publish-v0.1.md`  
-**Status:** Draft / OWNERレビュー対象  
+**Status:** Draft / OWNERレビュー対象（標高APIへの適用として改訂P6・P7を2026-10-17にOWNERが正式採用。末尾を参照）  
 **Task ID:** `data-publish-design-v0.1`
 
 **関連文書**
@@ -166,7 +166,7 @@ Docker環境では、構造化ログを標準出力・標準エラーへ出力�
 基本フロー：
 
 1. OrchestratorがPublishを要求する。
-2. 検証済み候補と公開資格を確認する。
+2. 検証済み候補と公開資格を確認する。Publishの認可には、公開条件（`license`、`attribution_url`）が必要である。欠ける場合はAPPROVAL_REQUIREDとし、公開領域に何も書かない（P7、2026-10-17 OWNER承認）。
 3. 新データをバージョン付き不変領域へ準備する。
 4. 実体・参照先・メタデータの整合性を確認する。
 5. 必要な復旧用世代が失われないことを確認する。
@@ -348,3 +348,15 @@ rel/versionsに準備した実体もRegistry切り替えまでは未公開であ
 dl/currentとdl/archiveの元DL世代（原則非圧縮1＋圧縮2）と、本書の公開世代（原則現行1＋過去2）は別管理。元DLとrecordsの由来・設定版・処理証跡を追跡し、データセット単位を基本候補として安全に保持する。API全体の一括圧縮や両系列同時削除は要求しない。使用中の元DL・公開実体・復元に必要な証跡を削除しない。
 
 Generationは保持・圧縮・整理、RestoreはAPI/データセット/世代と対応メタデータを検証して候補化する。DL復元のみでは公開状態は変わらず、公開再確定はPublishだけが行う。他APIへの展開・書込みを拒否する。API別バックアップの方式・DL世代管理の詳細・Docker権限実装は未決定。
+
+## P6・P7 OWNER承認による改訂（2026-10-17）
+
+- OWNER決定日: 2026-10-17。決定: 改訂P1〜P7をすべて正式採用。本書に関係するのはP6・P7である。詳細は[契約改訂案](../pipeline/elevation-contract-revision-p1-p7-v0.1.md)、決定記録は[2026-10-17 P1〜P7の採用](../decisions/2026-10-17-elevation-p1-p7.md)。
+- **P6（標高APIでの切替方式）**: 第6節の手順8「Registryを原子的に切り替える」を、標高APIでは次の方式で満たす。本書の一般方式（「特定のファイル操作やストレージ方式を固定しない」）は変更しない。
+  - 公開実体 `rel/versions/pub-<run_id>/<dataset_id>.json` と、Registry改訂 `rel/registry/<pref>/revisions/rev-<run_id>.json` は新規作成のみで、上書きしない。
+  - 現行ポインタ `rel/registry/<pref>/current.json`（`registry_revision`、`registry_sha256`、`previous_revision`）だけを、同じディレクトリ内のrenameで原子的に置換する。これが公開点である。切替前の失敗では旧Registryが正本のままである。
+  - 第10節の同時Publishは、都道府県ごとの公開ロックと、ロック下での現行ポインタの再確認で、更新の消失を防ぐ。
+  - 旧改訂・旧実体は削除しない。第7節（世代管理）・第8節（Restore）は未実装・未変更である。
+- **P7**: 第6節の手順2に、公開条件（`license`、`attribution_url`）の必須化を追記した。本番の実行では、承認記録の `attribution_text`（Source Definitionの出典文言と一致すること）と、`eligibility_status = approved` の公開資格も必要である（[本番認可設計](production-authorization-v0.1.md)）。
+- 変えないもの: 複数Registryにまたがる原子的切替（第10節）と、Registryの物理配置の一般方式はUNDECIDEDのまま。上記の配置は標高APIについてだけ定める。
+- **実GSIデータの本番取得・Publishは、引き続きBLOCKEDである**（公開資格が未成立。[GSI利用条件チェックリスト](../operations/gsi-dem10b-usage-checklist-v0.1.md)）。

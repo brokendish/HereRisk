@@ -63,3 +63,7 @@ committedの `api/elevation/conf/sources.json` は変更していない（`gsi-d
 ## Conclusion
 
 自己テストの範囲で、Phase 1-D.3〜1-Eの実装は契約テストを満たす。実GSIの本番取得・公開に進むには、[実装仕様](../../docs/pipeline/elevation-publish-api-v0.1.md) 第6章の承認事項（本番承認ストア、取得元の有効化、再配布条件、鉛直基準の確認、改訂提案の採否、デプロイ）をOWNERが判断する必要がある。
+
+## Addendum（2026-10-17）
+
+本サマリーの作成時点で「未承認」としていた改訂P1〜P7は、2026-10-17 にOWNERがすべて正式採用し、上位契約へ反映した（[決定記録](../../docs/decisions/2026-10-17-elevation-p1-p7.md)、[反映の検証サマリー](phase1f-owner-approval-p1-p7.md)）。本文は作成時点の記録として変更していない。実GSIの本番取得・公開資格は、引き続きBLOCKEDである。

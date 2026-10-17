@@ -55,3 +55,7 @@ FixtureAuthorizer、committedの `sources.json`（`approval_ref=null`）、上�
 ## Conclusion
 
 自己テストの範囲で、Production Authorizerは既定で拒否し、明示的な承認記録に列挙された範囲だけを許可する。本番形式のE2Eは、実 `ProductionAuthorizer` で成立する。正式な実GSIの取得・Publishに進むには、OWNERが[Runbook](../../docs/operations/elevation-production-runbook-v0.1.md) 第0章の前提（測量法上の手続、出典文言、鉛直基準・測量時期の了承、P1〜P7の採否、取得対象、実行環境）を判断する必要がある。
+
+## Addendum（2026-10-17）
+
+本サマリーの作成時点で「未承認」としていた改訂P1〜P7は、2026-10-17 にOWNERがすべて正式採用し、上位契約へ反映した（[決定記録](../../docs/decisions/2026-10-17-elevation-p1-p7.md)、[反映の検証サマリー](phase1f-owner-approval-p1-p7.md)）。本文は作成時点の記録として変更していない。実GSIの本番取得・公開資格は、引き続きBLOCKEDである。

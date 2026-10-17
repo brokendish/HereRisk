@@ -1,7 +1,9 @@
-# 標高 契約改訂案 P1〜P7 v0.1（採用推奨・OWNER未承認）
+# 標高 契約改訂案 P1〜P7 v0.1（2026-10-17 OWNER正式採用・反映済み）
 
 - Task ID: `phase1f-elevation-production-readiness`
-- 状態: **改訂案（採用推奨）。OWNERの正式な承認はまだない。** 本書は上位契約の本文を改訂しない。上位契約の本文は、OWNERが承認した時点で本書の差分を反映する。
+- 状態: **2026-10-17 にOWNERがP1〜P7をすべて正式採用した**（[決定記録](../decisions/2026-10-17-elevation-p1-p7.md)）。差分は、同日に上位契約（[標高API契約](../api/elevation-contract-v0.1.md)、[Data Publish](../architecture/data-publish-v0.1.md)、[Dataset Registry](../architecture/dataset-registry-v0.1.md)）の本文と末尾の改訂節へ反映した（Task `phase1f-owner-approval-p1-p7`）。
+- 当初の状態（2026-10-17、Task `phase1f-elevation-production-readiness`）: 採用推奨の改訂案、OWNER未承認。
+- **実GSIの本番取得・公開資格は、引き続きBLOCKEDである。** P1〜P7の採用は、実データの取得・公開の承認ではない。
 - 起点: [Phase 1-D.3〜1-E 実装仕様](elevation-publish-api-v0.1.md) 第5章
 - 方針: 既存の実装（コミット `76fbc56`）に合わせ、上位契約の変更は最小限にする。実装の変更は不要である（第3章）。
 
@@ -9,15 +11,15 @@
 
 | ID | 提案 | 推奨 | 変更が必要な上位契約 | 互換性への影響 | OWNER判断 |
 |---|---|---|---|---|---|
-| P1 | 公開実体は、Validate済みの整数cm JSON | 採用 | 標高API契約 §6.1、§6.2、§9（T10・T12）、§11 | 公開形式の変更。API応答には影響しない | 未判断 |
-| P2 | Coverageは、XYZタイル参照で表す | 採用 | Dataset Registry §3.4、標高API契約 §6.1 | UNDECIDEDだった項目の確定。既存データへの影響はない | 未判断 |
-| P3 | 元データの基準日を確認できない場合は `data_reference_date = null` | 採用（確認的） | 標高API契約 §4.1（文言の明確化のみ） | なし（現契約と同じ挙動） | 未判断 |
-| P4 | 未定義のAPIパスは404（`not_found`） | 採用 | 標高API契約 §5 | エラーコードの追加。既存のコードの意味は変わらない | 未判断 |
-| P5 | API設定は設定ファイル（`api/elevation/conf/api.json`）で管理する | 採用（確認的） | 標高API契約 §7（ファイル名とSchemaの明記のみ） | なし（§7の値・範囲と同じ） | 未判断 |
-| P6 | 現行Registryは、ポインタの原子的な置換で切り替える | 採用 | Data Publish §5・§6・§10、標高API契約 §7に「標高APIでの方式」を追記 | 汎用方式は固定しない。Generation（§7）とは独立 | 未判断 |
-| P7 | Publishの認可には、ライセンスと出典URLが必要 | 採用 | Dataset Registry §5、Data Publish §6（手順2） | 認可を厳しくする方向のみ（従来の許可が新たに拒否されることはありうる） | 未判断 |
+| P1 | 公開実体は、Validate済みの整数cm JSON | 採用 | 標高API契約 §6.1、§6.2、§9（T10・T12）、§11 | 公開形式の変更。API応答には影響しない | 採用（2026-10-17） |
+| P2 | Coverageは、XYZタイル参照で表す | 採用 | Dataset Registry §3.4、標高API契約 §6.1 | UNDECIDEDだった項目の確定。既存データへの影響はない | 採用（2026-10-17） |
+| P3 | 元データの基準日を確認できない場合は `data_reference_date = null` | 採用（確認的） | 標高API契約 §4.1（文言の明確化のみ） | なし（現契約と同じ挙動） | 採用（2026-10-17） |
+| P4 | 未定義のAPIパスは404（`not_found`） | 採用 | 標高API契約 §5 | エラーコードの追加。既存のコードの意味は変わらない | 採用（2026-10-17） |
+| P5 | API設定は設定ファイル（`api/elevation/conf/api.json`）で管理する | 採用（確認的） | 標高API契約 §7（ファイル名とSchemaの明記のみ） | なし（§7の値・範囲と同じ） | 採用（2026-10-17） |
+| P6 | 現行Registryは、ポインタの原子的な置換で切り替える | 採用 | Data Publish §5・§6・§10、標高API契約 §7に「標高APIでの方式」を追記 | 汎用方式は固定しない。Generation（§7）とは独立 | 採用（2026-10-17） |
+| P7 | Publishの認可には、ライセンスと出典URLが必要 | 採用 | Dataset Registry §5、Data Publish §6（手順2） | 認可を厳しくする方向のみ（従来の許可が新たに拒否されることはありうる） | 採用（2026-10-17） |
 
-「OWNER判断」の欄は、OWNERが記入する。本書の作成者は承認を記入しない。
+「OWNER判断」の欄は、2026-10-17のOWNER決定（P1〜P7をすべて正式採用）を記録したものである。
 
 ## 2. 提案ごとの内容
 

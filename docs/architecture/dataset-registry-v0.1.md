@@ -1,6 +1,6 @@
 # Dataset Registry Design v0.1
 
-- Status: Draft（初期ドラフトのOWNERレビュー承認済み。未決定事項は継続検討）
+- Status: Draft（初期ドラフトのOWNERレビュー承認済み。未決定事項は継続検討。標高APIへの適用として改訂P1・P2・P6・P7を2026-10-17にOWNERが正式採用。末尾を参照）
 - Date: 2026-10-13
 - Task ID: dataset-registry-design-v0.1
 - 基準: [Project Charter v0.5](../project-charter.md)、[AI共通作業規約](../development/ai-development-policy.md)
@@ -75,6 +75,8 @@ Dataset共通のパスは `datasets[]` 内を基点とする。Identityのid/nam
 | `coverage.prefectures` | `string[]` | 任意 | 関係する都道府県。境界を越える収録を許容する。 |
 | `coverage.crs` | `string` | 条件付き必須 | 座標参照系。必要条件・表記方式はUNDECIDED。 |
 | `coverage.mode` | `string` | 未決定 | 範囲表現の方式。UNDECIDED。 |
+
+標高APIの値はP2（2026-10-17 OWNER承認）で定める（末尾を参照）。他APIの形式は拘束しない。
 
 ### 3.5 Source
 
@@ -164,7 +166,7 @@ Publish前に、少なくとも以下を確認する。
 1. 合意済み契約の必須項目・条件付き必須項目が満たされている。
 2. 公開データ実体が存在し、参照可能である。
 3. 対象データが品質検証を通過し、検証対象と公開実体が対応している。
-4. 出典・利用条件・再配布条件を確認し、必要な表示を用意している。
+4. 出典・利用条件・再配布条件を確認し、必要な表示を用意している。Publishの認可には、ライセンスと出典URLが必要である（P7、2026-10-17 OWNER承認）。
 5. 識別子、取得元、パイプラインのID・バージョン、公開参照先、Coverageの参照整合性が確認できる。
 
 Validate完了だけでは公開Registryを変更しない。Data ManagerのPublish処理が正常完了したときに公開Registryの更新を確定する。実体とRegistryの切替えの途中状態を読者へ見せず、失敗時には旧Registryと旧公開データを参照可能なまま維持する。旧実体を先に上書き・削除する方式ではこの条件を満たせない。
@@ -267,3 +269,18 @@ Registryから取得元・取得方式・実際に使用した `pipeline.id` と
 Source Definitionは各 `api/<api>/conf/sources.json` に配置し、共通Configuration Managerでスコープ付き解決を行う。公開Registryのフィールド・公開資格は変更しない。APIは原則自APIの公開データのみ読み取り、他APIの内部Registry・実体を直接参照しない。共通管理処理は認可されたAPI領域に限って処理する。
 
 公開実体は論理領域 `/data/<api>/rel/versions/`、取得・処理証跡は `/data/<api>/records/` の責務に属する。Registryの物理配置は未決定。API識別・公開版・実体と証跡の対応をバックアップ・復元でも維持し、ディレクトリ名やSource Definitionから公開状態を決めない。Publishのみ更新、Generation/Restoreは直接更新しない原則を維持する。
+
+## P1・P2・P6・P7 OWNER承認による改訂（2026-10-17）
+
+- OWNER決定日: 2026-10-17。決定: 改訂P1〜P7をすべて正式採用。本書に関係するのはP1・P2・P6・P7である。詳細は[契約改訂案](../pipeline/elevation-contract-revision-p1-p7-v0.1.md)、決定記録は[2026-10-17 P1〜P7の採用](../decisions/2026-10-17-elevation-p1-p7.md)。
+- 以下は**標高APIについてだけ**定める。第3節の各フィールドの一般的な確定度（UNDECIDED等）は変更しない。
+
+| ID | フィールド | 標高APIでの値 |
+|---|---|---|
+| P1 | `publication.format`・`publication.path`・`publication.filename` | `hererisk-elevation-cm-json-v0.1`（Validate済みの整数cm JSONを、バイト列を変えずに公開する）。`path = versions/<version>/<dataset_id>.json`、`filename = <dataset_id>.json`。1データセット = 1つのZ/X/Yタイル、`dataset_id = <source_ref>-z<z>-<x>-<y>` |
+| P2 | `coverage.ref`・`mode`・`bbox`・`crs`・`prefectures` | `ref = "xyz:<z>/<x>/<y>"`、`mode = "xyz_tile"`、`bbox` = EPSG:4326の `[west, south, east, north]`（選択には使わない）、`crs = "EPSG:4326"`、`prefectures` = 公開したRegistryの都道府県。地点のタイル（データセットのzoom）が `ref` と等しい場合だけ、その地点を覆う。都道府県の一致だけでは選択しない（第6節と同じ） |
+| P6 | Registryの配置 | 都道府県ごとに、改訂 `rel/registry/<pref>/revisions/rev-<run_id>.json`（不変）と、現行ポインタ `rel/registry/<pref>/current.json`（原子的に置換する唯一のファイル）。旧改訂は削除しない |
+| P7 | 第5節の公開資格 | 4への追記のとおり。本番では、承認記録の公開条件と `eligibility_status = approved` も必要 |
+
+- 変えないもの: `publication.checksum` の一般的な必須性・方式（UNDECIDED）。標高APIの実装は `sha256:<hex>` を記録・検証するが、これはRegistry全体の決定ではない。Registryの物理配置の一般方式、`coverage.mode` の他APIでの値もUNDECIDEDのまま。
+- **実GSIデータの公開資格は、引き続きBLOCKEDである**（[GSI利用条件チェックリスト](../operations/gsi-dem10b-usage-checklist-v0.1.md)）。

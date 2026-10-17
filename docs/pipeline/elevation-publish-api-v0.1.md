@@ -3,7 +3,7 @@
 - 状態: **実装済み（モック・テスト専用の承認での自己テストのみ）**。実GSIの本番取得、実データのPublish、一般公開・デプロイは**未実施**であり、本書はそれらの完了を意味しない。
 - 対象: Phase 1-D.3（本番形式パイプライン）、Phase 1-D.4（Data Publish・Dataset Registry）、Phase 1-E（`POST /api/v1/elevation`）
 - 上位契約: [標高API詳細契約案](../api/elevation-contract-v0.1.md)、[Data Publish設計書](../architecture/data-publish-v0.1.md)、[Dataset Registry設計書](../architecture/dataset-registry-v0.1.md)、[Download契約](elevation-download-contract-v0.1.md)、[Normalize/Validate契約](elevation-normalize-validate-contract-v0.1.md)
-- 上位契約との差分は第5章に「改訂提案」として列挙する。OWNERの承認まで、上位契約は改訂されていない。
+- 上位契約との差分は第5章のP1〜P7として列挙した。2026-10-17にOWNERがすべて正式採用し、上位契約へ反映済みである（[決定記録](../decisions/2026-10-17-elevation-p1-p7.md)）。
 
 ## 1. 実装範囲とBLOCKEDの範囲
 
@@ -45,11 +45,11 @@
 
 ## 3. Phase 1-D.4 Data Publish・Dataset Registry
 
-### 3.1 公開単位と形式（改訂提案P1）
+### 3.1 公開単位と形式（P1）
 
 - 1データセット = 1つのZ/X/Yタイル。`dataset_id = <source_ref>-z<z>-<x>-<y>`
-- 公開実体は、Validateに合格した正規化JSON（`hererisk-elevation-cm-json-v0.1`）を**バイト単位で同一のまま**コピーしたものである。標高API契約 §6.1 はPNGの公開を想定しているが、APIでの再復号を避け、検証済みの値をそのまま提供するためにJSONを公開する（改訂提案P1）。
-- `coverage`: `ref = "xyz:<z>/<x>/<y>"`、`mode = "xyz_tile"`、`bbox`（EPSG:4326のタイル範囲）、`prefectures`、`crs = "EPSG:4326"`（改訂提案P2）
+- 公開実体は、Validateに合格した正規化JSON（`hererisk-elevation-cm-json-v0.1`）を**バイト単位で同一のまま**コピーしたものである。APIでの再復号を避け、検証済みの値をそのまま提供するためにJSONを公開する（P1。標高API契約 §6.1 に反映済み）。
+- `coverage`: `ref = "xyz:<z>/<x>/<y>"`、`mode = "xyz_tile"`、`bbox`（EPSG:4326のタイル範囲）、`prefectures`、`crs = "EPSG:4326"`（P2）
 
 ### 3.2 配置
 
@@ -122,18 +122,18 @@ HTTPアダプタでは、`Transfer-Encoding` 付き、または不正な `Conten
 | 本文が大きすぎる | 413 | invalid_request | request_too_large | null |
 | メソッド不可 | 405 | invalid_request | method_not_allowed | null |
 | 形式不可 | 415 | invalid_request | unsupported_media_type | null |
-| パス不明 | 404 | invalid_request | not_found（改訂提案P4） | null |
+| パス不明 | 404 | invalid_request | not_found（P4） | null |
 | 想定外の例外 | 500 | retrieval_failed | internal_error | null |
 
 - `invalid_request` では `location` と `evaluated_at` はnullである。それ以外では、`location` は入力値そのもの、`evaluated_at` はミリ秒のUTC。
-- `dataset` は公開情報だけを返す: `id`、`publication_version`、`source{provider, page_url}`、`published_at`（ミリ秒のUTC）、`data_reference_date`（null。改訂提案P3）、`attribution{text, license, url}`。内部パス・checksum・Registry改訂名は返さない。
+- `dataset` は公開情報だけを返す: `id`、`publication_version`、`source{provider, page_url}`、`published_at`（ミリ秒のUTC）、`data_reference_date`（null。P3）、`attribution{text, license, url}`。内部パス・checksum・Registry改訂名は返さない。
 - `elevation_m = 整数cm / 100`
 
 ### 4.4 ログ
 
 - 1リクエストにつき1件。サーバーが生成した `request_id`、公開status、error_codeだけを出す。緯度経度・パス・クエリ・本文・データrootは出さない。標準ライブラリのアクセスログは無効にしている。
 
-## 5. 上位契約への改訂提案（OWNER判断事項）
+## 5. 上位契約への改訂 P1〜P7（2026-10-17 OWNER正式採用・反映済み）
 
 | ID | 内容 | 理由 |
 |---|---|---|
@@ -152,5 +152,5 @@ HTTPアダプタでは、`Transfer-Encoding` 付き、または不正な `Conten
 3. 国土地理院コンテンツ利用規約に基づく、再配布・公開条件（license・attribution_url・出典表示）の確定
 4. 取得規模・間隔・実行者・実行環境の承認
 5. 鉛直基準・測量時期・2025年改定の反映状況の確認と、確認できない場合の採否
-6. 改訂提案P1〜P7の採否
+6. ~~改訂提案P1〜P7の採否~~ → 2026-10-17 にすべて正式採用（決定済み）
 7. 公開API のデプロイ先、公開範囲、運用・監視の承認

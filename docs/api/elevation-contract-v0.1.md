@@ -2,7 +2,7 @@
 
 - Task ID: `mvp0-elevation-api-contract-v0.1`
 - 作成・公式資料確認日: 2026-10-16（日本時間）
-- Status: Draft / OWNER承認待ち
+- Status: Draft / OWNER承認待ち（ただし改訂P1〜P7は2026-10-17にOWNERが正式採用し、本書へ反映済み。末尾「P1〜P7 OWNER承認による改訂（2026-10-17）」を参照）
 - 対象: 設計・公開情報調査・文書化のみ。実装・API実測・データ取得検証は行っていない。
 
 ## 1. 適用範囲と確定度
@@ -110,7 +110,7 @@ MVP 0のresultはelevation_mだけとする。小数点以下2桁以内の復号
 | source.provider | 非空string、必須 | source.provider |
 | source.page_url | stringまたはnull、必須キー | 公開案内URL。未記録ならnull。取得URLは転写しない |
 | published_at | string、必須 | publication.published_atをUTC上記形式へ表記統一。時点不明を捏造しない |
-| data_reference_date | null、必須キー | MVP 0では常にnull。正式なRegistry対応先・測量時期の意味が未決定なため、取得日・作成日で代替しない |
+| data_reference_date | null、必須キー | MVP 0では常にnull。正式なRegistry対応先・測量時期の意味が未決定なため、取得日・作成日で代替しない。元データの基準日（測量時期）を公式資料で確認できない場合はnullとし、取得日・公開日・HereRisk公開版で代替しない（P3、2026-10-17 OWNER承認） |
 | attribution | object、必須 | 推奨GSI方式では公開資格として必要 |
 | attribution.text / license | 非空string、必須 | 検証済みattributionから許可した文言のみ抽出 |
 | attribution.url | stringまたはnull、必須キー | 公開利用条件・出典URL。未記録ならnull |
@@ -135,6 +135,7 @@ HTTPもstatus列挙もPROVISIONAL。200は照会処理が成立した意味で�
 | 本文サイズ超過 | 413 | invalid_request | request_too_large | リクエストが大きすぎます。 |
 | メソッド不正 | 405 | invalid_request | method_not_allowed | このメソッドは利用できません。 |
 | メディア型・符号化非対応 | 415 | invalid_request | unsupported_media_type | この形式のリクエストは利用できません。 |
+| 定義されていないパス（P4、2026-10-17 OWNER承認） | 404 | invalid_request | not_found | このエンドポイントはありません。 |
 | 未分類の内部例外 | 500 | retrieval_failed | internal_error | 標高取得処理に失敗しました。 |
 
 根拠: S11の400は入力不正、405/413/415は該当する要求制約、503は取得基盤が利用できない状況、500はサーバー側の品質・整合性・予期しない失敗とする提案。no_dataはAPI経路やリソースの不存在ではないため404にしない。復旧時刻を知らない場合Retry-Afterを捏造せず、MVP 0では自動再試行しない。恒久的I/O権限不備もdata_unavailableになり得るため、503を「再試行で必ず復旧」と説明しない。
@@ -149,11 +150,11 @@ HTTPもstatus列挙もPROVISIONAL。200は照会処理が成立した意味で�
 
 `取得 → 正規化 → Validate → Data Publish → 公開Registry → Selector → 標高読取`。公開前の成功条件・処理順は既存Publish契約を継承する。APIプロセスは作業領域や復元候補を読まず、実行時の外部取得・オンデマンド公開・自動フォールバックを行わない。
 
-最小の公開単位候補は「1件のDEM10B/Z14 PNGタイルを1データセット」とする。source.filenameとpublication.filenameの複数ファイル問題を避け、既存Registry必須項目を満たしやすくするための限定案。全国運用の最終単位ではない。東京の限定タイル集合・有効画素をCoverageとして検証し、日本全域整備済みという表示をしない。
+最小の公開単位は、1件のDEM10B/Z14タイルを1データセットとする。公開実体は、そのタイルのPNGを正規化・Validateした整数cm JSON（`publication.format = hererisk-elevation-cm-json-v0.1`）とし、Validateが検査したバイト列を変更せずに公開する。取得したPNGは取得証跡として保持し、公開しない（P1、2026-10-17 OWNER承認。旧案は「1件のDEM10B/Z14 PNGタイルを1データセット」）。source.filenameとpublication.filenameの複数ファイル問題を避け、既存Registry必須項目を満たしやすくするための限定案。全国運用の最終単位ではない。東京の限定タイル集合・有効画素をCoverageとして検証し、日本全域整備済みという表示をしない。
 
 公開データ準備はAPIの前提作業であり、API実装者が仮Registryや未検証PNGを一般APIの実データとして配置して代替しない。管理画面全体の実装は不要だが、最低限のValidate・Publish経路と公開成果物は別途用意・承認が必要。まだ用意できない段階のモックは契約テスト専用と明記する。
 
-`coverage.ref`はタイル範囲とNoDataを区別できる検証済み参照を持つ案。PNGの取得元、レイヤーID、Z/X/Y、取得時点、水平系、鉛直基準の確認状況、復号profileを公開準備の証跡に対応付ける。Registryへ新規必須キーを独断追加しない。既存acquisition.parameters・validation.profileでの表現、Coverage参照の形式はOWNER判断対象。
+`coverage.ref`はタイル範囲とNoDataを区別できる検証済み参照を持つ案。PNGの取得元、レイヤーID、Z/X/Y、取得時点、水平系、鉛直基準の確認状況、復号profileを公開準備の証跡に対応付ける。Registryへ新規必須キーを独断追加しない。既存acquisition.parameters・validation.profileでの表現はOWNER判断対象。Coverage参照の形式は、`coverage.ref = "xyz:<z>/<x>/<y>"`、`coverage.mode = "xyz_tile"`、`coverage.bbox`（EPSG:4326の `[west, south, east, north]`。選択には使わない）、`coverage.crs = "EPSG:4326"`、`coverage.prefectures` とし、地点のタイル（データセットのzoom）が `coverage.ref` と等しい場合だけその地点を覆う。Web Mercatorの範囲外はどのデータセットにも覆われない（P2、2026-10-17 OWNER承認）。
 
 ### 6.2 数値取得の具体案
 
@@ -172,6 +173,8 @@ pixel_x = ix mod 256; pixel_y = iy mod 256
 画素は投影座標で左・上を含み右・下を含まない半開区間。境界は東側／南側画素へ属する。座標を事前に丸めず、隣接画素から追加補間しない。投影限界・範囲外で配列参照やwrapをしない。Coverage参照も同じ境界規則で検証する。
 
 復号はS02に従い、整数q=65536R+256G+Bとする。q<8388608ならq/100 m、q=8388608ならNoData、q>8388608なら(q−16777216)/100 m。RGBを色補正・リサイズ・補間しない。正常な0や負値を欠損扱いしない。地理院タイルの既知NoDataだけをno_dataとし、読み取れないPNGや未知の形式はindeterminate。
+
+P1により、上式の復号はNormalize工程で行う。APIは公開実体の整数cmを100で割って `elevation_m` を返すだけで、PNGを復号しない（2026-10-17 OWNER承認）。
 
 最小検証profile案は、256×256・24bit RGB PNG、レイヤー/Z/X/YとCoverageの一致、正常復号、NoData識別、出典・利用条件、公開メタデータ必須性、SHA-256一致。checksum必須化と方式は本API用profileの提案であり、Registry全体の契約を変更した扱いにしない。
 
@@ -196,8 +199,8 @@ pixel_x = ix mod 256; pixel_y = iy mod 256
 
 | 最小設定候補 | 値・型の提案 | 管理・API変更 |
 |---|---|---|
-| request_body_max_bytes | integer、1024、許容256～4096 | api/elevation/conf定義。MVP 0で管理/API上書きなし |
-| evaluation_timeout_ms | integer、3000、許容100～10000 | api/elevation/conf定義。要求開始時固定。期限超過は503。値の妥当性は後続負荷試験 |
+| request_body_max_bytes | integer、1024、許容256～4096 | api/elevation/conf定義（ファイル `api/elevation/conf/api.json`、Schema `api.schema.json`、Configuration Managerの種別 `api`。P5、2026-10-17 OWNER承認）。MVP 0で管理/API上書きなし |
+| evaluation_timeout_ms | integer、3000、許容100～10000 | api/elevation/conf定義（`api.json`、P5）。要求開始時固定。期限超過は503。値の妥当性は後続負荷試験 |
 | 公開Registry参照先・公開データroot | 環境ごとの検証済み内部参照 | env管理、一般API・管理画面から変更不可 |
 | ログ収集先等 | 環境依存 | env管理。秘密情報をconf・Registryへ埋め込まない |
 
@@ -511,7 +514,7 @@ PROVISIONAL: API側はサーバー生成のランダムなrequest_idを内部ロ
 | 基本アーキテクチャ | 責務分離、設定3階層、conf/env、公開・世代・復元の分離 | MVPは運用設定UIなし・API上書きなしの具体案。全機能の前倒しではない |
 | 共通API | status/resultの分離、根拠情報制限、公開済みデータ限定 | POST、v1、必須/null、invalid_request、HTTP、時刻を具体提案。既存暫定列挙を確定扱いしない |
 | 共通APIのResolver経由記述 | 地域識別とデータ選択の責務を分離 | Coverage直接照合で地域エンジンを省略するMVP案は、C01のResolver経由という記述との調整事項。Charterの不要実装を強制しない方針との整合をOWNERが確認する |
-| Registry | 公開資格、由来、validation=passed、必須publication、履歴非格納 | 単一PNG公開単位・checksum必須profile・Coverage形式は追加提案。元データ日対応は未決定なのでnull |
+| Registry | 公開資格、由来、validation=passed、必須publication、履歴非格納 | 1タイル1データセット・整数cm JSON実体（P1）とCoverage形式（P2）は2026-10-17にOWNER承認。checksum必須profileは追加提案のまま。元データ日対応は未決定なのでnull（P3） |
 | Publish | 唯一の公開確定担当、参照整合、原子的切り替え、旧データ保護 | 最小公開準備も省略不可。APIの起動時固定案はPublish方式の確定ではない |
 | AI作業規約 | 指定文書のみ、自己確認と独立検証を区別、workspace非公開 | commit・push未実施。実装・実行テスト成功を宣言しない |
 
@@ -538,3 +541,26 @@ O01～O09はUNDECIDED（提案の採否待ち）。採用案の承認とデー�
 標高固有定義は `api/elevation/conf/`、共有定義は `conf/common/` に分離する。共通Configuration ManagerにAPI識別子・設定種別を渡して解決し、他APIの設定・データへの直接依存を作らない。詳細は[基本アーキテクチャ](../architecture/basic-architecture-v0.1.md)に従う。
 
 標高公開APIは原則 `/data/elevation/rel/versions/` 内の公開Registryが指す実体のみを読み、dl/work/recordsを評価根拠として参照しない。共通管理処理は認可された対象領域だけを扱う。取得設定のAPI配下配置は公開APIへのDownload・Validate・Publish実行権限を意味しない。物理保存先はenvで切り替え、Docker実装は未決定。HTTP・JSON応答・MVP 0範囲・未承認の取得条件を本改訂では変更しない。
+
+## P1〜P7 OWNER承認による改訂（2026-10-17）
+
+- OWNER決定日: 2026-10-17。決定: 改訂P1〜P7をすべて正式採用（Task `phase1f-owner-approval-p1-p7`）。
+- 改訂案の本文・採用理由・互換性: [契約改訂案 P1〜P7](../pipeline/elevation-contract-revision-p1-p7-v0.1.md)。決定記録: [2026-10-17 P1〜P7の採用](../decisions/2026-10-17-elevation-p1-p7.md)
+
+| ID | 本書で反映した箇所 | 内容 |
+|---|---|---|
+| P1 | §6.1、§6.2、§11 | 公開実体はValidate済み整数cm JSON。APIはPNGを復号しない。§9のT10「PNGが欠落」は「公開実体（JSON）が欠落」、T12「破損PNG・256×256以外・非対応色形式」は「公開実体がprofileに違反」と読み替える |
+| P2 | §6.1 | CoverageはXYZタイル参照（`xyz:<z>/<x>/<y>`、`xyz_tile`） |
+| P3 | §4.1 | 元データの基準日を確認できない場合は `data_reference_date = null`（従来の挙動の明確化） |
+| P4 | §5 | 未定義パスは404 / invalid_request / `not_found`。検査順序の先頭（パス → メソッド → …） |
+| P5 | §7 | API設定ファイル `api/elevation/conf/api.json`（従来の値・範囲を変更しない） |
+| P6 | §7（本節） | 標高APIのRegistry切替は、`rel/registry/<pref>/current.json` の原子的な置換。公開実体 `rel/versions/pub-<run_id>/<dataset_id>.json` とRegistry改訂 `rel/registry/<pref>/revisions/rev-<run_id>.json` は新規作成のみ。APIは起動時に、ポインタ → 改訂のchecksum → 全実体のchecksumを検証したスナップショットを持つ。前節の「`rel/versions/` 内の公開Registry」は、`rel/registry/` の現行ポインタが指すRegistryと、それが参照する `rel/versions/` の実体と読む |
+| P7 | （Publish・Registry契約で反映） | Publishの認可にはライセンス・出典URLが必要（[Data Publish](../architecture/data-publish-v0.1.md)、[Dataset Registry](../architecture/dataset-registry-v0.1.md)） |
+
+本改訂で変えないもの:
+
+- FIXEDの事項（§1）。
+- 第12節のO01〜O09の判断状態。P4による§5への1行追加は、O02（API wire契約）全体の承認ではない。
+- P1〜P7以外のUNDECIDED・PROVISIONALの項目（checksum必須profileの一般化、元データ日の正式な対応先、水平系の近似の許容、複数Registryの原子性等）。
+
+**実GSIの本番取得・Publish・一般公開は、引き続きBLOCKEDである。** 公開資格は[GSI利用条件チェックリスト](../operations/gsi-dem10b-usage-checklist-v0.1.md)の未確認事項（測量法上の手続、出典文言、第三者の権利）が解消し、OWNERが判断するまで成立しない。P1〜P7の採用は、実データの取得・公開の承認ではない。
