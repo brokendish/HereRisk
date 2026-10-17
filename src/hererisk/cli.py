@@ -41,8 +41,22 @@ Normalize -> Validate through ``Orchestrator.run_fixture_pipeline`` and prints
 succeeds (exit 0) only if all three stages ran and returned SUCCESS; otherwise
 status / error_code / exit code are those of the stage that stopped.
 
-Without ``--fixture`` the production context is used; since no production
-approval mechanism or network transport exists, it ends BLOCKED.
+``pipeline --production`` uses the production context. It is BLOCKED unless
+``--approval-root`` names an administrator-managed approval store holding a
+matching record for every stage (``ProductionAuthorizer``); the GSI HTTPS
+transport is wired only with ``--allow-network``.
+
+    python -m hererisk.cli approval-check --api elevation --region 13 \
+        --source gsi-dem10b-candidate --approval-root /path/to/approval-store [--publish]
+
+``approval-check`` (admin pre-check / dry run) evaluates the production
+authorization of every pipeline operation against the current Source
+Definition. No network access, no data root, nothing is written.
+
+    python -m hererisk.cli approval-digest --record /path/to/record.json
+
+``approval-digest`` prints the ``record_sha256`` of a hand-written record (read
+only; it never writes or completes a record).
 Result: one JSON line on stdout. Logs: JSON lines on stderr. Exit code from
 the result contract. Argument errors print a fixed message (never the
 offending values) and exit 2.
@@ -109,8 +123,9 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument("--fixture", type=Path, metavar="FIXTURE_ROOT",
                         help="fixture tree (fixture context)")
     target.add_argument("--production", action="store_true",
-                        help="production context (needs a production authorization: "
-                             "none can be granted yet, so this ends BLOCKED)")
+                        help="production context (BLOCKED without a matching approval record)")
+    pl.add_argument("--approval-root", type=Path,
+                    help="production only: administrator-managed approval store")
     pl.add_argument("--allow-network", action="store_true",
                     help="production only: wire the GSI HTTPS transport")
     pl.add_argument("--publish", action="store_true",
@@ -139,6 +154,15 @@ def build_parser() -> argparse.ArgumentParser:
     gev.add_argument("--lon", required=True, help="longitude in degrees")
     gev.add_argument("--zoom", required=True, help="XYZ zoom level 0-30")
     gev.add_argument("--poc-dir", required=True, type=Path, help="GSI PoC directory (Phase 1-D.1)")
+    ac = sub.add_parser("approval-check",
+                        help="admin pre-check: production authorization of every operation")
+    ac.add_argument("--api", required=True)
+    ac.add_argument("--region", required=True, action="append", dest="regions")
+    ac.add_argument("--source", required=True)
+    ac.add_argument("--approval-root", required=True, type=Path)
+    ac.add_argument("--publish", action="store_true", help="also check the publish operation")
+    ad = sub.add_parser("approval-digest", help="print record_sha256 of an approval record")
+    ad.add_argument("--record", required=True, type=Path)
     init = sub.add_parser("init-fixture-root",
                           help="mark an existing empty directory as a fixture data root")
     init.add_argument("--data-root", required=True, type=Path)
@@ -156,7 +180,9 @@ def build_orchestrator(args: argparse.Namespace, logger: StructuredLogger) -> Or
         transport = FixtureTransport(fixture_root / "tiles")
     else:
         config = ConfigurationManager(definition_root=REPO_ROOT, schema_root=REPO_ROOT)
-        authorizer = ProductionAuthorizer()  # always BLOCKED: no production approval store
+        # Deny by default: without --approval-root nothing is ever granted.
+        authorizer = ProductionAuthorizer(getattr(args, "approval_root", None),
+                                          protected_roots=(REPO_ROOT,))
         if getattr(args, "production", False) and getattr(args, "allow_network", False):
             from hererisk.elevation.download.gsi_transport import GsiHttpTransport
 
@@ -230,6 +256,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _gsi_fetch_poc(args, logger)
     if args.command == "gsi-elevation-poc":
         return _gsi_elevation_poc(args, logger)
+    if args.command == "approval-check":
+        return _approval_check(args)
+    if args.command == "approval-digest":
+        return _approval_digest(args.record)
     request = DownloadRequest(
         api_id=args.api,
         region_codes=tuple(args.regions),
@@ -252,7 +282,7 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
         source_ref=args.source,
         resume_run_id=args.resume_run_id,
     )
-    if args.allow_network and not args.production:
+    if (args.allow_network or args.approval_root is not None) and not args.production:
         results = (ModuleResult.error(new_run_id(), "download", "INVALID_INPUT"),)
     else:
         context = ExecutionContext.PRODUCTION if args.production else ExecutionContext.FIXTURE
@@ -264,6 +294,58 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
     sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
     sys.stdout.flush()
     return code
+
+
+def _approval_check(args: argparse.Namespace) -> int:
+    """Evaluate every operation's production authorization; print one JSON line."""
+    operations = ["download", "normalize", "validate"] + (["publish"] if args.publish else [])
+    doc: dict = {"status": "BLOCKED", "definition_revision": None, "definition_raw_sha256": None,
+                 "operations": []}
+    try:
+        definition = ConfigurationManager(REPO_ROOT, REPO_ROOT).load("api", args.api, "sources")
+    except Exception:  # noqa: BLE001 - never leak exception text
+        doc["error_code"] = "INVALID_CONFIGURATION"
+        sys.stdout.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
+        return 2
+    doc["definition_revision"] = definition.data.get("definition_revision")
+    doc["definition_raw_sha256"] = definition.raw_sha256
+    authorizer = ProductionAuthorizer(args.approval_root, protected_roots=(REPO_ROOT,))
+    for operation in operations:
+        entry = {"operation": operation, "decision": "BLOCKED", "authorization_ref": None,
+                 "reason": None}
+        try:
+            grant = authorizer.authorize(api_id=args.api, operation=operation,
+                                         source_ref=args.source,
+                                         region_codes=tuple(sorted(args.regions)),
+                                         definition=definition)
+            entry.update(decision="GRANTED", authorization_ref=grant.authorization_ref)
+        except PipelineError as exc:
+            entry["reason"] = str(exc).partition(": ")[2] or exc.error_code  # fixed texts only
+        doc["operations"].append(entry)
+    granted = all(e["decision"] == "GRANTED" for e in doc["operations"])
+    doc["status"] = "GRANTED" if granted else "BLOCKED"
+    doc["error_code"] = None if granted else "APPROVAL_REQUIRED"
+    sys.stdout.write(json.dumps(doc, ensure_ascii=False, sort_keys=True) + "\n")
+    return 0 if granted else 3
+
+
+def _approval_digest(path: Path) -> int:
+    from hererisk.common.approval_store import MAX_RECORD_BYTES, record_digest
+    from hererisk.common.config import parse_strict_json
+
+    try:
+        data = path.read_bytes()
+        if len(data) > MAX_RECORD_BYTES:
+            raise ValueError("too large")
+        record = parse_strict_json(data)
+        if not isinstance(record, dict):
+            raise ValueError("not an object")
+        digest = record_digest(record)
+    except Exception:  # noqa: BLE001 - never leak paths / exception text
+        sys.stdout.write(json.dumps({"record_sha256": None, "error_code": "INVALID_INPUT"}) + "\n")
+        return 2
+    sys.stdout.write(json.dumps({"record_sha256": digest, "error_code": None}) + "\n")
+    return 0
 
 
 _ZOOM_RE = re.compile(r"^[0-9]{1,2}$")

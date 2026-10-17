@@ -241,7 +241,8 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline \
 # {"error_code": "APPROVAL_REQUIRED", "status": "BLOCKED", ...}  exit=3
 ```
 
-- 本番の承認ストアは未実装で、`ProductionAuthorizer` は常にAPPROVAL_REQUIREDを返す。また `gsi-dem10b-candidate` は `approval_ref=null` のため、Downloadの前提条件でもBLOCKEDになる。**通信・書込みの前に止まる。**
+- `ProductionAuthorizer` は既定で拒否する。`--approval-root` で管理者の承認ストアを指定し、該当する承認記録がある場合だけ許可する（[本番認可設計](../architecture/production-authorization-v0.1.md)、[本番化Runbook](../operations/elevation-production-runbook-v0.1.md)）。本番の承認記録は存在せず、`gsi-dem10b-candidate` は `approval_ref=null` のため、Downloadの前提条件でもBLOCKEDになる。**通信・書込みの前に止まる。**
+- 事前確認は `approval-check`（通信・書込みなし）で行う。
 - `--allow-network` を指定した場合だけ、実GSIのHTTPクライアント（`net/gsi_http.py`）を組み立てる。`--production` なしで指定するとINVALID_INPUT（exit 2）になる。
 - 仕様: [本番形式パイプライン・Publish・公開API 実装仕様](../pipeline/elevation-publish-api-v0.1.md) 第2章。モックのGSIとテスト専用承認による検証は `tests/contract/test_production_pipeline.py` にある（本番承認ではない）。
 

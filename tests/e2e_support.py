@@ -65,7 +65,7 @@ class TestOnlyProductionAuthorizer:
             source_ref=source_ref, region_codes=tuple(region_codes), policy=freeze(dict(policy)))
 
 
-def test_source_repo(root: Path, tiles=TOKYO_TILES) -> Path:
+def test_source_repo(root: Path, tiles=TOKYO_TILES, approval_ref="test-only-not-an-approval") -> Path:
     """Temporary definition root whose GSI candidate carries test-only values."""
     conf = root / "api" / "elevation" / "conf"
     conf.mkdir(parents=True)
@@ -77,10 +77,59 @@ def test_source_repo(root: Path, tiles=TOKYO_TILES) -> Path:
     src["usage"]["attribution_text"] = "test-only attribution (not GSI attribution text)"
     src["usage"]["review_ref"] = "test-only-review"
     src["pipeline"] = {"id": "elevation-download", "version": "0.1"}
-    src["approval_ref"] = "test-only-not-an-approval"
+    src["approval_ref"] = approval_ref
     doc["definition_revision"] = "test-only-1"
     (conf / "sources.json").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
                                        encoding="utf-8")
+    return root
+
+
+TEST_APPROVAL_ID = "apr-test-only-e2e"
+TEST_ATTRIBUTION = "test-only attribution (not GSI attribution text)"
+
+
+def approval_record(definition_sha256: str, *, approval_id=TEST_APPROVAL_ID, tiles=TOKYO_TILES,
+                    operations=("download", "normalize", "validate", "publish"),
+                    regions=("13",), **overrides) -> dict[str, Any]:
+    """A TEST-ONLY production-format approval record (never a real approval)."""
+    from hererisk.common.approval_store import RECORD_SCHEMA_ID, record_digest
+
+    record: dict[str, Any] = {
+        "schema": RECORD_SCHEMA_ID, "approval_id": approval_id, "execution_context": "production",
+        "api_id": "elevation", "source_ref": SOURCE, "operations": list(operations),
+        "region_codes": list(regions), "tiles": [{"z": 14, "x": x, "y": y} for x, y in tiles],
+        "definition": {"revision": "test-only-1", "raw_sha256": definition_sha256},
+        "valid_from": "2020-01-01T00:00:00Z", "expires_at": "2099-01-01T00:00:00Z",
+        "approved_by": "test-only (not an approver)",
+        "approval_basis_ref": "test-only (not an approval basis)",
+    }
+    if "download" in operations:
+        record["acquisition"] = {"allowed_host": "cyberjapandata.gsi.go.jp",
+                                 "max_tiles_per_run": 16, "max_tile_bytes": 1048576,
+                                 "max_pending_acquisitions": 8}
+    if "publish" in operations:
+        record["publication"] = {"license": TEST_TERMS["license"],
+                                 "attribution_url": TEST_TERMS["attribution_url"],
+                                 "attribution_text": TEST_ATTRIBUTION,
+                                 "eligibility_status": "approved",
+                                 "eligibility_ref": "test-only (no publication eligibility)"}
+    record.update(overrides)
+    record["record_sha256"] = record_digest(record)
+    return record
+
+
+def write_store(root: Path, records, revoked=()) -> Path:
+    """Write a TEST-ONLY approval store under ``root`` (a temp dir outside the repo)."""
+    from hererisk.common.approval_store import REVOCATIONS_SCHEMA_ID
+
+    (root / "approvals").mkdir(parents=True, exist_ok=True)
+    for record in records:
+        (root / "approvals" / f"{record['approval_id']}.json").write_text(
+            json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    (root / "revocations.json").write_text(json.dumps({
+        "schema": REVOCATIONS_SCHEMA_ID,
+        "revoked": [{"approval_id": i, "revoked_at": "2026-01-01T00:00:00Z",
+                     "reason_ref": "test-only"} for i in revoked]}), encoding="utf-8")
     return root
 
 
@@ -154,14 +203,17 @@ class World:
     __test__ = False
 
     def __init__(self, tmp: Path, bodies: dict[tuple[int, int], bytes], *,
-                 tiles=None, authorizer=None, stages=None, area_factory=None) -> None:
+                 tiles=None, authorizer=None, stages=None, area_factory=None,
+                 approval_ref="test-only-not-an-approval") -> None:
         self.tmp = tmp
-        self.repo = test_source_repo(tmp / "repo", tiles or list(bodies))
+        self.repo = test_source_repo(tmp / "repo", tiles or list(bodies), approval_ref)
         self.data_root = tmp / "data"
         self.data_root.mkdir(exist_ok=True)
         self.gsi = GsiFake(bodies)
         self.sink = ListSink()
         self.authorizer = authorizer or TestOnlyProductionAuthorizer()
+        self.definition_sha256 = ConfigurationManager(self.repo, REPO).load(
+            "api", "elevation", "sources").raw_sha256
         self.stages = stages or (NormalizeStage(), ValidateStage(), PublishStage())
         kwargs = {"area_factory": area_factory} if area_factory else {}
         self.orchestrator = Orchestrator(
@@ -173,6 +225,18 @@ class World:
             stages={"elevation": self.stages},
             **kwargs,
         )
+
+    def use_store(self, records=None, revoked=(), **authorizer_kwargs):
+        """Switch to the REAL ProductionAuthorizer over a TEST-ONLY store in tmp."""
+        from hererisk.common.authorization import ProductionAuthorizer
+
+        if records is None:
+            records = [approval_record(self.definition_sha256)]
+        self.store = write_store(self.tmp / "approval-store", records, revoked)
+        self.authorizer = ProductionAuthorizer(self.store, protected_roots=(REPO,),
+                                               **authorizer_kwargs)
+        self.orchestrator._authorizer = self.authorizer
+        return self.store
 
     def run(self, resume=None):
         return self.orchestrator.run_pipeline(

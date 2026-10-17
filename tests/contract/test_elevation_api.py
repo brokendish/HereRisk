@@ -38,7 +38,8 @@ BODY_B = png_with({}, default=(0, 1, 0))         # 256 cm everywhere
 
 @pytest.fixture
 def world(tmp_path):
-    w = World(tmp_path, {A: BODY_A, B: BODY_B})
+    (tmp_path / "w").mkdir()
+    w = World(tmp_path / "w", {A: BODY_A, B: BODY_B})
     results = w.run()
     assert results[-1].module == "publish" and results[-1].status.value == "SUCCESS"
     return w
@@ -385,5 +386,6 @@ def test_api_process_loads_no_pipeline_or_network_modules() -> None:
                  "hererisk.elevation.normalize.stage",
                  "hererisk.elevation.validate.stage", "hererisk.elevation.publish.stage",
                  "hererisk.elevation.gsi_poc", "hererisk.elevation.net",
-                 "hererisk.common.orchestrator", "hererisk.common.authorization")
+                 "hererisk.common.orchestrator", "hererisk.common.authorization",
+                 "hererisk.common.approval_store")
     assert not [m for m in loaded if m.startswith(forbidden)], loaded

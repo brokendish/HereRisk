@@ -1,0 +1,37 @@
+{
+  "schema": "hererisk-production-approval-v0.1",
+  "approval_id": "apr-example-elevation-13-0001",
+  "execution_context": "production",
+  "api_id": "elevation",
+  "source_ref": "gsi-dem10b-candidate",
+  "operations": [
+    "download",
+    "normalize",
+    "validate"
+  ],
+  "region_codes": [
+    "13"
+  ],
+  "tiles": [
+    {
+      "z": 14,
+      "x": 14552,
+      "y": 6451
+    }
+  ],
+  "definition": {
+    "revision": "<sources.json の definition_revision>",
+    "raw_sha256": "<approval-check が表示する definition_raw_sha256>"
+  },
+  "valid_from": "2026-11-01T00:00:00Z",
+  "expires_at": "2026-11-08T00:00:00Z",
+  "approved_by": "<承認者の識別子>",
+  "approval_basis_ref": "<承認根拠の参照（議事録・照会番号等）>",
+  "acquisition": {
+    "allowed_host": "cyberjapandata.gsi.go.jp",
+    "max_tiles_per_run": 1,
+    "max_tile_bytes": 1048576,
+    "max_pending_acquisitions": 1
+  },
+  "record_sha256": "<approval-digest が表示する値>"
+}

@@ -379,6 +379,9 @@ class Orchestrator:
         """
         area.pin()
         if authorization.context is not ExecutionContext.FIXTURE:
+            # 本番の実行は、fixture用に印を付けたデータrootへ書かない。
+            if area.has_fixture_marker_entry():
+                raise PipelineError("INVALID_INPUT", "fixture data root in production run")
             return
         if area.root_within(self._protected_roots()):
             raise PipelineError("INVALID_INPUT", "fixture data root not allowed")

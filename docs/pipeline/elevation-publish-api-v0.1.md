@@ -13,7 +13,7 @@
 | 実GSI HTTPクライアントのパイプラインへの接続（`GsiHttpTransport`） | 実装済み。テストは偽の接続のみ。実GSIへの通信は一度も行っていない |
 | Data Publish（不変の公開実体、Registry改訂、原子的な切替、旧Registryの保持） | 実装済み。fixtureのデータrootと、テスト専用承認のモック本番形式データで検証 |
 | 公開API（HTTP、起動時検証、地点選択、7キー応答） | 実装済み。ループバックでのみ動作確認 |
-| 本番承認ストア（本番の`Authorizer`） | **未実装（意図的）**。`ProductionAuthorizer` は常にBLOCKする。認可の大きな変更であり、OWNER承認が必要 |
+| 本番承認ストア（本番の`Authorizer`） | Phase 1-F で実装（[本番認可設計](../architecture/production-authorization-v0.1.md)）。**本番の承認記録は存在しない**ため、本番の実行は引き続きBLOCKED |
 | 実GSIの本番取得・実データPublish・一般公開・デプロイ | **未実施**（第6章の承認事項が必要） |
 | Generation、Restore、Rollback、管理UI | 対象外（未実装） |
 
@@ -147,7 +147,7 @@ HTTPアダプタでは、`Transfer-Encoding` 付き、または不正な `Conten
 
 ## 6. 実GSIの本番取得・公開に必要な承認事項（未承認）
 
-1. 本番承認ストア（本番の `Authorizer`）の設計・実装の承認（認可の大きな変更）
+1. 本番承認ストアの設計の承認（Phase 1-F で実装済み）と、承認記録の登録（[Runbook](../operations/elevation-production-runbook-v0.1.md)）
 2. `gsi-dem10b-candidate` の有効化: `approval_ref`、対象タイル、鉛直基準の確認結果、出典文言、利用条件レビューの記入
 3. 国土地理院コンテンツ利用規約に基づく、再配布・公開条件（license・attribution_url・出典表示）の確定
 4. 取得規模・間隔・実行者・実行環境の承認

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "revoked"
+  ],
+  "properties": {
+    "schema": {
+      "const": "hererisk-approval-revocations-v0.1"
+    },
+    "revoked": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "approval_id",
+          "revoked_at",
+          "reason_ref"
+        ],
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "pattern": "^apr-[a-z0-9][a-z0-9-]{2,62}$"
+          },
+          "revoked_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+          },
+          "reason_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      }
+    }
+  }
+}

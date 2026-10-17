@@ -769,6 +769,19 @@ class ApiDataArea:
             os.close(fd)
 
     # -- fixture data root -------------------------------------------------------
+    def has_fixture_marker_entry(self) -> bool:
+        """True if any entry named like the fixture marker exists (content not checked).
+
+        Used to keep production runs off fixture roots: fail closed on any marker.
+        """
+        try:
+            os.stat(FIXTURE_ROOT_MARKER, dir_fd=self._rootfd(), follow_symlinks=False)
+        except FileNotFoundError:
+            return False
+        except OSError:
+            return True
+        return True
+
     def has_fixture_marker(self) -> bool:
         """True if the data root carries the explicit fixture-root marker file."""
         root = self._rootfd()
