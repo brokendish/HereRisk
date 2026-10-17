@@ -20,7 +20,7 @@ from typing import Any, Mapping
 
 from hererisk.common.result import PipelineError
 from hererisk.elevation.normalize.convert import FORMAT, PIXELS, _check_tile
-from hererisk.elevation.download.download import TILE_HEIGHT, TILE_WIDTH
+from hererisk.elevation.tile_format import TILE_HEIGHT, TILE_WIDTH
 
 PROFILE_ID = "fixture-elevation-normalized-v0.1"
 VALUE_MIN_CM = -8388607  # representable range of the GSI encoding (q - 2^24 .. 2^23 - 1)

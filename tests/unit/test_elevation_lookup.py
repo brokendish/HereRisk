@@ -320,7 +320,7 @@ def test_module_is_pure() -> None:
         elif isinstance(node, ast.Import):
             modules |= {a.name for a in node.names}
     assert modules <= {"__future__", "math", "dataclasses", "typing", "hererisk.common.result",
-                       "hererisk.elevation.download.download",
+                       "hererisk.elevation.tile_format",
                        "hererisk.elevation.normalize.convert"}, modules
     names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
     assert not names & {"open", "normalize_tile", "validate_candidate", "ApiDataArea"}

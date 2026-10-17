@@ -33,7 +33,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from hererisk.common.authorization import Authorization
+from hererisk.common.authorization import Authorization, ExecutionContext
 from hererisk.common.config import ConfigurationError, parse_strict_json, validate_with_schema
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadPlan
@@ -50,6 +50,12 @@ from hererisk.elevation.normalize.stage import (
 from hererisk.elevation.validate.core import PROFILE_ID, CandidateRejected, validate_candidate
 
 MODULE = "validate"
+# Same structural checks; the profile name records which data class was checked.
+PRODUCTION_PROFILE_ID = "elevation-normalized-v0.1"
+
+
+def profile_for(context: ExecutionContext) -> str:
+    return PRODUCTION_PROFILE_ID if context is ExecutionContext.PRODUCTION else PROFILE_ID
 PIPELINE_ID = "elevation-validate"
 PIPELINE_VERSION = "fixture-0.1"
 RECORD_SCHEMA_VERSION = "0.1"
@@ -78,7 +84,7 @@ RECORD_SCHEMA: dict[str, Any] = {
         **{k: v for k, v in _BASE.items()},
         "module": {"const": MODULE},
         "pipeline": _obj({"id": {"const": PIPELINE_ID}, "version": {"const": PIPELINE_VERSION}}),
-        "profile": {"const": PROFILE_ID},
+        "profile": {"enum": [PROFILE_ID, PRODUCTION_PROFILE_ID]},
         "validation": _obj({
             "normalize_record_ref": {"type": "string", "minLength": 1},
             "normalize_record_sha256": _SHA,
@@ -285,7 +291,7 @@ class ValidateStage:
             "execution_context": ctx["authorization"].context.value,
             "authorization_ref": ctx["authorization"].authorization_ref,
             "pipeline": {"id": PIPELINE_ID, "version": PIPELINE_VERSION},
-            "profile": PROFILE_ID,
+            "profile": profile_for(plan.authorization.context),
             "source_raw_sha256": plan.definition.raw_sha256,
             "effective_configuration": {
                 "snapshot_ref": plan.effective_configuration_ref,

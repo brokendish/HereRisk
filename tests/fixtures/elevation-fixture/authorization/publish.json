@@ -1,0 +1,26 @@
+{
+  "authorization_ref": "fixture-auth-elevation-publish",
+  "execution_context": "fixture",
+  "api_id": "elevation",
+  "operation": "publish",
+  "grants": [
+    {
+      "source_ref": "fixture-dem-png-tokyo",
+      "region_codes": [
+        "13"
+      ],
+      "definition_raw_sha256": "8e1b2b81d5123db90451e822aae19d54fc75f9cc40da1d5236509ed782816e0a"
+    },
+    {
+      "source_ref": "fixture-dem-png-osaka",
+      "region_codes": [
+        "27"
+      ],
+      "definition_raw_sha256": "8e1b2b81d5123db90451e822aae19d54fc75f9cc40da1d5236509ed782816e0a"
+    }
+  ],
+  "publication": {
+    "license": "Fixture licence (test data only, not redistributable)",
+    "attribution_url": "https://fixture.invalid/terms"
+  }
+}

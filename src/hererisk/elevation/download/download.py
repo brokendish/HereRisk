@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 from urllib.parse import urlsplit
 
+from hererisk.common.authorization import ExecutionContext
 from hererisk.common.config import ConfigurationError, parse_strict_json, thaw
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadPlan
@@ -42,13 +43,23 @@ from hererisk.elevation.download.transport import Transport
 
 MODULE = "download"
 PIPELINE_ID = "elevation-download"
-PIPELINE_VERSION = "fixture-0.1"  # The only implemented version: fixture transport only.
+PIPELINE_VERSION = "fixture-0.1"  # fixture transport
+PRODUCTION_PIPELINE_VERSION = "0.1"  # GSI HTTPS transport (Phase 1-D.3)
 
-# GSI elevation PNG tile format (demtile spec: 256x256, 24-bit RGB).
-TILE_WIDTH = 256
-TILE_HEIGHT = 256
-TILE_BIT_DEPTH = 8
-TILE_COLOR_TYPE = 2  # truecolour RGB
+
+def pipeline_for(context: ExecutionContext) -> tuple[str, str]:
+    """Pipeline identity actually executed in a context (recorded in Records)."""
+    if context is ExecutionContext.PRODUCTION:
+        return PIPELINE_ID, PRODUCTION_PIPELINE_VERSION
+    return PIPELINE_ID, PIPELINE_VERSION
+
+# GSI elevation PNG tile format (demtile spec): defined in elevation.tile_format.
+from hererisk.elevation.tile_format import (  # noqa: E402,F401 - re-exported
+    TILE_BIT_DEPTH,
+    TILE_COLOR_TYPE,
+    TILE_HEIGHT,
+    TILE_WIDTH,
+)
 
 PART_NAME = "original.part"
 ARTIFACT_NAME = "original.png"
@@ -85,7 +96,6 @@ def plan_tiles(plan: DownloadPlan) -> list[TileKey]:
 
 class ElevationDownload:
     api_id = "elevation"
-    pipeline = (PIPELINE_ID, PIPELINE_VERSION)
 
     def __init__(
         self,
@@ -101,6 +111,10 @@ class ElevationDownload:
     @property
     def transport_context(self):
         return self._transport.context
+
+    @property
+    def pipeline(self) -> tuple[str, str]:
+        return pipeline_for(self._transport.context)
 
     # -- preflight (no I/O) -------------------------------------------
     def preflight(self, plan: DownloadPlan) -> None:
@@ -321,7 +335,7 @@ def build_record(
             "snapshot_ref": plan.effective_configuration_ref,
             "sha256": plan.effective_configuration_sha256,
         },
-        "pipeline": {"id": PIPELINE_ID, "version": PIPELINE_VERSION},
+        "pipeline": dict(zip(("id", "version"), pipeline_for(plan.authorization.context))),
         # Provider version / reference date are unknown for fixtures: null,
         # never inferred from acquisition time.
         "original_version": None,

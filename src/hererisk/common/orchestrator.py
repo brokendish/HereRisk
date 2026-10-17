@@ -162,19 +162,29 @@ class Orchestrator:
         return self._execute(request, ())[0]
 
     def run_fixture_pipeline(self, request: DownloadRequest) -> tuple[ModuleResult, ...]:
-        """Download -> registered later stages, fixture only.
+        """Download -> registered later stages, fixture context only."""
+        return self.run_pipeline(request, context=ExecutionContext.FIXTURE)
 
-        Returns the results of the stages that ran, in order; the pipeline
-        succeeded only if every registered stage ran and returned SUCCESS.
+    def run_pipeline(
+        self, request: DownloadRequest, *, context: ExecutionContext
+    ) -> tuple[ModuleResult, ...]:
+        """Download -> registered later stages in ``context``.
+
+        Every authorization (download and each stage) must be of ``context``;
+        a production run therefore needs a production authorization, which the
+        ``ProductionAuthorizer`` never grants today. Returns the results of the
+        stages that ran, in order; the pipeline succeeded only if every
+        registered stage ran and returned SUCCESS.
         """
         stages = self._stages.get(request.api_id)
         if not stages:
             run_id = request.resume_run_id or self._id_factory()
             return (self._finish(run_id, request.api_id, "INVALID_INPUT"),)
-        return self._execute(request, stages)
+        return self._execute(request, stages, context=context)
 
     def _execute(
-        self, request: DownloadRequest, stages: tuple[PipelineStage, ...]
+        self, request: DownloadRequest, stages: tuple[PipelineStage, ...],
+        *, context: ExecutionContext | None = None,
     ) -> tuple[ModuleResult, ...]:
         run_id = self._id_factory()
         if request.resume_run_id is not None:
@@ -188,7 +198,10 @@ class Orchestrator:
             definition = self._load_definition(request.api_id)
             self._check_target(request, definition, module)
             authorization = self._authorize(request, definition, module)
-            stage_authorizations = self._authorize_stages(request, definition, stages)
+            if context is not None and authorization.context is not context:
+                raise PipelineError("APPROVAL_REQUIRED", "authorization context mismatch")
+            stage_authorizations = self._authorize_stages(
+                request, definition, stages, authorization.context)
             self._check_data_root(authorization)
             effective_doc = self._effective_document(
                 run_id, request, definition, authorization, module
@@ -309,7 +322,7 @@ class Orchestrator:
 
     def _authorize_stages(
         self, request: DownloadRequest, definition: ConfigSnapshot,
-        stages: tuple[PipelineStage, ...],
+        stages: tuple[PipelineStage, ...], context: ExecutionContext,
     ) -> list[Authorization]:
         """Authorize every later stage for its own operation before any write."""
         authorizations = []
@@ -324,7 +337,7 @@ class Orchestrator:
                 )
             except PipelineError as exc:
                 raise _StageBlocked(stage.operation, exc.error_code) from exc
-            if authorization.context is not ExecutionContext.FIXTURE or \
+            if authorization.context is not context or \
                     authorization.operation != stage.operation:
                 raise _StageBlocked(stage.operation, "APPROVAL_REQUIRED")
             authorizations.append(authorization)

@@ -29,7 +29,7 @@ tests/
   unit/  contract/              単体テスト・契約テスト
 ```
 
-`common` は `elevation` を参照しない（テストで検査）。HTTP Transport、Normalize / Validate / Publish、Generation / Restore、Data Managerは実装していない。
+`common` は `elevation` を参照しない（テストで検査）。上の構成はPhase 1-A.1時点のものである。その後、Normalize・Validate（Phase 1-B）、地点読取（1-C）、GSI PoC（1-D.1〜1-D.2）、本番形式パイプライン・Publish・公開API（1-D.3〜1-E: `elevation/net/`、`download/gsi_transport.py`、`publish/`、`api/`）を追加した（第3.1〜3.7節）。Generation / Restore、Data Managerは実装していない。
 
 ## 2. セットアップ
 
@@ -103,7 +103,7 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli download --api elevation --regio
 
 ### 3.1 fixtureパイプライン（Download → Normalize → Validate）
 
-`pipeline` コマンドは、fixture専用の入口である（`--fixture` 必須。本番用の入口はない）。引数は `download` と同じで、`--resume-run-id` も使える。
+`pipeline` コマンドは、`--fixture <dir>` か `--production` のどちらか一方を必ず指定する（本番の入口は第3.5節。本番承認がないため必ずBLOCKEDになる）。引数は `download` と同じで、`--resume-run-id` も使える。`--publish` を付けるとPublishまで実行する（第3.6節）。
 
 ```sh
 PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline \
@@ -231,6 +231,61 @@ stdoutにはJSONを1行だけ出す。キーは `status`・`error_code`・`reaso
   - 統計の不一致: `STATISTICS_MISMATCH`（3）
 - 入力した緯度経度・パス・例外文は出力しない。
 - 得られる値はPoCのデータで、公開承認済みのデータではない。鉛直基準・測量時期・改定の反映状況は未確認のまま（推測しない）。
+
+### 3.5 本番形式パイプライン（Phase 1-D.3、現在は必ずBLOCKED）
+
+```sh
+PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline \
+  --api elevation --region 13 --source gsi-dem10b-candidate \
+  --production --allow-network --data-root "$DATA_ROOT"
+# {"error_code": "APPROVAL_REQUIRED", "status": "BLOCKED", ...}  exit=3
+```
+
+- 本番の承認ストアは未実装で、`ProductionAuthorizer` は常にAPPROVAL_REQUIREDを返す。また `gsi-dem10b-candidate` は `approval_ref=null` のため、Downloadの前提条件でもBLOCKEDになる。**通信・書込みの前に止まる。**
+- `--allow-network` を指定した場合だけ、実GSIのHTTPクライアント（`net/gsi_http.py`）を組み立てる。`--production` なしで指定するとINVALID_INPUT（exit 2）になる。
+- 仕様: [本番形式パイプライン・Publish・公開API 実装仕様](../pipeline/elevation-publish-api-v0.1.md) 第2章。モックのGSIとテスト専用承認による検証は `tests/contract/test_production_pipeline.py` にある（本番承認ではない）。
+
+### 3.6 Publish（Phase 1-D.4、fixtureのみ実行可能）
+
+```sh
+PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline \
+  --api elevation --region 13 --source fixture-dem-png-tokyo \
+  --fixture tests/fixtures/elevation-fixture \
+  --data-root "$DATA_ROOT" --publish
+```
+
+- Download → Normalize → Validate → Publish の4工程がすべてSUCCESSの場合だけ、終了コード0になる。Publishにはfixture承認 `authorization/publish.json`（fixtureの公開条件を含む）が必要である。
+- 結果: 公開実体 `elevation/rel/versions/pub-<run_id>/<dataset_id>.json`、Registry改訂 `elevation/rel/registry/13/revisions/rev-<run_id>.json`、現行ポインタ `elevation/rel/registry/13/current.json`、公開記録 `elevation/records/publications/<run_id>.json`
+- 再実行（`--resume-run-id`）では何も変わらない。Publishを繰り返すと、現行ポインタが新しい改訂へ切り替わる。旧改訂・旧実体は残る。
+- fixtureのPublishはfixtureデータの公開であり、実GSIデータの公開ではない。
+
+### 3.7 公開APIの起動（Phase 1-E、Macでのローカル確認）
+
+```sh
+cd ~/Documents/GitHub/HereRisk
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # 初回のみ
+
+# 1) fixtureのデータrootを用意して、Publishまで実行する
+DATA_ROOT=$(mktemp -d)
+PYTHONPATH=src .venv/bin/python -m hererisk.cli init-fixture-root --data-root "$DATA_ROOT"
+PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline --api elevation --region 13 \
+  --source fixture-dem-png-tokyo --fixture tests/fixtures/elevation-fixture \
+  --data-root "$DATA_ROOT" --publish
+
+# 2) APIを起動する（fixtureのデータrootは --fixture-demo の場合だけ、ループバックで起動できる）
+PYTHONPATH=src .venv/bin/python -m hererisk.elevation.api.server \
+  --data-root "$DATA_ROOT" --host 127.0.0.1 --port 8000 --fixture-demo
+
+# 3) 別のターミナルで問い合わせる
+curl -s -X POST -H 'Content-Type: application/json' \
+  -d '{"lat": 35.701882, "lon": 139.713178}' http://127.0.0.1:8000/api/v1/elevation
+# {"hazard":"elevation","location":{...},"status":"success","result":{"elevation_m":81.44},"dataset":{"id":"fixture-dem-png-tokyo-z14-14550-6450",...},...}
+```
+
+- 停止はCtrl+C。データの検証に失敗した場合は起動しない（exit 3）。
+- fixtureのタイルはZ14の (14550, 6450) と (14551, 6450) だけである。それ以外の地点（例: 東京駅）は `no_coverage` になる。返る値はfixtureの合成データで、実際の標高ではない。
+- `--fixture-demo` はループバック以外のアドレスでは指定できない。fixtureでないデータrootの場合は `--fixture-demo` を付けない。
+- 仕様（検査順序・status対応表・ログ）: [実装仕様](../pipeline/elevation-publish-api-v0.1.md) 第4章
 
 ### 終了コード
 

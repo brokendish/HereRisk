@@ -210,10 +210,17 @@ def test_symlinked_work_area_rejected(harness, tmp_path) -> None:
 
 def test_no_later_stage_or_network_code_reachable(no_network) -> None:
     src = fb.REPO_ROOT / "src" / "hererisk"
-    forbidden = {"normalize", "validate", "publish", "registry", "generation", "restore"}
+    # Normalize / Validate / Publish / Registry exist since Phases 1-B and 1-D.4;
+    # Generation / Restore are still out of scope.
+    forbidden = {"generation", "restore"}
+    later_stages = ("hererisk.elevation.normalize", "hererisk.elevation.validate",
+                    "hererisk.elevation.publish", "hererisk.elevation.api")
     banned_imports = {"socket", "http", "urllib.request", "requests", "subprocess"}
     # Phase 1-D.1: the GSI PoC's single HTTPS module is the only network code.
-    network_allowed = {src / "elevation" / "gsi_poc" / "http_fetch.py"}
+    # Outbound: the GSI HTTPS client only. Inbound: the public API's HTTP server
+    # adapter may import http.server (it never opens outbound connections).
+    network_allowed = {src / "elevation" / "net" / "gsi_http.py",
+                       src / "elevation" / "api" / "server.py"}
     pipeline_dirs = ("/common/", "/elevation/download/", "/elevation/normalize/",
                      "/elevation/validate/", "/elevation/lookup/")
     for path in src.rglob("*.py"):
@@ -231,6 +238,9 @@ def test_no_later_stage_or_network_code_reachable(no_network) -> None:
                         path, name)
                 if any(d in path.as_posix() for d in pipeline_dirs):
                     assert not name.startswith("hererisk.elevation.gsi_poc"), (path, name)
+                if "/elevation/download/" in path.as_posix():
+                    # Download never reaches a later stage (contract: no direct calls).
+                    assert not name.startswith(later_stages), (path, name)
                 if "/common/" in path.as_posix():
                     assert not name.startswith("hererisk.elevation"), (path, name)
     assert no_network == []

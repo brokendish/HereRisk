@@ -30,7 +30,7 @@ from hererisk.common.config import (
 from hererisk.common.result import PipelineError
 
 FIXTURE_PREFIX = "fixture-"
-OPERATIONS = ("download", "normalize", "validate")
+OPERATIONS = ("download", "normalize", "validate", "publish")
 
 
 class ExecutionContext(str, Enum):
@@ -85,15 +85,19 @@ FIXTURE_AUTHORIZATION_SCHEMA: dict[str, Any] = {
         "operation",
         "grants",
     ],
-    # The acquisition safety policy belongs to download grants only.
-    "if": {"properties": {"operation": {"const": "download"}}},
-    "then": {"required": ["policy"]},
-    "else": {"not": {"required": ["policy"]}},
+    # The acquisition safety policy belongs to download grants only; publication
+    # terms (licence / attribution URL) to publish grants only.
+    "allOf": [
+        {"if": {"properties": {"operation": {"const": "download"}}},
+         "then": {"required": ["policy"]}, "else": {"not": {"required": ["policy"]}}},
+        {"if": {"properties": {"operation": {"const": "publish"}}},
+         "then": {"required": ["publication"]}, "else": {"not": {"required": ["publication"]}}},
+    ],
     "properties": {
         "authorization_ref": _FIXTURE_ID,
         "execution_context": {"const": "fixture"},
         "api_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
-        "operation": {"enum": ["download", "normalize", "validate"]},
+        "operation": {"enum": list(OPERATIONS)},
         "grants": {
             "type": "array",
             "minItems": 1,
@@ -111,6 +115,15 @@ FIXTURE_AUTHORIZATION_SCHEMA: dict[str, Any] = {
                     },
                     "definition_raw_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
                 },
+            },
+        },
+        "publication": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["license", "attribution_url"],
+            "properties": {
+                "license": {"type": "string", "minLength": 1},
+                "attribution_url": {"type": "string", "pattern": "^https://[^\\s?#@]+$"},
             },
         },
         "policy": {
@@ -186,6 +199,6 @@ class FixtureAuthorizer:
                     operation=operation,
                     source_ref=source_ref,
                     region_codes=region_codes,
-                    policy=freeze(doc.get("policy", {})),
+                    policy=freeze(doc.get("policy") or doc.get("publication") or {}),
                 )
         raise PipelineError("APPROVAL_REQUIRED", "no matching fixture grant")

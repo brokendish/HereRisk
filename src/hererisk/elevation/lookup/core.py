@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from hererisk.common.result import PipelineError
-from hererisk.elevation.download.download import TILE_HEIGHT, TILE_WIDTH
+from hererisk.elevation.tile_format import TILE_HEIGHT, TILE_WIDTH
 from hererisk.elevation.normalize.convert import FORMAT, PIXELS
 
 TILE_SIZE = TILE_WIDTH  # 256; tiles are square

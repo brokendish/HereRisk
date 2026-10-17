@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-ALLOWED_HOST = "cyberjapandata.gsi.go.jp"
-MAX_BODY_BYTES = 1024 * 1024  # PNG limit for fetching and for reading back
+from hererisk.elevation.net.gsi_limits import ALLOWED_HOST, MAX_BODY_BYTES  # noqa: F401
+
 MAX_EVIDENCE_BYTES = 64 * 1024
 SOURCE_REF = "gsi-dem10b-candidate"
 EVIDENCE_SCHEMA = "hererisk-gsi-poc-evidence-v0.1"

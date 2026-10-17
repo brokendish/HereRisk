@@ -60,7 +60,7 @@ import sys
 from pathlib import Path
 from typing import NoReturn, Sequence
 
-from hererisk.common.authorization import FixtureAuthorizer, ProductionAuthorizer
+from hererisk.common.authorization import ExecutionContext, FixtureAuthorizer, ProductionAuthorizer
 from hererisk.common.config import ConfigurationManager
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadRequest, Orchestrator, new_run_id
@@ -70,6 +70,7 @@ from hererisk.elevation.download.download import ElevationDownload
 from hererisk.elevation.download.transport import FixtureTransport, UnavailableTransport
 from hererisk.elevation.lookup.reader import INVALID_COORDINATES, ReadRejected, read_point_elevation
 from hererisk.elevation.normalize.stage import NormalizeStage
+from hererisk.elevation.publish.stage import PublishStage
 from hererisk.elevation.validate.stage import ValidateStage
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -104,8 +105,16 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--source", required=True, help="source_ref in the Source Definition")
     pl.add_argument("--data-root", required=True, type=Path,
                     help="an initialised fixture data root")
-    pl.add_argument("--fixture", required=True, type=Path, metavar="FIXTURE_ROOT",
-                    help="fixture tree (required: there is no production pipeline entry)")
+    target = pl.add_mutually_exclusive_group(required=True)
+    target.add_argument("--fixture", type=Path, metavar="FIXTURE_ROOT",
+                        help="fixture tree (fixture context)")
+    target.add_argument("--production", action="store_true",
+                        help="production context (needs a production authorization: "
+                             "none can be granted yet, so this ends BLOCKED)")
+    pl.add_argument("--allow-network", action="store_true",
+                    help="production only: wire the GSI HTTPS transport")
+    pl.add_argument("--publish", action="store_true",
+                    help="also run Publish after Validate (4 stages)")
     pl.add_argument("--resume-run-id", help="re-run an existing run_id (same configuration)")
     el = sub.add_parser("elevation", help="read only: stored elevation at a point")
     # Values are parsed by the command (not argparse) so that malformed values
@@ -147,12 +156,18 @@ def build_orchestrator(args: argparse.Namespace, logger: StructuredLogger) -> Or
         transport = FixtureTransport(fixture_root / "tiles")
     else:
         config = ConfigurationManager(definition_root=REPO_ROOT, schema_root=REPO_ROOT)
-        authorizer = ProductionAuthorizer()
-        transport = UnavailableTransport()
+        authorizer = ProductionAuthorizer()  # always BLOCKED: no production approval store
+        if getattr(args, "production", False) and getattr(args, "allow_network", False):
+            from hererisk.elevation.download.gsi_transport import GsiHttpTransport
+
+            transport = GsiHttpTransport()
+        else:
+            transport = UnavailableTransport()
     modules = {"elevation": ElevationDownload(transport)}
-    # Later stages are wired for fixture runs only; the production context has none.
-    stages = ({"elevation": (NormalizeStage(), ValidateStage())}
-              if args.fixture is not None else None)
+    later = (NormalizeStage(), ValidateStage())
+    if getattr(args, "publish", False):
+        later = (*later, PublishStage())
+    stages = {"elevation": later} if args.command == "pipeline" else None
     return Orchestrator(
         config_manager=config,
         authorizer=authorizer,
@@ -164,11 +179,13 @@ def build_orchestrator(args: argparse.Namespace, logger: StructuredLogger) -> Or
 
 
 PIPELINE_STAGES = ("download", "normalize", "validate")
+PUBLISH_STAGES = (*PIPELINE_STAGES, "publish")
 
 
-def pipeline_summary(results: Sequence[ModuleResult]) -> tuple[dict, int]:
+def pipeline_summary(results: Sequence[ModuleResult],
+                     expected: Sequence[str] = PIPELINE_STAGES) -> tuple[dict, int]:
     """Overall JSON document and exit code for a pipeline run."""
-    complete = [r.module for r in results] == list(PIPELINE_STAGES) and all(
+    complete = [r.module for r in results] == list(expected) and all(
         r.status is Status.SUCCESS for r in results)
     if complete:
         final = None
@@ -235,11 +252,15 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
         source_ref=args.source,
         resume_run_id=args.resume_run_id,
     )
-    try:
-        results = build_orchestrator(args, logger).run_fixture_pipeline(request)
-    except Exception:  # noqa: BLE001 - never leak exception text
-        results = (ModuleResult.error(new_run_id(), "download", "INTERNAL_ERROR"),)
-    document, code = pipeline_summary(results)
+    if args.allow_network and not args.production:
+        results = (ModuleResult.error(new_run_id(), "download", "INVALID_INPUT"),)
+    else:
+        context = ExecutionContext.PRODUCTION if args.production else ExecutionContext.FIXTURE
+        try:
+            results = build_orchestrator(args, logger).run_pipeline(request, context=context)
+        except Exception:  # noqa: BLE001 - never leak exception text
+            results = (ModuleResult.error(new_run_id(), "download", "INTERNAL_ERROR"),)
+    document, code = pipeline_summary(results, PUBLISH_STAGES if args.publish else PIPELINE_STAGES)
     sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
     sys.stdout.flush()
     return code

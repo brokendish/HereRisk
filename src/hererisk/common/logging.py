@@ -54,6 +54,7 @@ class StructuredLogger:
         module: str = "pipeline",
         api_id: str | None = None,
         run_id: str | None = None,
+        request_id: str | None = None,
         clock: Callable[[], str] = _utc_now,
     ) -> None:
         self._sink = sink
@@ -61,6 +62,8 @@ class StructuredLogger:
         self.module = module
         self.api_id = api_id
         self.run_id = run_id
+        # Public API requests only (server-generated); never a pipeline run_id.
+        self.request_id = request_id
 
     def bind(self, **fields: str | None) -> StructuredLogger:
         return StructuredLogger(
@@ -68,23 +71,25 @@ class StructuredLogger:
             module=fields.get("module", self.module) or self.module,
             api_id=fields.get("api_id", self.api_id),
             run_id=fields.get("run_id", self.run_id),
+            request_id=fields.get("request_id", self.request_id),
             clock=self._clock,
         )
 
     def log(self, level: str, message: str, *, error_code: str | None = None) -> None:
         if level not in LEVELS:
             raise ValueError(f"unknown level {level!r}")
-        self._sink(
-            {
-                "timestamp": self._clock(),
-                "level": level,
-                "module": self.module,
-                "api_id": self.api_id,
-                "run_id": self.run_id,
-                "error_code": error_code,
-                "message": message,
-            }
-        )
+        entry = {
+            "timestamp": self._clock(),
+            "level": level,
+            "module": self.module,
+            "api_id": self.api_id,
+            "run_id": self.run_id,
+            "error_code": error_code,
+            "message": message,
+        }
+        if self.request_id is not None:
+            entry["request_id"] = self.request_id
+        self._sink(entry)
 
     def info(self, message: str) -> None:
         self.log("INFO", message)

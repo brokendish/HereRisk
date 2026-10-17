@@ -215,7 +215,7 @@ def test_module_is_pure_and_does_not_normalize() -> None:
     modules = {m for m, _ in imported}
     assert modules <= {"__future__", "dataclasses", "typing", "hererisk.common.result",
                        "hererisk.elevation.normalize.convert",
-                       "hererisk.elevation.download.download"}, modules
+                       "hererisk.elevation.tile_format"}, modules
     from_convert = dict(imported)["hererisk.elevation.normalize.convert"]
     assert "normalize_tile" not in from_convert and "decode_rgb_rows" not in from_convert
     names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}

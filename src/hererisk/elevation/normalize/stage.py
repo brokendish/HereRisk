@@ -78,7 +78,7 @@ RECORD_SCHEMA: dict[str, Any] = {
         "module": {"const": MODULE},
         "run_id": _UUID,
         "api_id": {"const": "elevation"},
-        "execution_context": {"const": "fixture"},
+        "execution_context": {"enum": ["fixture", "production"]},
         "authorization_ref": {"type": "string", "minLength": 1},
         "pipeline": _obj({"id": {"const": PIPELINE_ID}, "version": {"const": PIPELINE_VERSION}}),
         "profile": {"const": FORMAT},
@@ -125,7 +125,8 @@ def check_stage_authorization(plan: DownloadPlan, authorization: Authorization,
                               operation: str) -> None:
     """The stage's own fixture authorization, bound to the same API/source/regions."""
     if not isinstance(authorization, Authorization) \
-            or authorization.context is not ExecutionContext.FIXTURE \
+            or authorization.context is not plan.authorization.context \
+            or authorization.context not in (ExecutionContext.FIXTURE, ExecutionContext.PRODUCTION) \
             or authorization.operation != operation \
             or authorization.api_id != plan.api_id \
             or authorization.source_ref != plan.source_ref \
@@ -195,8 +196,9 @@ class NormalizeStage:
         if not isinstance(result, ModuleResult) or result.module != "download" \
                 or result.status is not Status.SUCCESS or result.run_id != plan.run_id:
             raise PipelineError("INVALID_INPUT", "download result not a SUCCESS of this run")
-        if plan.authorization.context is not ExecutionContext.FIXTURE:
-            raise PipelineError("APPROVAL_REQUIRED", "normalize is fixture-only")
+        if plan.authorization.context not in (ExecutionContext.FIXTURE,
+                                              ExecutionContext.PRODUCTION):
+            raise PipelineError("APPROVAL_REQUIRED", "unknown execution context")
         _max_png_bytes(plan)
         self._check_snapshot(plan, area)
         verified = reconcile_run(area, plan)  # marker / Record / artifact vs fixed plan

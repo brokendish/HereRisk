@@ -34,7 +34,9 @@ from referencing import Registry
 
 # Allowed configuration identifiers. Adding an API = adding an entry here plus
 # the files under api/<api_id>/conf/. Format of this list is UNDECIDED upstream.
-KNOWN_CONFIGS: frozenset[tuple[str, str, str]] = frozenset({("api", "elevation", "sources")})
+KNOWN_CONFIGS: frozenset[tuple[str, str, str]] = frozenset(
+    {("api", "elevation", "sources"), ("api", "elevation", "api")}
+)
 
 _ID_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 PREFECTURE_CODES: tuple[str, ...] = tuple(f"{i:02d}" for i in range(1, 48))

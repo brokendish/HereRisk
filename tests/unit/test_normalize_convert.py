@@ -364,7 +364,7 @@ def test_module_is_pure() -> None:
     assert imported <= {
         "__future__", "struct", "zlib", "typing", "png",
         "hererisk.common.result", "hererisk.elevation.download.png",
-        "hererisk.elevation.download.download",
+        "hererisk.elevation.tile_format",
     }, imported
     names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
     assert not names & {"open", "ApiDataArea", "Orchestrator", "ElevationDownload"}

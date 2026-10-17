@@ -133,6 +133,10 @@ def authorization(definition_bytes: bytes, sources: dict[str, dict[str, Any]],
     }
     if operation != "download":
         del doc["policy"]  # the acquisition safety policy belongs to download only
+    if operation == "publish":
+        # Fixture-only publication terms: not a licence for any real data.
+        doc["publication"] = {"license": "Fixture licence (test data only, not redistributable)",
+                              "attribution_url": "https://fixture.invalid/terms"}
     return doc
 
 
@@ -151,7 +155,7 @@ def build_tree(
     (conf / "sources.json").write_bytes(definition_bytes)
     auth_dir = root / "authorization"
     auth_dir.mkdir(parents=True, exist_ok=True)
-    for operation in ("download", "normalize", "validate"):
+    for operation in ("download", "normalize", "validate", "publish"):
         (auth_dir / f"{operation}.json").write_bytes(
             dump(authorization(definition_bytes, sources, operation)))
     for seed, (x, y) in enumerate(

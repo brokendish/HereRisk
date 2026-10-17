@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "HereRisk elevation public API settings v0.1 (PROVISIONAL, elevation-contract-v0.1 section 7)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "request_body_max_bytes", "evaluation_timeout_ms"],
+  "properties": {
+    "$schema": {"const": "./api.schema.json"},
+    "schema_version": {"const": "0.1"},
+    "request_body_max_bytes": {"type": "integer", "minimum": 256, "maximum": 4096},
+    "evaluation_timeout_ms": {"type": "integer", "minimum": 100, "maximum": 10000}
+  }
+}

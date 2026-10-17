@@ -74,6 +74,22 @@ NORMALIZE_AREAS: frozenset[tuple[str, str]] = frozenset(
 # Per-run Validate record (Phase 1-B.3-B). Validate writes no candidate data.
 VALIDATE_AREAS: frozenset[tuple[str, str]] = frozenset({("records", "validations")})
 WRITABLE_AREAS: frozenset[tuple[str, str]] = DOWNLOAD_AREAS | NORMALIZE_AREAS | VALIDATE_AREAS
+# Data Publish only (Phase 1-D.4): immutable published entities, registry
+# revisions + pointer, publication records. Not in the default writable set:
+# Download / Normalize / Validate can never write rel/.
+PUBLISH_AREAS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("rel", "versions"),
+        ("rel", "registry"),
+        ("records", "publications"),
+    }
+)
+# The public API reads published data only.
+PUBLISHED_READ_AREAS: frozenset[tuple[str, str]] = frozenset(
+    {("rel", "versions"), ("rel", "registry")}
+)
+REGISTRY_POINTER = "current.json"
+LOCK_OPEN_ATTEMPTS = 5  # see exclusive_lock (macOS O_CREAT race)
 # Pipeline management code only reads back evidence it wrote itself.
 # dl/, rel/ and any Registry are neither readable nor writable through this class.
 READABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
@@ -227,7 +243,7 @@ def _chain_within(
 
 
 def _platform_supported() -> bool:
-    needed_dir_fd = (os.open, os.mkdir, os.link, os.unlink, os.rmdir, os.stat)
+    needed_dir_fd = (os.open, os.mkdir, os.link, os.unlink, os.rmdir, os.stat, os.rename)
     return (
         all(fn in os.supports_dir_fd for fn in needed_dir_fd)
         and os.link in os.supports_follow_symlinks
@@ -301,9 +317,19 @@ class NewFile:
 class ApiDataArea:
     """Confined, symlink-safe, durable file operations inside ``<data_root>/<api_id>``."""
 
-    def __init__(self, data_root: Path, api_id: str) -> None:
+    def __init__(
+        self,
+        data_root: Path,
+        api_id: str,
+        *,
+        writable: frozenset[tuple[str, str]] = WRITABLE_AREAS,
+        readable: frozenset[tuple[str, str]] | None = None,
+    ) -> None:
         if not isinstance(api_id, str) or not _PART_RE.match(api_id):
             raise ValueError("invalid api_id")
+        # Operation-scoped permissions (fixed sets chosen by code, never by requests).
+        self.writable_areas = frozenset(writable)
+        self.readable_areas = frozenset(READABLE_AREAS if readable is None else readable)
         # Canonicalised exactly once; never re-resolved afterwards.
         self.data_root = Path(os.path.realpath(data_root))
         self.api_id = api_id
@@ -325,6 +351,20 @@ class ApiDataArea:
     def pin(self) -> None:
         """Pin the data root now (before any check or I/O)."""
         self._rootfd()
+
+    def with_permissions(
+        self, *, writable: frozenset[tuple[str, str]], readable: frozenset[tuple[str, str]]
+    ) -> ApiDataArea:
+        """A view of the same pinned root with other (code-chosen) permissions."""
+        view = type(self).__new__(type(self))  # keeps subclass behaviour (fault injection)
+        view.writable_areas = frozenset(writable)
+        view.readable_areas = frozenset(readable)
+        view.data_root = self.data_root
+        view.api_id = self.api_id
+        view.root = self.root
+        view._root_fd = os.dup(self._rootfd())
+        view._root_chain = self._root_chain
+        return view
 
     def root_within(self, protected_roots: tuple[Path, ...]) -> bool:
         """True if the pinned root is, or is inside, any protected root.
@@ -357,7 +397,7 @@ class ApiDataArea:
     def path(self, *parts: str) -> Loc:
         """Build a validated writable location."""
         loc = Loc(parts)
-        self._check(loc, WRITABLE_AREAS)
+        self._check(loc, self.writable_areas | self.readable_areas)
         return loc
 
     @staticmethod
@@ -417,11 +457,11 @@ class ApiDataArea:
 
     # -- directories ---------------------------------------------------------
     def ensure_dir(self, loc: Loc) -> None:
-        self._check(loc, WRITABLE_AREAS)
+        self._check(loc, self.writable_areas)
         os.close(self._walk(tuple(loc), create=True))
 
     def dir_exists(self, loc: Loc) -> bool:
-        self._check(loc, READABLE_AREAS)
+        self._check(loc, self.readable_areas)
         try:
             os.close(self._walk(tuple(loc), create=False))
         except MissingError:
@@ -430,7 +470,7 @@ class ApiDataArea:
 
     def list_dir(self, loc: Loc) -> list[str]:
         """Entry names of a directory; [] if it does not exist."""
-        self._check(loc, READABLE_AREAS)
+        self._check(loc, self.readable_areas)
         try:
             fd = self._walk(tuple(loc), create=False)
         except MissingError:
@@ -441,7 +481,7 @@ class ApiDataArea:
             os.close(fd)
 
     def entry_exists(self, loc: Loc) -> bool:
-        self._check(loc, READABLE_AREAS)
+        self._check(loc, self.readable_areas)
         try:
             pfd = self._walk(tuple(loc.parent), create=False)
         except MissingError:
@@ -459,7 +499,7 @@ class ApiDataArea:
     def same_filesystem(self, *locs: Loc) -> bool:
         devices = set()
         for loc in locs:
-            self._check(loc, WRITABLE_AREAS)
+            self._check(loc, self.writable_areas)
             fd = self._walk(tuple(loc), create=False)
             try:
                 devices.add(os.fstat(fd).st_dev)
@@ -470,7 +510,7 @@ class ApiDataArea:
         return len(devices) == 1
 
     def remove_empty_dir(self, loc: Loc) -> None:
-        self._check(loc, WRITABLE_AREAS)
+        self._check(loc, self.writable_areas)
         pfd = self._walk(tuple(loc.parent), create=False)
         try:
             try:
@@ -484,7 +524,7 @@ class ApiDataArea:
     # -- writing ---------------------------------------------------------------
     def open_exclusive(self, loc: Loc) -> NewFile:
         """Create a new file for writing; fails if any entry with that name exists."""
-        self._check(loc, WRITABLE_AREAS)
+        self._check(loc, self.writable_areas)
         pfd = self._walk(tuple(loc.parent), create=True)
         try:
             fd = os.open(loc.name, _NEW_FLAGS, 0o640, dir_fd=pfd)
@@ -509,7 +549,7 @@ class ApiDataArea:
 
     def write_new(self, loc: Loc, data: bytes) -> None:
         """Durably create ``loc`` with ``data``; never overwrites an existing entry."""
-        self._check(loc, WRITABLE_AREAS)
+        self._check(loc, self.writable_areas)
         pfd = self._walk(tuple(loc.parent), create=True)
         tmp = f".{loc.name}.tmp-{uuid.uuid4().hex}"
         try:
@@ -542,10 +582,49 @@ class ApiDataArea:
                 pass
             os.close(pfd)
 
+    def replace_pointer(self, loc: Loc, data: bytes) -> None:
+        """Atomically replace a registry pointer (the only overwrite this class allows).
+
+        Only ``rel/registry/<prefecture>/current.json`` is accepted. The new
+        content is written to a temporary name, fsync'ed, then renamed over the
+        pointer within the same directory fd (atomic on POSIX), and the
+        directory is fsync'ed. Readers see either the old or the new pointer.
+        """
+        self._check(loc, self.writable_areas)
+        if len(loc) != 4 or tuple(loc[:2]) != ("rel", "registry") or loc.name != REGISTRY_POINTER:
+            raise StorageError("PERMISSION_DENIED", "only registry pointers may be replaced")
+        pfd = self._walk(tuple(loc.parent), create=True)
+        tmp = f".{loc.name}.tmp-{uuid.uuid4().hex}"
+        try:
+            try:
+                fd = os.open(tmp, _NEW_FLAGS, 0o640, dir_fd=pfd)
+            except OSError as exc:
+                raise _oserror(exc) from exc
+            try:
+                view = memoryview(data)
+                while view:
+                    view = view[os.write(fd, view):]
+                fsync_fd(fd)
+            except OSError as exc:
+                raise _oserror(exc) from exc
+            finally:
+                os.close(fd)
+            try:
+                os.rename(tmp, loc.name, src_dir_fd=pfd, dst_dir_fd=pfd)
+            except OSError as exc:
+                raise _oserror(exc) from exc
+            _fsync_classified(pfd)
+        finally:
+            try:
+                os.unlink(tmp, dir_fd=pfd)
+            except OSError:
+                pass
+            os.close(pfd)
+
     def link_no_clobber(self, src: Loc, dst: Loc) -> None:
         """Give the single-link regular file ``src`` the new name ``dst`` (same FS)."""
-        self._check(src, WRITABLE_AREAS)
-        self._check(dst, WRITABLE_AREAS)
+        self._check(src, self.writable_areas)
+        self._check(dst, self.writable_areas)
         spfd = self._walk(tuple(src.parent), create=False)
         try:
             dpfd = self._walk(tuple(dst.parent), create=True)
@@ -583,7 +662,7 @@ class ApiDataArea:
     @contextmanager
     def _open_committed(self, loc: Loc, max_bytes: int) -> Iterator[tuple[int, int]]:
         """Open a regular, single-link, self-owned file no larger than ``max_bytes``."""
-        self._check(loc, READABLE_AREAS)
+        self._check(loc, self.readable_areas)
         pfd = self._walk(tuple(loc.parent), create=False)
         try:
             try:
@@ -652,13 +731,21 @@ class ApiDataArea:
         sections). The kernel releases the lock if the process dies; PIDs are
         never used to steal a lock. Single-host only.
         """
-        self._check(loc, WRITABLE_AREAS)
+        self._check(loc, self.writable_areas)
         pfd = self._walk(tuple(loc.parent), create=True)
         try:
-            fd = os.open(loc.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC,
-                         0o640, dir_fd=pfd)
-        except OSError as exc:
-            raise _oserror(exc) from exc
+            for attempt in range(LOCK_OPEN_ATTEMPTS):
+                try:
+                    fd = os.open(loc.name, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC,
+                                 0o640, dir_fd=pfd)
+                    break
+                except FileNotFoundError as exc:
+                    # macOS では同一ファイルの同時 O_CREAT が ENOENT を返すことがある
+                    # （ディレクトリは存在する）。有限回だけ再試行する。
+                    if attempt == LOCK_OPEN_ATTEMPTS - 1:
+                        raise _oserror(exc) from exc
+                except OSError as exc:
+                    raise _oserror(exc) from exc
         finally:
             os.close(pfd)
         try:

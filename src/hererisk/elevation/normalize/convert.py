@@ -29,7 +29,7 @@ from typing import Any, Iterator, Mapping
 import png  # pypng
 
 from hererisk.common.result import PipelineError
-from hererisk.elevation.download.download import (
+from hererisk.elevation.tile_format import (
     TILE_BIT_DEPTH,
     TILE_COLOR_TYPE,
     TILE_HEIGHT,

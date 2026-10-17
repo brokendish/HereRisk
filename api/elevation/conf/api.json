@@ -1,0 +1,6 @@
+{
+  "$schema": "./api.schema.json",
+  "schema_version": "0.1",
+  "request_body_max_bytes": 1024,
+  "evaluation_timeout_ms": 3000
+}
