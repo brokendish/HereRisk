@@ -62,6 +62,22 @@ _HTTPS = {"type": "string", "pattern": "^https://[^\\s?#@]+$"}
 _PREF = {"type": "string", "pattern": "^(0[1-9]|[1-3][0-9]|4[0-7])$"}
 _APPROVAL_ID = {"type": "string", "pattern": "^apr-[a-z0-9][a-z0-9-]{2,62}$"}
 
+# Private Publish needs a recorded confirmation of the personal, non-commercial,
+# owner-only use (Phase 1-G). It is NOT a public publication eligibility and
+# does not establish compliance by itself: ``usage_review_ref`` must point to
+# the usage-condition review (docs/operations/gsi-dem10b-usage-checklist-v0.1.md).
+PRIVATE_USE_SCHEMA: dict[str, Any] = {
+    "type": "object", "additionalProperties": False,
+    "required": ["purpose", "access", "usage_review_ref", "confirmed_by", "confirmed_at"],
+    "properties": {
+        "purpose": {"const": "non_commercial_personal_experiment"},
+        "access": {"const": "owner_only_loopback"},
+        "usage_review_ref": _REF,
+        "confirmed_by": _REF,
+        "confirmed_at": _TS,
+    },
+}
+
 APPROVAL_RECORD_SCHEMA: dict[str, Any] = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "type": "object",
@@ -74,11 +90,24 @@ APPROVAL_RECORD_SCHEMA: dict[str, Any] = {
          "then": {"required": ["acquisition"]}, "else": {"not": {"required": ["acquisition"]}}},
         {"if": {"properties": {"operations": {"contains": {"const": "publish"}}}},
          "then": {"required": ["publication"]}, "else": {"not": {"required": ["publication"]}}},
+        # Each mode has its own qualification and its own id space:
+        # private_experiment -> "apr-private-*" + publication.private_use;
+        # production (public) -> other "apr-*" + publication.eligibility_*.
+        {"if": {"properties": {"execution_context": {"const": "private_experiment"}}},
+         "then": {"properties": {
+             "approval_id": {"pattern": "^apr-private-"},
+             "publication": {"required": ["private_use"],
+                             "not": {"anyOf": [{"required": ["eligibility_status"]},
+                                               {"required": ["eligibility_ref"]}]}}}},
+         "else": {"properties": {
+             "approval_id": {"not": {"pattern": "^apr-private-"}},
+             "publication": {"required": ["eligibility_status", "eligibility_ref"],
+                             "not": {"required": ["private_use"]}}}}},
     ],
     "properties": {
         "schema": {"const": RECORD_SCHEMA_ID},
         "approval_id": _APPROVAL_ID,
-        "execution_context": {"const": "production"},
+        "execution_context": {"enum": ["production", "private_experiment"]},
         "api_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
         "source_ref": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$",
                        "not": {"pattern": "^fixture-"}},
@@ -113,12 +142,14 @@ APPROVAL_RECORD_SCHEMA: dict[str, Any] = {
                             "max_pending_acquisitions": {"type": "integer", "minimum": 1,
                                                          "maximum": 64}}},
         "publication": {"type": "object", "additionalProperties": False,
-                        "required": ["license", "attribution_url", "attribution_text",
-                                     "eligibility_status", "eligibility_ref"],
+                        "required": ["license", "attribution_url", "attribution_text"],
                         "properties": {"license": _REF, "attribution_url": _HTTPS,
                                        "attribution_text": _REF,
+                                       # public_production only
                                        "eligibility_status": {"const": "approved"},
-                                       "eligibility_ref": _REF}},
+                                       "eligibility_ref": _REF,
+                                       # private_experiment only
+                                       "private_use": PRIVATE_USE_SCHEMA}},
         "record_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     },
 }

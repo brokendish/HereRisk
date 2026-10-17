@@ -246,6 +246,8 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline \
 - `--allow-network` を指定した場合だけ、実GSIのHTTPクライアント（`net/gsi_http.py`）を組み立てる。`--production` なしで指定するとINVALID_INPUT（exit 2）になる。
 - 仕様: [本番形式パイプライン・Publish・公開API 実装仕様](../pipeline/elevation-publish-api-v0.1.md) 第2章。モックのGSIとテスト専用承認による検証は `tests/contract/test_production_pipeline.py` にある（本番承認ではない）。
 
+- 個人実験（`--private-experiment`、Phase 1-G）の手順は[個人実験Runbook](../operations/elevation-private-experiment-runbook-v0.1.md)。
+
 ### 3.6 Publish（Phase 1-D.4、fixtureのみ実行可能）
 
 ```sh

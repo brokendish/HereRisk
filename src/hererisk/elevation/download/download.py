@@ -49,8 +49,8 @@ PRODUCTION_PIPELINE_VERSION = "0.1"  # GSI HTTPS transport (Phase 1-D.3)
 
 def pipeline_for(context: ExecutionContext) -> tuple[str, str]:
     """Pipeline identity actually executed in a context (recorded in Records)."""
-    if context is ExecutionContext.PRODUCTION:
-        return PIPELINE_ID, PRODUCTION_PIPELINE_VERSION
+    if context in (ExecutionContext.PRODUCTION, ExecutionContext.PRIVATE_EXPERIMENT):
+        return PIPELINE_ID, PRODUCTION_PIPELINE_VERSION  # real-data pipeline
     return PIPELINE_ID, PIPELINE_VERSION
 
 # GSI elevation PNG tile format (demtile spec): defined in elevation.tile_format.

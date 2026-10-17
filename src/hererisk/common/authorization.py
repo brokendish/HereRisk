@@ -40,8 +40,23 @@ OPERATIONS = ("download", "normalize", "validate", "publish")
 
 
 class ExecutionContext(str, Enum):
-    PRODUCTION = "production"
+    """The three operating modes (Phase 1-G).
+
+    * ``FIXTURE`` - synthetic test data, fixture roots, fixture authorizations
+    * ``PRIVATE_EXPERIMENT`` - the OWNER's non-commercial personal experiment
+      (own data root, own Registry, loopback-only API); never public
+    * ``PRODUCTION`` - ``public_production``: the general public service. The
+      value stays ``"production"`` for compatibility with existing records.
+
+    Authorizations, records and data roots of one mode are never valid in another.
+    """
+
+    PRODUCTION = "production"  # public_production
     FIXTURE = "fixture"
+    PRIVATE_EXPERIMENT = "private_experiment"
+
+
+APPROVAL_CONTEXTS = (ExecutionContext.PRODUCTION, ExecutionContext.PRIVATE_EXPERIMENT)
 
 
 @dataclass(frozen=True)
@@ -93,11 +108,15 @@ class ProductionAuthorizer:
        are present and the attribution text equals the Source Definition's.
     """
 
-    context = ExecutionContext.PRODUCTION
-
     def __init__(self, approval_root: Path | None = None, *,
                  protected_roots: tuple[Path, ...] = (),
-                 clock: Callable[[], datetime] = _utc_now) -> None:
+                 clock: Callable[[], datetime] = _utc_now,
+                 context: ExecutionContext = ExecutionContext.PRODUCTION) -> None:
+        if context not in APPROVAL_CONTEXTS:
+            raise ValueError("approval-based contexts are production / private_experiment")
+        # One authorizer serves exactly one mode: a record is only ever matched
+        # against the mode it names (no inheritance in either direction).
+        self.context = context
         self._root = approval_root
         self._protected = tuple(protected_roots)
         self._clock = clock
@@ -124,12 +143,13 @@ class ProductionAuthorizer:
         except KeyError as exc:
             raise PipelineError("APPROVAL_REQUIRED", "source not defined") from exc
         matches = [r for r in store.records
-                   if r["api_id"] == api_id and r["source_ref"] == source_ref
+                   if r["execution_context"] == self.context.value
+                   and r["api_id"] == api_id and r["source_ref"] == source_ref
                    and operation in r["operations"]
                    and set(region_codes) <= set(r["region_codes"])
                    and r["definition"]["raw_sha256"] == definition.raw_sha256]
         if not matches:
-            raise PipelineError("APPROVAL_REQUIRED", "no matching production approval")
+            raise PipelineError("APPROVAL_REQUIRED", f"no matching {self.context.value} approval")
         if len(matches) != 1:
             raise PipelineError("APPROVAL_REQUIRED", "ambiguous production approvals")
         record = matches[0]
@@ -178,11 +198,18 @@ class ProductionAuthorizer:
             "max_pending_acquisitions": limits["max_pending_acquisitions"],
         }
 
-    @staticmethod
-    def _publication_terms(record: Mapping[str, Any], source: Mapping[str, Any]) -> dict[str, Any]:
+    def _publication_terms(self, record: Mapping[str, Any],
+                           source: Mapping[str, Any]) -> dict[str, Any]:
         publication = record["publication"]
         if (source.get("usage") or {}).get("attribution_text") != publication["attribution_text"]:
             raise PipelineError("APPROVAL_REQUIRED", "attribution text differs from approval")
+        # The schema already ties each mode to its own qualification; checked
+        # again here so neither can ever stand in for the other.
+        if self.context is ExecutionContext.PRIVATE_EXPERIMENT:
+            if "private_use" not in publication or "eligibility_status" in publication:
+                raise PipelineError("APPROVAL_REQUIRED", "private use confirmation missing")
+        elif publication.get("eligibility_status") != "approved" or "private_use" in publication:
+            raise PipelineError("APPROVAL_REQUIRED", "public eligibility missing")
         return {"license": publication["license"],
                 "attribution_url": publication["attribution_url"]}
 

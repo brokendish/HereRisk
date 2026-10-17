@@ -42,9 +42,10 @@ class Transport(Protocol):
 
 
 class UnavailableTransport:
-    """Placeholder for the production context: no network transport exists yet."""
+    """Placeholder when the network is not allowed (``--allow-network`` not given)."""
 
-    context = ExecutionContext.PRODUCTION
+    def __init__(self, context: ExecutionContext = ExecutionContext.PRODUCTION) -> None:
+        self.context = context
 
     def accepts(self, url: str) -> bool:
         return False

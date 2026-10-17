@@ -71,11 +71,24 @@ class PublishedSet:
         self.datasets = datasets
 
     @classmethod
-    def load(cls, data_root: Path, *, allow_fixture_root: bool = False) -> PublishedSet:
+    def load(cls, data_root: Path, *, allow_fixture_root: bool = False,
+             private_experiment: bool = False) -> PublishedSet:
+        """Verify and load the published snapshot of one data root.
+
+        Modes never mix (Phase 1-G): the public mode refuses a root carrying
+        the private-experiment marker (any content); the private mode serves
+        only a root carrying the exact private marker and no fixture marker.
+        """
         area = ApiDataArea(data_root, "elevation", writable=frozenset(),
                            readable=PUBLISHED_READ_AREAS)
         try:
             area.pin()
+            if private_experiment:
+                if allow_fixture_root or area.has_fixture_marker_entry() \
+                        or not area.has_private_marker():
+                    raise StartupError("not a private experiment data root")
+            elif area.has_private_marker_entry():
+                raise StartupError("private experiment data roots are not served publicly")
             if area.has_fixture_marker() and not allow_fixture_root:
                 raise StartupError("fixture data roots are not served")
             datasets: list[PublishedDataset] = []

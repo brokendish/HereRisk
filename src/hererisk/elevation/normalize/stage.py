@@ -78,7 +78,7 @@ RECORD_SCHEMA: dict[str, Any] = {
         "module": {"const": MODULE},
         "run_id": _UUID,
         "api_id": {"const": "elevation"},
-        "execution_context": {"enum": ["fixture", "production"]},
+        "execution_context": {"enum": ["fixture", "production", "private_experiment"]},
         "authorization_ref": {"type": "string", "minLength": 1},
         "pipeline": _obj({"id": {"const": PIPELINE_ID}, "version": {"const": PIPELINE_VERSION}}),
         "profile": {"const": FORMAT},
@@ -121,12 +121,16 @@ def _max_png_bytes(plan: DownloadPlan) -> int:
     return value
 
 
+STAGE_CONTEXTS = (ExecutionContext.FIXTURE, ExecutionContext.PRODUCTION,
+                  ExecutionContext.PRIVATE_EXPERIMENT)
+
+
 def check_stage_authorization(plan: DownloadPlan, authorization: Authorization,
                               operation: str) -> None:
     """The stage's own fixture authorization, bound to the same API/source/regions."""
     if not isinstance(authorization, Authorization) \
             or authorization.context is not plan.authorization.context \
-            or authorization.context not in (ExecutionContext.FIXTURE, ExecutionContext.PRODUCTION) \
+            or authorization.context not in STAGE_CONTEXTS \
             or authorization.operation != operation \
             or authorization.api_id != plan.api_id \
             or authorization.source_ref != plan.source_ref \
@@ -196,8 +200,7 @@ class NormalizeStage:
         if not isinstance(result, ModuleResult) or result.module != "download" \
                 or result.status is not Status.SUCCESS or result.run_id != plan.run_id:
             raise PipelineError("INVALID_INPUT", "download result not a SUCCESS of this run")
-        if plan.authorization.context not in (ExecutionContext.FIXTURE,
-                                              ExecutionContext.PRODUCTION):
+        if plan.authorization.context not in STAGE_CONTEXTS:
             raise PipelineError("APPROVAL_REQUIRED", "unknown execution context")
         _max_png_bytes(plan)
         self._check_snapshot(plan, area)

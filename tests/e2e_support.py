@@ -85,17 +85,21 @@ def test_source_repo(root: Path, tiles=TOKYO_TILES, approval_ref="test-only-not-
 
 
 TEST_APPROVAL_ID = "apr-test-only-e2e"
+PRIVATE_APPROVAL_ID = "apr-private-test-only-e2e"
 TEST_ATTRIBUTION = "test-only attribution (not GSI attribution text)"
 
 
-def approval_record(definition_sha256: str, *, approval_id=TEST_APPROVAL_ID, tiles=TOKYO_TILES,
+def approval_record(definition_sha256: str, *, approval_id=None, tiles=TOKYO_TILES,
                     operations=("download", "normalize", "validate", "publish"),
-                    regions=("13",), **overrides) -> dict[str, Any]:
-    """A TEST-ONLY production-format approval record (never a real approval)."""
+                    regions=("13",), context="production", **overrides) -> dict[str, Any]:
+    """A TEST-ONLY approval record (never a real approval) for ``context``."""
     from hererisk.common.approval_store import RECORD_SCHEMA_ID, record_digest
 
+    private = context == "private_experiment"
+    if approval_id is None:
+        approval_id = PRIVATE_APPROVAL_ID if private else TEST_APPROVAL_ID
     record: dict[str, Any] = {
-        "schema": RECORD_SCHEMA_ID, "approval_id": approval_id, "execution_context": "production",
+        "schema": RECORD_SCHEMA_ID, "approval_id": approval_id, "execution_context": context,
         "api_id": "elevation", "source_ref": SOURCE, "operations": list(operations),
         "region_codes": list(regions), "tiles": [{"z": 14, "x": x, "y": y} for x, y in tiles],
         "definition": {"revision": "test-only-1", "raw_sha256": definition_sha256},
@@ -110,9 +114,17 @@ def approval_record(definition_sha256: str, *, approval_id=TEST_APPROVAL_ID, til
     if "publish" in operations:
         record["publication"] = {"license": TEST_TERMS["license"],
                                  "attribution_url": TEST_TERMS["attribution_url"],
-                                 "attribution_text": TEST_ATTRIBUTION,
-                                 "eligibility_status": "approved",
-                                 "eligibility_ref": "test-only (no publication eligibility)"}
+                                 "attribution_text": TEST_ATTRIBUTION}
+        if private:
+            record["publication"]["private_use"] = {
+                "purpose": "non_commercial_personal_experiment",
+                "access": "owner_only_loopback",
+                "usage_review_ref": "test-only (no usage review)",
+                "confirmed_by": "test-only", "confirmed_at": "2026-01-01T00:00:00Z"}
+        else:
+            record["publication"].update(
+                eligibility_status="approved",
+                eligibility_ref="test-only (no publication eligibility)")
     record.update(overrides)
     record["record_sha256"] = record_digest(record)
     return record
@@ -204,11 +216,17 @@ class World:
 
     def __init__(self, tmp: Path, bodies: dict[tuple[int, int], bytes], *,
                  tiles=None, authorizer=None, stages=None, area_factory=None,
-                 approval_ref="test-only-not-an-approval") -> None:
+                 approval_ref="test-only-not-an-approval",
+                 context=ExecutionContext.PRODUCTION) -> None:
+        from hererisk.common.storage import init_private_data_root
+
         self.tmp = tmp
+        self.context = context
         self.repo = test_source_repo(tmp / "repo", tiles or list(bodies), approval_ref)
         self.data_root = tmp / "data"
         self.data_root.mkdir(exist_ok=True)
+        if context is ExecutionContext.PRIVATE_EXPERIMENT and not any(self.data_root.iterdir()):
+            init_private_data_root(self.data_root, protected_roots=(REPO,))
         self.gsi = GsiFake(bodies)
         self.sink = ListSink()
         self.authorizer = authorizer or TestOnlyProductionAuthorizer()
@@ -219,7 +237,8 @@ class World:
         self.orchestrator = Orchestrator(
             config_manager=ConfigurationManager(self.repo, REPO),
             authorizer=self.authorizer,
-            modules={"elevation": ElevationDownload(GsiHttpTransport(connection_factory=self.gsi))},
+            modules={"elevation": ElevationDownload(
+                GsiHttpTransport(connection_factory=self.gsi, context=context))},
             data_root=self.data_root,
             logger=StructuredLogger(self.sink),
             stages={"elevation": self.stages},
@@ -231,8 +250,9 @@ class World:
         from hererisk.common.authorization import ProductionAuthorizer
 
         if records is None:
-            records = [approval_record(self.definition_sha256)]
+            records = [approval_record(self.definition_sha256, context=self.context.value)]
         self.store = write_store(self.tmp / "approval-store", records, revoked)
+        authorizer_kwargs.setdefault("context", self.context)
         self.authorizer = ProductionAuthorizer(self.store, protected_roots=(REPO,),
                                                **authorizer_kwargs)
         self.orchestrator._authorizer = self.authorizer
@@ -241,10 +261,12 @@ class World:
     def run(self, resume=None):
         return self.orchestrator.run_pipeline(
             DownloadRequest("elevation", ("13",), SOURCE, resume_run_id=resume),
-            context=ExecutionContext.PRODUCTION)
+            context=self.context)
 
-    def api(self, sink=None, **kwargs) -> ElevationApi:
-        published = PublishedSet.load(self.data_root)
+    def api(self, sink=None, private=None, **kwargs) -> ElevationApi:
+        if private is None:
+            private = self.context is ExecutionContext.PRIVATE_EXPERIMENT
+        published = PublishedSet.load(self.data_root, private_experiment=private)
         return ElevationApi(published, Settings(1024, 3000), StructuredLogger(sink or ListSink()),
                             **kwargs)
 

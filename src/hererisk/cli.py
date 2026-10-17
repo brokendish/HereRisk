@@ -49,6 +49,16 @@ transport is wired only with ``--allow-network``.
     python -m hererisk.cli approval-check --api elevation --region 13 \
         --source gsi-dem10b-candidate --approval-root /path/to/approval-store [--publish]
 
+    python -m hererisk.cli init-private-root --data-root /path/to/empty-private-dir
+    python -m hererisk.cli pipeline --api elevation --region 13 \
+        --source gsi-dem10b-candidate --private-experiment --allow-network \
+        --approval-root /path/to/approval-store --data-root /path/to/private-root [--publish]
+
+``--private-experiment`` (Phase 1-G) runs the OWNER's personal, non-commercial
+experiment: only ``private_experiment`` approval records count, and only a
+data root initialised with ``init-private-root`` is accepted. Nothing of it is
+public; public runs and the public API refuse private roots.
+
 ``approval-check`` (admin pre-check / dry run) evaluates the production
 authorization of every pipeline operation against the current Source
 Definition. No network access, no data root, nothing is written.
@@ -123,11 +133,13 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument("--fixture", type=Path, metavar="FIXTURE_ROOT",
                         help="fixture tree (fixture context)")
     target.add_argument("--production", action="store_true",
-                        help="production context (BLOCKED without a matching approval record)")
+                        help="public_production context (BLOCKED without a matching approval record)")
+    target.add_argument("--private-experiment", action="store_true",
+                        help="private_experiment context (owner-only; private data root)")
     pl.add_argument("--approval-root", type=Path,
-                    help="production only: administrator-managed approval store")
+                    help="production / private only: administrator-managed approval store")
     pl.add_argument("--allow-network", action="store_true",
-                    help="production only: wire the GSI HTTPS transport")
+                    help="production / private only: wire the GSI HTTPS transport")
     pl.add_argument("--publish", action="store_true",
                     help="also run Publish after Validate (4 stages)")
     pl.add_argument("--resume-run-id", help="re-run an existing run_id (same configuration)")
@@ -161,6 +173,11 @@ def build_parser() -> argparse.ArgumentParser:
     ac.add_argument("--source", required=True)
     ac.add_argument("--approval-root", required=True, type=Path)
     ac.add_argument("--publish", action="store_true", help="also check the publish operation")
+    ac.add_argument("--context", choices=("production", "private_experiment"),
+                    default="production", help="operating mode of the records to evaluate")
+    ip = sub.add_parser("init-private-root",
+                        help="mark an existing empty directory as a private experiment data root")
+    ip.add_argument("--data-root", required=True, type=Path)
     ad = sub.add_parser("approval-digest", help="print record_sha256 of an approval record")
     ad.add_argument("--record", required=True, type=Path)
     init = sub.add_parser("init-fixture-root",
@@ -180,15 +197,18 @@ def build_orchestrator(args: argparse.Namespace, logger: StructuredLogger) -> Or
         transport = FixtureTransport(fixture_root / "tiles")
     else:
         config = ConfigurationManager(definition_root=REPO_ROOT, schema_root=REPO_ROOT)
+        context = (ExecutionContext.PRIVATE_EXPERIMENT if getattr(args, "private_experiment", False)
+                   else ExecutionContext.PRODUCTION)
         # Deny by default: without --approval-root nothing is ever granted.
         authorizer = ProductionAuthorizer(getattr(args, "approval_root", None),
-                                          protected_roots=(REPO_ROOT,))
-        if getattr(args, "production", False) and getattr(args, "allow_network", False):
+                                          protected_roots=(REPO_ROOT,), context=context)
+        real = getattr(args, "production", False) or getattr(args, "private_experiment", False)
+        if real and getattr(args, "allow_network", False):
             from hererisk.elevation.download.gsi_transport import GsiHttpTransport
 
-            transport = GsiHttpTransport()
+            transport = GsiHttpTransport(context=context)
         else:
-            transport = UnavailableTransport()
+            transport = UnavailableTransport(context)
     modules = {"elevation": ElevationDownload(transport)}
     later = (NormalizeStage(), ValidateStage())
     if getattr(args, "publish", False):
@@ -243,10 +263,26 @@ def _init_fixture_root(data_root: Path) -> int:
     return 0
 
 
+def _init_private_root(data_root: Path) -> int:
+    from hererisk.common.storage import init_private_data_root
+
+    if is_within(data_root, REPO_ROOT):
+        sys.stderr.write("hererisk-pipeline: private root must be outside the repository\n")
+        return EXIT_USAGE
+    try:
+        init_private_data_root(data_root, protected_roots=(REPO_ROOT,))
+    except (StorageError, OSError):
+        sys.stderr.write("hererisk-pipeline: private root must be an existing, empty directory\n")
+        return EXIT_USAGE
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "init-fixture-root":
         return _init_fixture_root(args.data_root)
+    if args.command == "init-private-root":
+        return _init_private_root(args.data_root)
     logger = StructuredLogger()
     if args.command == "pipeline":
         return _run_pipeline(args, logger)
@@ -282,10 +318,13 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
         source_ref=args.source,
         resume_run_id=args.resume_run_id,
     )
-    if (args.allow_network or args.approval_root is not None) and not args.production:
+    real = args.production or args.private_experiment
+    if (args.allow_network or args.approval_root is not None) and not real:
         results = (ModuleResult.error(new_run_id(), "download", "INVALID_INPUT"),)
     else:
-        context = ExecutionContext.PRODUCTION if args.production else ExecutionContext.FIXTURE
+        context = (ExecutionContext.PRODUCTION if args.production else
+                   ExecutionContext.PRIVATE_EXPERIMENT if args.private_experiment else
+                   ExecutionContext.FIXTURE)
         try:
             results = build_orchestrator(args, logger).run_pipeline(request, context=context)
         except Exception:  # noqa: BLE001 - never leak exception text
@@ -299,8 +338,8 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
 def _approval_check(args: argparse.Namespace) -> int:
     """Evaluate every operation's production authorization; print one JSON line."""
     operations = ["download", "normalize", "validate"] + (["publish"] if args.publish else [])
-    doc: dict = {"status": "BLOCKED", "definition_revision": None, "definition_raw_sha256": None,
-                 "operations": []}
+    doc: dict = {"status": "BLOCKED", "context": args.context, "definition_revision": None,
+                 "definition_raw_sha256": None, "operations": []}
     try:
         definition = ConfigurationManager(REPO_ROOT, REPO_ROOT).load("api", args.api, "sources")
     except Exception:  # noqa: BLE001 - never leak exception text
@@ -309,7 +348,8 @@ def _approval_check(args: argparse.Namespace) -> int:
         return 2
     doc["definition_revision"] = definition.data.get("definition_revision")
     doc["definition_raw_sha256"] = definition.raw_sha256
-    authorizer = ProductionAuthorizer(args.approval_root, protected_roots=(REPO_ROOT,))
+    authorizer = ProductionAuthorizer(args.approval_root, protected_roots=(REPO_ROOT,),
+                                      context=ExecutionContext(args.context))
     for operation in operations:
         entry = {"operation": operation, "decision": "BLOCKED", "authorization_ref": None,
                  "reason": None}

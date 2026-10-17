@@ -105,6 +105,10 @@ READABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
 PRODUCTION_DATA_ROOT = Path("/data")
 FIXTURE_ROOT_MARKER = ".hererisk-fixture-data-root"
 FIXTURE_ROOT_MARKER_CONTENT = b"hererisk fixture data root v1\n"
+# Private experiment data roots (Phase 1-G) carry their own marker; public
+# (production) runs and the public API refuse any root carrying it.
+PRIVATE_ROOT_MARKER = ".hererisk-private-experiment-root"
+PRIVATE_ROOT_MARKER_CONTENT = b"hererisk private_experiment data root v1\n"
 
 _DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 _READ_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC
@@ -769,35 +773,49 @@ class ApiDataArea:
             os.close(fd)
 
     # -- fixture data root -------------------------------------------------------
-    def has_fixture_marker_entry(self) -> bool:
-        """True if any entry named like the fixture marker exists (content not checked).
-
-        Used to keep production runs off fixture roots: fail closed on any marker.
-        """
+    def _marker_entry(self, name: str) -> bool:
         try:
-            os.stat(FIXTURE_ROOT_MARKER, dir_fd=self._rootfd(), follow_symlinks=False)
+            os.stat(name, dir_fd=self._rootfd(), follow_symlinks=False)
         except FileNotFoundError:
             return False
         except OSError:
             return True
         return True
 
-    def has_fixture_marker(self) -> bool:
-        """True if the data root carries the explicit fixture-root marker file."""
+    def _marker(self, name: str, content: bytes) -> bool:
         root = self._rootfd()
         try:
-            fd = os.open(FIXTURE_ROOT_MARKER, _READ_FLAGS, dir_fd=root)
+            fd = os.open(name, _READ_FLAGS, dir_fd=root)
         except OSError:
             return False
         try:
             st = os.fstat(fd)
             if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_uid != os.geteuid():
                 return False
-            return os.read(fd, len(FIXTURE_ROOT_MARKER_CONTENT) + 1) == FIXTURE_ROOT_MARKER_CONTENT
+            return os.read(fd, len(content) + 1) == content
         except OSError:
             return False
         finally:
             os.close(fd)
+
+    def has_fixture_marker_entry(self) -> bool:
+        """True if any entry named like the fixture marker exists (content not checked).
+
+        Used to keep production runs off fixture roots: fail closed on any marker.
+        """
+        return self._marker_entry(FIXTURE_ROOT_MARKER)
+
+    def has_fixture_marker(self) -> bool:
+        """True if the data root carries the explicit fixture-root marker file."""
+        return self._marker(FIXTURE_ROOT_MARKER, FIXTURE_ROOT_MARKER_CONTENT)
+
+    def has_private_marker_entry(self) -> bool:
+        """True if any entry named like the private-experiment marker exists."""
+        return self._marker_entry(PRIVATE_ROOT_MARKER)
+
+    def has_private_marker(self) -> bool:
+        """True if the root carries the exact private-experiment marker (own, single link)."""
+        return self._marker(PRIVATE_ROOT_MARKER, PRIVATE_ROOT_MARKER_CONTENT)
 
 
 def is_within(path: Path, root: Path) -> bool:
@@ -827,6 +845,35 @@ def init_fixture_data_root(data_root: Path, protected_roots: tuple[Path, ...] = 
         mfd = os.open(FIXTURE_ROOT_MARKER, _NEW_FLAGS, 0o640, dir_fd=fd)
         try:
             os.write(mfd, FIXTURE_ROOT_MARKER_CONTENT)
+            fsync_fd(mfd)
+        finally:
+            os.close(mfd)
+        fsync_fd(fd)
+    finally:
+        os.close(fd)
+
+
+def init_private_data_root(data_root: Path, protected_roots: tuple[Path, ...] = ()) -> None:
+    """Mark an existing, empty directory as a private_experiment data root (Phase 1-G).
+
+    Refuses anything inside ``protected_roots`` (repository / schema roots),
+    any non-empty directory and a symlinked path. Unlike fixture roots, a
+    location under ``/data`` (e.g. ``/data/private``) is allowed. The marker
+    records the operating mode only; it is not an authentication credential.
+    """
+    root = Path(data_root)
+    if root.is_symlink() or not root.is_dir():
+        raise StorageError("PERMISSION_DENIED", "private root must be an existing directory")
+    canonical = Path(os.path.realpath(root))
+    fd, chain = _open_dir_chain(canonical)
+    try:
+        if _chain_within(canonical, chain, protected_roots):
+            raise StorageError("PERMISSION_DENIED", "protected location")
+        if os.listdir(fd):
+            raise StorageError("PERMISSION_DENIED", "private root must be empty")
+        mfd = os.open(PRIVATE_ROOT_MARKER, _NEW_FLAGS, 0o640, dir_fd=fd)
+        try:
+            os.write(mfd, PRIVATE_ROOT_MARKER_CONTENT)
             fsync_fd(mfd)
         finally:
             os.close(mfd)

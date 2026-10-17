@@ -24,10 +24,14 @@ _URL_RE = re.compile(
 
 
 class GsiHttpTransport:
-    context = ExecutionContext.PRODUCTION
+    """Real-data transport for ``production`` (public) or ``private_experiment`` runs."""
 
     def __init__(self, *, connection_factory: Callable[[str], gsi_http.Connection]
-                 = gsi_http.default_connection_factory) -> None:
+                 = gsi_http.default_connection_factory,
+                 context: ExecutionContext = ExecutionContext.PRODUCTION) -> None:
+        if context not in (ExecutionContext.PRODUCTION, ExecutionContext.PRIVATE_EXPERIMENT):
+            raise ValueError("GSI transport is for real-data contexts only")
+        self.context = context
         self._connection_factory = connection_factory
         self.requested_urls: list[str] = []
 

@@ -55,7 +55,7 @@ PRODUCTION_PROFILE_ID = "elevation-normalized-v0.1"
 
 
 def profile_for(context: ExecutionContext) -> str:
-    return PRODUCTION_PROFILE_ID if context is ExecutionContext.PRODUCTION else PROFILE_ID
+    return PROFILE_ID if context is ExecutionContext.FIXTURE else PRODUCTION_PROFILE_ID
 PIPELINE_ID = "elevation-validate"
 PIPELINE_VERSION = "fixture-0.1"
 RECORD_SCHEMA_VERSION = "0.1"

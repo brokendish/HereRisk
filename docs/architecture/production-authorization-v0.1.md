@@ -5,6 +5,8 @@
 - Schema: [承認記録](schemas/production-approval-record.schema.json)、[失効一覧](schemas/approval-revocations.schema.json)、[記入例（テンプレート。有効な記録ではない）](schemas/production-approval-record.example.json)
 - 運用手順: [本番化Runbook](../operations/elevation-production-runbook-v0.1.md)
 
+> Phase 1-G（2026-10-17）: 同じ仕組みを `private_experiment`（個人実験）にも使う。認可器は1つの区分だけを扱い、記録の `execution_context`・IDの空間（`apr-private-*`）・Publishの資格（`private_use` / `eligibility_*`）で区分を分ける。詳細は[運用区分と個人実験の契約](private-experiment-v0.1.md)、記入例は[個人実験の承認記録](schemas/private-experiment-approval-record.example.json)。以下の本文は public_production（`production`）についての記述である。
+
 ## 1. 原則
 
 1. **既定は拒否。** 承認ストアを指定しない場合（`--approval-root` なし）、すべての本番操作はAPPROVAL_REQUIREDになる。

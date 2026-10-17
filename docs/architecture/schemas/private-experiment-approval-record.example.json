@@ -1,0 +1,57 @@
+{
+  "schema": "hererisk-production-approval-v0.1",
+  "approval_id": "apr-private-elevation-13-0001",
+  "execution_context": "private_experiment",
+  "api_id": "elevation",
+  "source_ref": "gsi-dem10b-candidate",
+  "operations": [
+    "download",
+    "normalize",
+    "validate"
+  ],
+  "region_codes": [
+    "13"
+  ],
+  "tiles": [
+    {
+      "z": 14,
+      "x": 14552,
+      "y": 6451
+    }
+  ],
+  "definition": {
+    "revision": "<sources.json の definition_revision>",
+    "raw_sha256": "<approval-check --context private_experiment が表示する definition_raw_sha256>"
+  },
+  "valid_from": "2026-11-01T00:00:00Z",
+  "expires_at": "2026-11-08T00:00:00Z",
+  "approved_by": "<OWNERの識別子>",
+  "approval_basis_ref": "<利用条件の確認記録の参照>",
+  "acquisition": {
+    "allowed_host": "cyberjapandata.gsi.go.jp",
+    "max_tiles_per_run": 1,
+    "max_tile_bytes": 1048576,
+    "max_pending_acquisitions": 1
+  },
+  "_publish_を追加する場合の例（このキーは記録に含めない）": {
+    "operations": [
+      "download",
+      "normalize",
+      "validate",
+      "publish"
+    ],
+    "publication": {
+      "license": "<確認した利用条件>",
+      "attribution_url": "<出典URL>",
+      "attribution_text": "<sources.json の usage.attribution_text と同じ文言>",
+      "private_use": {
+        "purpose": "non_commercial_personal_experiment",
+        "access": "owner_only_loopback",
+        "usage_review_ref": "<確認記録の参照>",
+        "confirmed_by": "<OWNER>",
+        "confirmed_at": "<UTC>"
+      }
+    }
+  },
+  "record_sha256": "<approval-digest が表示する値>"
+}

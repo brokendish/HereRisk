@@ -378,11 +378,24 @@ class Orchestrator:
         disposable fixture root; it is not an authentication credential.
         """
         area.pin()
-        if authorization.context is not ExecutionContext.FIXTURE:
-            # 本番の実行は、fixture用に印を付けたデータrootへ書かない。
-            if area.has_fixture_marker_entry():
-                raise PipelineError("INVALID_INPUT", "fixture data root in production run")
+        context = authorization.context
+        if context is ExecutionContext.PRODUCTION:
+            # 一般公開（public_production）の実行は、fixture用・個人実験用の
+            # 印を付けたデータrootへ書かない（印の内容は問わない）。
+            if area.has_fixture_marker_entry() or area.has_private_marker_entry():
+                raise PipelineError("INVALID_INPUT", "fixture/private data root in public run")
             return
+        if context is ExecutionContext.PRIVATE_EXPERIMENT:
+            # 個人実験は、個人実験用の印が正確に付いた専用rootだけに書く。
+            if area.root_within((self._config.schema_root, self._config.definition_root)):
+                raise PipelineError("INVALID_INPUT", "private data root not allowed")
+            if area.has_fixture_marker_entry() or not area.has_private_marker():
+                raise PipelineError("INVALID_INPUT", "data root is not a private experiment root")
+            return
+        if context is not ExecutionContext.FIXTURE:
+            raise PipelineError("APPROVAL_REQUIRED", "unknown execution context")
+        if area.has_private_marker_entry():
+            raise PipelineError("INVALID_INPUT", "private data root in fixture run")
         if area.root_within(self._protected_roots()):
             raise PipelineError("INVALID_INPUT", "fixture data root not allowed")
         if not area.has_fixture_marker():

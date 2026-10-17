@@ -8,6 +8,9 @@
   the service never answers with unverified data
 * fixture data roots are refused unless ``--fixture-demo`` is given, which is
   only allowed on a loopback address (local development demo)
+* ``--private-experiment`` (Phase 1-G) serves only a private experiment data
+  root (``init-private-root``) and only on a loopback address (reach it through
+  an SSH tunnel); without it, private roots are refused
 * the request body is read bounded (max + 1 bytes); no request line, path,
   query, body or position is logged (the stdlib access log is disabled)
 * settings come from ``api/elevation/conf/api.json`` via the Configuration Manager
@@ -79,11 +82,15 @@ def make_handler(api: ElevationApi, max_body: int):
 
 
 def build_server(data_root: Path, host: str, port: int, *, fixture_demo: bool = False,
+                 private_experiment: bool = False,
                  logger: StructuredLogger | None = None) -> ThreadingHTTPServer:
-    if fixture_demo and not ipaddress.ip_address(host).is_loopback:
-        raise StartupError("--fixture-demo is only allowed on a loopback address")
+    if fixture_demo and private_experiment:
+        raise StartupError("--fixture-demo and --private-experiment are exclusive")
+    if (fixture_demo or private_experiment) and not ipaddress.ip_address(host).is_loopback:
+        raise StartupError("demo / private modes are only allowed on a loopback address")
     settings = load_settings()
-    published = PublishedSet.load(data_root, allow_fixture_root=fixture_demo)
+    published = PublishedSet.load(data_root, allow_fixture_root=fixture_demo,
+                                  private_experiment=private_experiment)
     api = ElevationApi(published, settings, logger or StructuredLogger())
     server = ThreadingHTTPServer((host, port), make_handler(api, settings.request_body_max_bytes))
     server.daemon_threads = True
@@ -97,11 +104,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--fixture-demo", action="store_true",
                         help="serve a fixture data root (loopback only, local demo)")
+    parser.add_argument("--private-experiment", action="store_true",
+                        help="serve a private experiment data root (loopback only)")
     args = parser.parse_args(argv)
     logger = StructuredLogger()
     try:
         server = build_server(args.data_root, args.host, args.port,
-                              fixture_demo=args.fixture_demo, logger=logger)
+                              fixture_demo=args.fixture_demo,
+                              private_experiment=args.private_experiment, logger=logger)
     except (StartupError, ConfigurationError, ValueError, OSError):
         sys.stderr.write("hererisk-elevation-api: published data or settings invalid; not serving\n")
         return 3
