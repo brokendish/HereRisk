@@ -7,7 +7,7 @@ name = "hererisk"
 version = "0.0.0"
 description = "HereRisk pipeline (Phase 1-A.1: fixture-only elevation download)"
 requires-python = ">=3.11"
-dependencies = ["jsonschema>=4.23,<5"]
+dependencies = ["jsonschema>=4.23,<5", "pypng==0.20220715.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

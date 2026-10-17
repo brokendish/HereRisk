@@ -43,6 +43,7 @@ python3 -m venv .venv
 | 依存 | 用途 | 区分 |
 |---|---|---|
 | jsonschema (>=4.23,<5) | Source Definition・Record・markerのJSON Schema検証 | 実行時 |
+| pypng (==0.20220715.0) | Normalize（Phase 1-B.1）のPNG画素復号。純Python・依存なし | 実行時 |
 | pytest (>=8) | テスト | 開発時のみ |
 
 その他は標準ライブラリのみ。jsonschemaの `uri` フォーマット検査は任意パッケージ未導入のため実質無効で、HTTPSのパターン検査で代替している。
