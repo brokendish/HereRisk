@@ -124,6 +124,34 @@ stdoutには結果JSONを1行だけ出す（ログはstderr）。
 - 承認不足（`authorization/normalize.json` や `validate.json` がない等）の場合は、何も書き込む前に、その工程の名前でBLOCKEDを返す。
 - 確認先: 候補は `$DATA_ROOT/elevation/work/normalized/<run_id>/`、変換証跡は `records/normalizations/<run_id>.json`、検証証跡は `records/validations/<run_id>.json`。
 
+### 3.2 地点標高の読取（読取専用）
+
+`elevation` コマンドは、検証済みfixture runの候補から、指定地点の格納標高を読み取る（Phase 1-C.2の `read_point_elevation`）。データの生成・保存・変更はしない。
+
+```sh
+PYTHONPATH=src .venv/bin/python -m hererisk.cli elevation \
+  --run-id <pipelineのrun_id> --lat 34.9039 --lon 135.7553 --zoom 14 \
+  --data-root "$DATA_ROOT"
+```
+
+- 引数はすべて必須。zoomは呼出側が指定する（Z14の固定値はない）。引数が欠けている場合は、既存の固定文言の構文エラー（終了コード2、stdoutは空）になる。値の不正（数値でない、範囲外、NaN等）は、下記のJSONで返す。
+- stdoutには、成功・失敗とも同じキーを持つJSONを1行だけ出す。キーは `status`、`error_code`、`reason`、`message`、`run_id`、`acquisition_id`、`candidate_sha256`、`tile`、`pixel`、`elevation_cm`、`nodata`。ログはstderrに出す。入力した緯度経度とパスは、どちらにも出さない。`run_id` はUUID形式の場合だけ出力する。
+- **欠損画素は成功**とする（終了コード0、`elevation_cm: null`、`nodata: true`）。0や負値も正常な値。
+- 主な失敗:
+
+| 状態 | reason | error_code（終了コード） |
+|---|---|---|
+| 座標・zoomの不正 | INVALID_COORDINATES | INVALID_INPUT（2） |
+| run_idの形式不正 | INVALID_RUN | INVALID_INPUT（2） |
+| 検証済みでないrun | NOT_VALIDATED | INVALID_INPUT（2） |
+| タイルがそのrunに含まれない（欠損とは別） | TILE_NOT_IN_RUN | TARGET_UNCONFIGURED（3） |
+| fixtureのデータrootでない | NOT_FIXTURE | APPROVAL_REQUIRED（3） |
+| 証跡の不整合 | EVIDENCE_INCONSISTENT | RECOVERY_REQUIRED（3） |
+| 候補の破損・欠落 | CANDIDATE_CORRUPTED | STORAGE_INTEGRITY_FAILED（12） |
+| hashは整合するが候補が不正 | CANDIDATE_INVALID | VALIDATION_FAILED（11） |
+
+`message` は、既存の共通エラー表の固定文言をそのまま使う。たとえばTARGET_UNCONFIGUREDでは取得対象を指す文言になるので、読取時の意味は `reason` で判断する。
+
 ### 終了コード
 
 | コード | 意味 |

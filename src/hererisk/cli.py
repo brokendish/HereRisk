@@ -11,6 +11,15 @@ There is no other entry point that runs Download directly.
         --source fixture-dem-png-tokyo --fixture tests/fixtures/elevation-fixture \
         --data-root /path/to/empty-tmp-dir
 
+    python -m hererisk.cli elevation --run-id <run_id> --lat 35.68 --lon 139.76 \
+        --zoom 14 --data-root /path/to/fixture-data-root
+
+``elevation`` (read only) returns the stored elevation of the pixel containing
+(lat, lon) at ``zoom`` from a validated fixture run, via
+``read_point_elevation``. It always prints one JSON object with the same keys;
+coordinates are never echoed. Exit 0 only on a successful read (a no-data
+pixel is a successful read with ``nodata: true``).
+
 ``pipeline`` (fixture only; ``--fixture`` is required) runs Download ->
 Normalize -> Validate through ``Orchestrator.run_fixture_pipeline`` and prints
 ``{"run_id", "status", "error_code", "results": [ModuleResult...]}``. It
@@ -31,6 +40,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import NoReturn, Sequence
@@ -39,10 +49,11 @@ from hererisk.common.authorization import FixtureAuthorizer, ProductionAuthorize
 from hererisk.common.config import ConfigurationManager
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadRequest, Orchestrator, new_run_id
-from hererisk.common.result import ModuleResult, Status
-from hererisk.common.storage import StorageError, init_fixture_data_root, is_within
+from hererisk.common.result import ERROR_CODES, ModuleResult, Status, message_for
+from hererisk.common.storage import ApiDataArea, StorageError, init_fixture_data_root, is_within
 from hererisk.elevation.download.download import ElevationDownload
 from hererisk.elevation.download.transport import FixtureTransport, UnavailableTransport
+from hererisk.elevation.lookup.reader import INVALID_COORDINATES, ReadRejected, read_point_elevation
 from hererisk.elevation.normalize.stage import NormalizeStage
 from hererisk.elevation.validate.stage import ValidateStage
 
@@ -81,6 +92,14 @@ def build_parser() -> argparse.ArgumentParser:
     pl.add_argument("--fixture", required=True, type=Path, metavar="FIXTURE_ROOT",
                     help="fixture tree (required: there is no production pipeline entry)")
     pl.add_argument("--resume-run-id", help="re-run an existing run_id (same configuration)")
+    el = sub.add_parser("elevation", help="read only: stored elevation at a point")
+    # Values are parsed by the command (not argparse) so that malformed values
+    # yield the fixed JSON error instead of a usage message.
+    el.add_argument("--run-id", required=True, help="validated fixture run_id")
+    el.add_argument("--lat", required=True, help="latitude in degrees")
+    el.add_argument("--lon", required=True, help="longitude in degrees")
+    el.add_argument("--zoom", required=True, help="XYZ zoom level 0-30")
+    el.add_argument("--data-root", required=True, type=Path, help="fixture data root")
     init = sub.add_parser("init-fixture-root",
                           help="mark an existing empty directory as a fixture data root")
     init.add_argument("--data-root", required=True, type=Path)
@@ -158,6 +177,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     logger = StructuredLogger()
     if args.command == "pipeline":
         return _run_pipeline(args, logger)
+    if args.command == "elevation":
+        return _read_elevation(args, logger)
     request = DownloadRequest(
         api_id=args.api,
         region_codes=tuple(args.regions),
@@ -188,6 +209,61 @@ def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
     sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
     sys.stdout.flush()
     return code
+
+
+_ZOOM_RE = re.compile(r"^[0-9]{1,2}$")
+_UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+ELEVATION_SUCCESS_MESSAGE = "Elevation read"
+
+
+def _elevation_document(point=None, *, run_id=None, error_code=None, reason=None) -> dict:
+    """Fixed-key JSON document for the ``elevation`` command."""
+    if point is not None:
+        doc = point.to_dict()
+        return {"status": "SUCCESS", "error_code": None, "reason": None,
+                "message": ELEVATION_SUCCESS_MESSAGE, **doc}
+    status = ERROR_CODES[error_code][0].value
+    return {
+        "status": status, "error_code": error_code, "reason": reason,
+        "message": message_for(error_code),
+        # Echo the run_id only if it is a well-formed UUID; never echo coordinates.
+        "run_id": run_id if isinstance(run_id, str) and _UUID_RE.match(run_id) else None,
+        "acquisition_id": None, "candidate_sha256": None, "tile": None, "pixel": None,
+        "elevation_cm": None, "nodata": None,
+    }
+
+
+def _read_elevation(args: argparse.Namespace, logger: StructuredLogger) -> int:
+    run_id = args.run_id
+    log = logger.bind(module="elevation-lookup", api_id="elevation",
+                      run_id=run_id if _UUID_RE.match(run_id) else None)
+    code, reason, point = None, None, None
+    try:
+        try:
+            lat, lon = float(args.lat), float(args.lon)
+        except ValueError as exc:
+            raise ReadRejected("INVALID_INPUT", INVALID_COORDINATES, "not a number") from exc
+        if not _ZOOM_RE.match(args.zoom):
+            raise ReadRejected("INVALID_INPUT", INVALID_COORDINATES, "zoom not an integer")
+        with ApiDataArea(args.data_root, "elevation") as area:
+            point = read_point_elevation(area, run_id, lat, lon, int(args.zoom))
+    except ReadRejected as exc:
+        code, reason = exc.error_code, exc.reason
+    except StorageError as exc:
+        code = exc.error_code
+    except Exception:  # noqa: BLE001 - never leak exception text or paths
+        code = "INTERNAL_ERROR"
+    if point is not None:
+        document, exit_code = _elevation_document(point), 0
+        log.info("Elevation read")
+    else:
+        document = _elevation_document(run_id=run_id, error_code=code, reason=reason)
+        exit_code = ERROR_CODES[code][1]
+        log.log("WARNING" if document["status"] == "BLOCKED" else "ERROR",
+                "Elevation read refused", error_code=code)
+    sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
+    sys.stdout.flush()
+    return exit_code
 
 
 if __name__ == "__main__":
