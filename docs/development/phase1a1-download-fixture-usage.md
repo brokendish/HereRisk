@@ -198,6 +198,40 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli elevation \
 - 鉛直基準、測量時期、改定の反映状況、再配布条件は未確認のまま（証跡の `unconfirmed` に記録する）。
 - リクエスト間隔や取得規模は、利用条件の確認と運用設計で別途決める。
 
+### 3.4 PoCで取得した実GSIタイルからの地点標高（Phase 1-D.2、読取専用）
+
+`gsi-elevation-poc` は、第3.3節で取得したPoCディレクトリのPNGと証跡から、指定地点の格納標高を読み取る。通信はせず、ファイルの書込み・削除・修復もしない。PoCのファイルをfixtureパイプラインへコピー・登録することもしない。
+
+```sh
+PYTHONPATH=src .venv/bin/python -m hererisk.cli gsi-elevation-poc \
+  --lat 35.681236 --lon 139.767125 --zoom 14 --poc-dir "$POC_DIR"
+```
+
+処理は、次の確認をすべて通過した場合だけ値を返す。
+
+1. `locate_pixel` でタイルと画素を求める。
+2. PoCディレクトリを、symlinkを辿らずに固定する。マーカーの内容が一致し、fixtureのデータrootでないこと。
+3. そのタイルの証跡JSONを上限付きで読み、厳密に解析する。`poc_only`、スキーマ、タイル、URL、HTTP 200・`image/png`、検査がすべてpassedであることを確認する。
+4. PNGのsize・SHA-256が証跡と一致すること。
+5. `normalize_tile`・`validate_candidate` で検査し、統計が証跡と一致すること。
+6. `lookup_elevation` で値を取り出す。
+
+証跡とPNGは、通常ファイルで、リンク数が1で、実行ユーザーが所有するものに限る。
+
+stdoutにはJSONを1行だけ出す。キーは `status`・`error_code`・`reason`・`message`・`tile`・`pixel`・`elevation_cm`・`elevation_m`・`nodata`・`poc_only`・`source`。`source` には、国土地理院 DEM10B、出典、PNGのSHA-256、取得時刻、`approved_for_publication: false`、未確認事項が入る。
+
+- 欠損画素は成功（`elevation_cm`・`elevation_m` がnull、`nodata: true`）。0と負値は正常な値。
+- 主な失敗:
+  - 座標の不正: `INVALID_COORDINATES`（2）
+  - PoCディレクトリでない: `NOT_POC_DIR`（2）
+  - そのタイルを取得していない: `TILE_NOT_FETCHED`（3）
+  - 証跡の破損・改ざん: `EVIDENCE_INVALID`（3）
+  - PNGの不一致・hardlink・symlink: `PNG_MISMATCH`（12）
+  - 復号の失敗: `PNG_UNDECODABLE`（11）
+  - 統計の不一致: `STATISTICS_MISMATCH`（3）
+- 入力した緯度経度・パス・例外文は出力しない。
+- 得られる値はPoCのデータで、公開承認済みのデータではない。鉛直基準・測量時期・改定の反映状況は未確認のまま（推測しない）。
+
 ### 終了コード
 
 | コード | 意味 |

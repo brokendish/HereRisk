@@ -46,14 +46,17 @@ from hererisk.common.storage import (
     fsync_fd,
 )
 from hererisk.elevation.gsi_poc import http_fetch
+from hererisk.elevation.gsi_poc.constants import (
+    EVIDENCE_SCHEMA,
+    POC_MARKER,
+    POC_MARKER_CONTENT,
+    SOURCE_REF,
+    tile_basename,
+)
 from hererisk.elevation.lookup.core import locate_pixel
 from hererisk.elevation.normalize.convert import normalize_tile
 from hererisk.elevation.validate.core import validate_candidate
 
-SOURCE_REF = "gsi-dem10b-candidate"
-EVIDENCE_SCHEMA = "hererisk-gsi-poc-evidence-v0.1"
-POC_MARKER = ".hererisk-gsi-poc-dir"
-POC_MARKER_CONTENT = b"hererisk gsi dem10b acquisition poc v1\n"
 _TEMPLATE_RE = re.compile(r"^https://cyberjapandata\.gsi\.go\.jp/xyz/dem_png/\{z\}/\{x\}/\{y\}\.png$")
 _DIR_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
 _NEW_FLAGS = os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC
@@ -71,7 +74,7 @@ class FetchPlan:
 
     @property
     def basename(self) -> str:
-        return f"dem_png_{self.z}_{self.x}_{self.y}"
+        return tile_basename(self.z, self.x, self.y)
 
 
 def _utc(moment: datetime) -> str:

@@ -28,13 +28,12 @@ from dataclasses import dataclass
 from typing import Callable, Protocol
 
 from hererisk.common.result import PipelineError
+from hererisk.elevation.gsi_poc.constants import ALLOWED_HOST, MAX_BODY_BYTES
 
-ALLOWED_HOST = "cyberjapandata.gsi.go.jp"
 PORT = 443
 CONNECT_TIMEOUT_S = 5.0
 READ_TIMEOUT_S = 10.0
 TOTAL_DEADLINE_S = 30.0
-MAX_BODY_BYTES = 1024 * 1024
 CHUNK = 64 * 1024
 USER_AGENT = "HereRisk-elevation-poc/0.1"
 

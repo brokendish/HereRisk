@@ -28,6 +28,13 @@ GSI DEM10B tile containing the point; only with ``--allow-network`` does it
 perform that one HTTPS request and save PNG + evidence in the PoC directory.
 PoC files are not pipeline input and not approved for publication.
 
+    python -m hererisk.cli gsi-elevation-poc --lat 35.681236 --lon 139.767125 \
+        --zoom 14 --poc-dir /path/to/dedicated-poc-dir
+
+``gsi-elevation-poc`` (Phase 1-D.2, read only, no network) returns the stored
+value of a PoC-fetched GSI tile after re-checking evidence, size, SHA-256,
+decode and statistics. PoC values are not approved for publication.
+
 ``pipeline`` (fixture only; ``--fixture`` is required) runs Download ->
 Normalize -> Validate through ``Orchestrator.run_fixture_pipeline`` and prints
 ``{"run_id", "status", "error_code", "results": [ModuleResult...]}``. It
@@ -117,6 +124,12 @@ def build_parser() -> argparse.ArgumentParser:
                      help="dedicated PoC directory (empty or already a PoC directory)")
     poc.add_argument("--allow-network", action="store_true",
                      help="actually perform the single HTTPS request (otherwise plan only)")
+    gev = sub.add_parser("gsi-elevation-poc",
+                         help="read only: point elevation from a GSI PoC directory (no network)")
+    gev.add_argument("--lat", required=True, help="latitude in degrees")
+    gev.add_argument("--lon", required=True, help="longitude in degrees")
+    gev.add_argument("--zoom", required=True, help="XYZ zoom level 0-30")
+    gev.add_argument("--poc-dir", required=True, type=Path, help="GSI PoC directory (Phase 1-D.1)")
     init = sub.add_parser("init-fixture-root",
                           help="mark an existing empty directory as a fixture data root")
     init.add_argument("--data-root", required=True, type=Path)
@@ -198,6 +211,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _read_elevation(args, logger)
     if args.command == "gsi-fetch-poc":
         return _gsi_fetch_poc(args, logger)
+    if args.command == "gsi-elevation-poc":
+        return _gsi_elevation_poc(args, logger)
     request = DownloadRequest(
         api_id=args.api,
         region_codes=tuple(args.regions),
@@ -319,6 +334,41 @@ def _gsi_fetch_poc(args: argparse.Namespace, logger: StructuredLogger,
         document.update(status=status.value, error_code="INTERNAL_ERROR",
                         message=message_for("INTERNAL_ERROR"))
         log.error("GSI PoC fetch failed", error_code="INTERNAL_ERROR")
+    sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
+    sys.stdout.flush()
+    return code
+
+
+def _gsi_elevation_poc(args: argparse.Namespace, logger: StructuredLogger) -> int:
+    from hererisk.elevation.gsi_poc.reader import read_poc_elevation  # network-free module
+
+    log = logger.bind(module="gsi-elevation-poc", api_id="elevation", run_id=None)
+    document: dict = {"status": None, "error_code": None, "reason": None, "message": None,
+                      "tile": None, "pixel": None, "elevation_cm": None, "elevation_m": None,
+                      "nodata": None, "poc_only": True, "source": None}
+    try:
+        try:
+            lat, lon = float(args.lat), float(args.lon)
+        except ValueError as exc:
+            raise ReadRejected("INVALID_INPUT", INVALID_COORDINATES, "not a number") from exc
+        if not _ZOOM_RE.match(args.zoom):
+            raise ReadRejected("INVALID_INPUT", INVALID_COORDINATES, "zoom not an integer")
+        point = read_poc_elevation(args.poc_dir, lat, lon, int(args.zoom))
+        document.update(point.to_dict(), status="SUCCESS",
+                        message="Elevation read from GSI PoC data (not approved for publication)")
+        code = 0
+        log.info("GSI PoC elevation read")
+    except ReadRejected as exc:
+        status, code = ERROR_CODES[exc.error_code]
+        document.update(status=status.value, error_code=exc.error_code, reason=exc.reason,
+                        message=message_for(exc.error_code))
+        log.log("WARNING" if status is Status.BLOCKED else "ERROR",
+                "GSI PoC elevation read refused", error_code=exc.error_code)
+    except Exception:  # noqa: BLE001 - never leak exception text, paths or coordinates
+        status, code = ERROR_CODES["INTERNAL_ERROR"]
+        document.update(status=status.value, error_code="INTERNAL_ERROR",
+                        message=message_for("INTERNAL_ERROR"))
+        log.error("GSI PoC elevation read failed", error_code="INTERNAL_ERROR")
     sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
     sys.stdout.flush()
     return code
