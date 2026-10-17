@@ -7,6 +7,15 @@ There is no other entry point that runs Download directly.
     python -m hererisk.cli download --api elevation --region 13 \
         --source fixture-dem-png-tokyo --fixture tests/fixtures/elevation-fixture \
         --data-root /path/to/empty-tmp-dir
+    python -m hererisk.cli pipeline --api elevation --region 13 \
+        --source fixture-dem-png-tokyo --fixture tests/fixtures/elevation-fixture \
+        --data-root /path/to/empty-tmp-dir
+
+``pipeline`` (fixture only; ``--fixture`` is required) runs Download ->
+Normalize -> Validate through ``Orchestrator.run_fixture_pipeline`` and prints
+``{"run_id", "status", "error_code", "results": [ModuleResult...]}``. It
+succeeds (exit 0) only if all three stages ran and returned SUCCESS; otherwise
+status / error_code / exit code are those of the stage that stopped.
 
 Without ``--fixture`` the production context is used; since no production
 approval mechanism or network transport exists, it ends BLOCKED.
@@ -30,10 +39,12 @@ from hererisk.common.authorization import FixtureAuthorizer, ProductionAuthorize
 from hererisk.common.config import ConfigurationManager
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadRequest, Orchestrator, new_run_id
-from hererisk.common.result import ModuleResult
+from hererisk.common.result import ModuleResult, Status
 from hererisk.common.storage import StorageError, init_fixture_data_root, is_within
 from hererisk.elevation.download.download import ElevationDownload
 from hererisk.elevation.download.transport import FixtureTransport, UnavailableTransport
+from hererisk.elevation.normalize.stage import NormalizeStage
+from hererisk.elevation.validate.stage import ValidateStage
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 EXIT_USAGE = 2
@@ -60,6 +71,16 @@ def build_parser() -> argparse.ArgumentParser:
     dl.add_argument("--fixture", type=Path, metavar="FIXTURE_ROOT",
                     help="run in fixture context using this fixture tree")
     dl.add_argument("--resume-run-id", help="re-run an existing run_id (same configuration)")
+    pl = sub.add_parser("pipeline", help="fixture only: Download -> Normalize -> Validate")
+    pl.add_argument("--api", required=True, help="API identifier (e.g. elevation)")
+    pl.add_argument("--region", required=True, action="append", dest="regions",
+                    help="prefecture code 01-47; repeatable")
+    pl.add_argument("--source", required=True, help="source_ref in the Source Definition")
+    pl.add_argument("--data-root", required=True, type=Path,
+                    help="an initialised fixture data root")
+    pl.add_argument("--fixture", required=True, type=Path, metavar="FIXTURE_ROOT",
+                    help="fixture tree (required: there is no production pipeline entry)")
+    pl.add_argument("--resume-run-id", help="re-run an existing run_id (same configuration)")
     init = sub.add_parser("init-fixture-root",
                           help="mark an existing empty directory as a fixture data root")
     init.add_argument("--data-root", required=True, type=Path)
@@ -80,13 +101,40 @@ def build_orchestrator(args: argparse.Namespace, logger: StructuredLogger) -> Or
         authorizer = ProductionAuthorizer()
         transport = UnavailableTransport()
     modules = {"elevation": ElevationDownload(transport)}
+    # Later stages are wired for fixture runs only; the production context has none.
+    stages = ({"elevation": (NormalizeStage(), ValidateStage())}
+              if args.fixture is not None else None)
     return Orchestrator(
         config_manager=config,
         authorizer=authorizer,
         modules=modules,
         data_root=args.data_root,
         logger=logger,
+        stages=stages,
     )
+
+
+PIPELINE_STAGES = ("download", "normalize", "validate")
+
+
+def pipeline_summary(results: Sequence[ModuleResult]) -> tuple[dict, int]:
+    """Overall JSON document and exit code for a pipeline run."""
+    complete = [r.module for r in results] == list(PIPELINE_STAGES) and all(
+        r.status is Status.SUCCESS for r in results)
+    if complete:
+        final = None
+    elif results and results[-1].status is not Status.SUCCESS:
+        final = results[-1]
+    else:  # stopped without a failing result: never report success
+        final = ModuleResult.error(results[0].run_id if results else new_run_id(),
+                                   "pipeline", "INTERNAL_ERROR")
+    document = {
+        "run_id": results[0].run_id if results else final.run_id,  # type: ignore[union-attr]
+        "status": "SUCCESS" if final is None else final.status.value,
+        "error_code": None if final is None else final.error_code,
+        "results": [r.to_dict() for r in results],
+    }
+    return document, 0 if final is None else final.exit_code
 
 
 def _init_fixture_root(data_root: Path) -> int:
@@ -108,6 +156,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "init-fixture-root":
         return _init_fixture_root(args.data_root)
     logger = StructuredLogger()
+    if args.command == "pipeline":
+        return _run_pipeline(args, logger)
     request = DownloadRequest(
         api_id=args.api,
         region_codes=tuple(args.regions),
@@ -121,6 +171,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     sys.stdout.write(json.dumps(result.to_dict(), ensure_ascii=False, sort_keys=True) + "\n")
     sys.stdout.flush()
     return result.exit_code
+
+
+def _run_pipeline(args: argparse.Namespace, logger: StructuredLogger) -> int:
+    request = DownloadRequest(
+        api_id=args.api,
+        region_codes=tuple(args.regions),
+        source_ref=args.source,
+        resume_run_id=args.resume_run_id,
+    )
+    try:
+        results = build_orchestrator(args, logger).run_fixture_pipeline(request)
+    except Exception:  # noqa: BLE001 - never leak exception text
+        results = (ModuleResult.error(new_run_id(), "download", "INTERNAL_ERROR"),)
+    document, code = pipeline_summary(results)
+    sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
+    sys.stdout.flush()
+    return code
 
 
 if __name__ == "__main__":

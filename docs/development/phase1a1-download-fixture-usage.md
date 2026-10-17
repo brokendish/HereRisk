@@ -101,6 +101,29 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli download --api elevation --regio
 # {"error_code": "APPROVAL_REQUIRED", "status": "BLOCKED", ...}  exit=3
 ```
 
+### 3.1 fixtureパイプライン（Download → Normalize → Validate）
+
+`pipeline` コマンドは、fixture専用の入口である（`--fixture` 必須。本番用の入口はない）。引数は `download` と同じで、`--resume-run-id` も使える。
+
+```sh
+PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline \
+  --api elevation --region 13 --source fixture-dem-png-tokyo \
+  --fixture tests/fixtures/elevation-fixture \
+  --data-root "$DATA_ROOT"
+echo "exit=$?"
+```
+
+stdoutには結果JSONを1行だけ出す（ログはstderr）。
+
+```json
+{"error_code": null, "results": [{"module": "download", ...}, {"module": "normalize", ...}, {"module": "validate", ...}], "run_id": "<run_id>", "status": "SUCCESS"}
+```
+
+- `results` は、実行した工程の結果（ModuleResultと同じ形）を順に並べたもの。途中で止まった場合は、そこまでの工程だけが入る。
+- **3工程すべてがSUCCESSの場合だけ**、`status` をSUCCESSとし、終了コード0で終わる。それ以外の場合、`status`・`error_code`・終了コードは、止まった工程の結果のものになる。例: NormalizeのPNG_INVALIDは11、ValidateのVALIDATION_FAILEDは11、承認不足は3。
+- 承認不足（`authorization/normalize.json` や `validate.json` がない等）の場合は、何も書き込む前に、その工程の名前でBLOCKEDを返す。
+- 確認先: 候補は `$DATA_ROOT/elevation/work/normalized/<run_id>/`、変換証跡は `records/normalizations/<run_id>.json`、検証証跡は `records/validations/<run_id>.json`。
+
 ### 終了コード
 
 | コード | 意味 |
@@ -109,7 +132,7 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli download --api elevation --regio
 | 2 | INVALID_INPUT / INVALID_CONFIGURATION、CLI引数誤り |
 | 3 | BLOCKED（TARGET_UNCONFIGURED / APPROVAL_REQUIRED / TARGET_BUSY / RECOVERY_REQUIRED） |
 | 10 | 転送失敗（fixture欠損はHTTP_404相当、途中失敗はTRANSFER_INTERRUPTED、REDIRECT_REJECTED） |
-| 11 | CONTENT_TYPE_INVALID / SIZE_INVALID / PNG_INVALID |
+| 11 | CONTENT_TYPE_INVALID / SIZE_INVALID / PNG_INVALID / VALIDATION_FAILED |
 | 12 | STORAGE_FULL / PERMISSION_DENIED / HASH_FAILED / STORAGE_INTEGRITY_FAILED |
 | 13 | RECORD_COMMIT_FAILED |
 | 14 | INTERNAL_ERROR |
@@ -180,7 +203,7 @@ fixtureの承認はSource Definition原文のSHA-256に結び付いているた�
 - fixtureの承認ID・source_ref・ポリシーIDはすべて `fixture-` 接頭辞を必須とする。fixture承認は本番source（`gsi-dem10b-candidate` 等）を認可できない。
 - fixture承認ファイルが本番の `api/` 配下にある場合は拒否する。
 - 承認ファイルは工程ごとに分ける（`authorization/download.json`・`normalize.json`・`validate.json`）。各ファイルの `operation` は、要求された工程と一致しなければならない。download用の承認を、後段の工程の承認として読み替えることはしない。取得の安全ポリシー（`policy`）はdownload用の承認だけに含める。
-- Phase 1-B.3-BのパイプラインはOrchestratorの `run_fixture_pipeline` から呼び出す（CLIは未追加）。全工程の承認を、何も書き込む前に確認する。そのうえで、同じsourceロックを一度だけ取得し、Download → Normalize → Validate の順に、直前の工程がSUCCESSの場合だけ次へ進む。
+- Phase 1-B.3-Bのパイプラインは、Orchestratorの `run_fixture_pipeline` から呼び出す（CLIは `pipeline` コマンド。第3.1節）。全工程の承認を、何も書き込む前に確認する。そのうえで、同じsourceロックを一度だけ取得し、Download → Normalize → Validate の順に、直前の工程がSUCCESSの場合だけ次へ進む。
 - 取得URLは予約TLDの `https://fixture.invalid/...` だけで、FixtureTransportは他のURLを受け付けない。
 - 本番コンテキストには承認機構もネットワークTransportも存在しないため、常に `APPROVAL_REQUIRED` で止まる。
 - fixture用の上限値（1タイル1MiB、1要求16タイル、未確定取得物8件）はfixture承認ファイル内のポリシーであり、本番のコード既定値ではない。
