@@ -20,6 +20,14 @@ There is no other entry point that runs Download directly.
 coordinates are never echoed. Exit 0 only on a successful read (a no-data
 pixel is a successful read with ``nodata: true``).
 
+    python -m hererisk.cli gsi-fetch-poc --lat 35.68 --lon 139.76 --zoom 14 \
+        --output-dir /path/to/dedicated-poc-dir [--allow-network]
+
+``gsi-fetch-poc`` (Phase 1-D.1, admin only) prints the plan for the single
+GSI DEM10B tile containing the point; only with ``--allow-network`` does it
+perform that one HTTPS request and save PNG + evidence in the PoC directory.
+PoC files are not pipeline input and not approved for publication.
+
 ``pipeline`` (fixture only; ``--fixture`` is required) runs Download ->
 Normalize -> Validate through ``Orchestrator.run_fixture_pipeline`` and prints
 ``{"run_id", "status", "error_code", "results": [ModuleResult...]}``. It
@@ -49,7 +57,7 @@ from hererisk.common.authorization import FixtureAuthorizer, ProductionAuthorize
 from hererisk.common.config import ConfigurationManager
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.orchestrator import DownloadRequest, Orchestrator, new_run_id
-from hererisk.common.result import ERROR_CODES, ModuleResult, Status, message_for
+from hererisk.common.result import ERROR_CODES, ModuleResult, PipelineError, Status, message_for
 from hererisk.common.storage import ApiDataArea, StorageError, init_fixture_data_root, is_within
 from hererisk.elevation.download.download import ElevationDownload
 from hererisk.elevation.download.transport import FixtureTransport, UnavailableTransport
@@ -100,6 +108,15 @@ def build_parser() -> argparse.ArgumentParser:
     el.add_argument("--lon", required=True, help="longitude in degrees")
     el.add_argument("--zoom", required=True, help="XYZ zoom level 0-30")
     el.add_argument("--data-root", required=True, type=Path, help="fixture data root")
+    poc = sub.add_parser("gsi-fetch-poc",
+                         help="admin PoC: plan / fetch one GSI DEM10B tile (explicit network flag)")
+    poc.add_argument("--lat", required=True, help="latitude in degrees")
+    poc.add_argument("--lon", required=True, help="longitude in degrees")
+    poc.add_argument("--zoom", required=True, help="must be the DEM10B source zoom (14)")
+    poc.add_argument("--output-dir", required=True, type=Path,
+                     help="dedicated PoC directory (empty or already a PoC directory)")
+    poc.add_argument("--allow-network", action="store_true",
+                     help="actually perform the single HTTPS request (otherwise plan only)")
     init = sub.add_parser("init-fixture-root",
                           help="mark an existing empty directory as a fixture data root")
     init.add_argument("--data-root", required=True, type=Path)
@@ -179,6 +196,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_pipeline(args, logger)
     if args.command == "elevation":
         return _read_elevation(args, logger)
+    if args.command == "gsi-fetch-poc":
+        return _gsi_fetch_poc(args, logger)
     request = DownloadRequest(
         api_id=args.api,
         region_codes=tuple(args.regions),
@@ -264,6 +283,45 @@ def _read_elevation(args: argparse.Namespace, logger: StructuredLogger) -> int:
     sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
     sys.stdout.flush()
     return exit_code
+
+
+def _gsi_fetch_poc(args: argparse.Namespace, logger: StructuredLogger,
+                  connection_factory=None) -> int:
+    from hererisk.elevation.gsi_poc import http_fetch, poc  # only this command loads network code
+
+    log = logger.bind(module="gsi-fetch-poc", api_id="elevation", run_id=None)
+    document: dict = {"status": None, "error_code": None, "message": None, "mode": None,
+                      "network_used": False, "url": None, "tile": None, "files": None,
+                      "evidence": None}
+    try:
+        try:
+            lat, lon = float(args.lat), float(args.lon)
+        except ValueError as exc:
+            raise PipelineError("INVALID_INPUT", "coordinates not numbers") from exc
+        if not _ZOOM_RE.match(args.zoom):
+            raise PipelineError("INVALID_INPUT", "zoom not an integer")
+        plan = poc.plan_fetch(lat, lon, int(args.zoom), repo_root=REPO_ROOT)
+        outcome = poc.run_fetch_poc(
+            plan, args.output_dir, allow_network=bool(args.allow_network),
+            protected_roots=(REPO_ROOT,),
+            connection_factory=connection_factory or http_fetch.default_connection_factory)
+        document.update(outcome, status="SUCCESS", message=(
+            "Tile fetched (PoC only)" if outcome["network_used"] else "Plan only; no network used"))
+        code = 0
+        log.info(document["message"])
+    except PipelineError as exc:
+        status, code = ERROR_CODES[exc.error_code]
+        document.update(status=status.value, error_code=exc.error_code,
+                        message=message_for(exc.error_code))
+        log.error("GSI PoC fetch refused", error_code=exc.error_code)
+    except Exception:  # noqa: BLE001 - never leak exception text or paths
+        status, code = ERROR_CODES["INTERNAL_ERROR"]
+        document.update(status=status.value, error_code="INTERNAL_ERROR",
+                        message=message_for("INTERNAL_ERROR"))
+        log.error("GSI PoC fetch failed", error_code="INTERNAL_ERROR")
+    sys.stdout.write(json.dumps(document, ensure_ascii=False, sort_keys=True) + "\n")
+    sys.stdout.flush()
+    return code
 
 
 if __name__ == "__main__":

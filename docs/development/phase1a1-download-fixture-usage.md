@@ -152,6 +152,52 @@ PYTHONPATH=src .venv/bin/python -m hererisk.cli elevation \
 
 `message` は、既存の共通エラー表の固定文言をそのまま使う。たとえばTARGET_UNCONFIGUREDでは取得対象を指す文言になるので、読取時の意味は `reason` で判断する。
 
+### 3.3 実GSI DEM10B 1タイル取得PoC（Phase 1-D.1、管理者のみ）
+
+`gsi-fetch-poc` は、国土地理院の標高PNGタイル（DEM10B、Z14）を**1回の実行で1タイルだけ**取得するPoCである。パイプラインの外にあり、取得したファイルはfixture承認・本番承認のどちらも受けていない。公開・再配布・パイプラインへの投入は禁止。実データの取得に成功しても、本番運用・再配布・Publishの承認にはならない。
+
+1. 専用の空ディレクトリを用意する。`/data`、リポジトリ配下、fixtureのデータrootは使えない。
+
+   ```sh
+   POC_DIR="$(mktemp -d)"
+   ```
+
+2. まず**通信なし**で、取得計画（URL・タイル・保存ファイル名）を確認する。ディレクトリには何も書かない。
+
+   ```sh
+   PYTHONPATH=src .venv/bin/python -m hererisk.cli gsi-fetch-poc \
+     --lat 35.681236 --lon 139.767125 --zoom 14 --output-dir "$POC_DIR"
+   ```
+
+3. URLが `https://cyberjapandata.gsi.go.jp/xyz/dem_png/14/<x>/<y>.png` であることを確認したら、`--allow-network` を付けて実行する。HTTPSリクエストは1回だけ行う。
+
+   ```sh
+   PYTHONPATH=src .venv/bin/python -m hererisk.cli gsi-fetch-poc \
+     --lat 35.681236 --lon 139.767125 --zoom 14 --output-dir "$POC_DIR" --allow-network
+   ```
+
+4. 結果を確認する。`$POC_DIR` に次の3ファイルができる。
+   - `dem_png_14_<x>_<y>.png`: 受信したバイト列そのまま
+   - `dem_png_14_<x>_<y>.json`: 証跡。URL、タイル、要求・取得時刻、HTTPステータス、Content-Type・Length、size、SHA-256、検査結果、統計（valid・nodata・min・max）、Source Definitionの参照（`approval_ref: null`）、出典、未確認事項を含む
+   - `.hererisk-gsi-poc-dir`: PoCディレクトリのマーカー
+
+   `shasum -a 256 $POC_DIR/dem_png_14_*.png` が証跡の `sha256` と一致すること。
+
+5. 隣のタイルが必要な場合は、経度を1タイル分（360/2^14度）ずらして、別の明示実行として行う。
+
+**通信と安全の制約**
+
+- HTTPSのみで、接続先は `cyberjapandata.gsi.go.jp`（443）に限る。TLS証明書とホスト名を検証する。
+- 環境変数のプロキシは使わない。接続先が公開アドレスでなければ、要求を送らずに拒否する。
+- リダイレクトは追跡しない。200以外は失敗とする（404・403・429・5xx・3xx等を欠損扱いにしない）。
+- Content-Typeは `image/png` に限り、圧縮転送（Content-Encoding）は拒否する。
+- タイムアウトは接続5秒・読込10秒・全体30秒。本文は最大1 MiBまでストリーミングで受信する。
+- 自動再試行・並列取得・定期取得はしない。
+- 一時ファイルで受信してから、size・hash・PNGコンテナ・復号・統計を検査し、合格した場合だけ最終名にする（上書き禁止）。
+- 失敗時は、その実行の一時ファイルだけを消す。既に同名のPNGまたは証跡がある場合は、通信する前に拒否する。
+- 鉛直基準、測量時期、改定の反映状況、再配布条件は未確認のまま（証跡の `unconfirmed` に記録する）。
+- リクエスト間隔や取得規模は、利用条件の確認と運用設計で別途決める。
+
 ### 終了コード
 
 | コード | 意味 |

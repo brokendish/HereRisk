@@ -212,6 +212,10 @@ def test_no_later_stage_or_network_code_reachable(no_network) -> None:
     src = fb.REPO_ROOT / "src" / "hererisk"
     forbidden = {"normalize", "validate", "publish", "registry", "generation", "restore"}
     banned_imports = {"socket", "http", "urllib.request", "requests", "subprocess"}
+    # Phase 1-D.1: the GSI PoC's single HTTPS module is the only network code.
+    network_allowed = {src / "elevation" / "gsi_poc" / "http_fetch.py"}
+    pipeline_dirs = ("/common/", "/elevation/download/", "/elevation/normalize/",
+                     "/elevation/validate/", "/elevation/lookup/")
     for path in src.rglob("*.py"):
         assert path.stem not in forbidden, path
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -222,8 +226,11 @@ def test_no_later_stage_or_network_code_reachable(no_network) -> None:
             elif isinstance(node, ast.ImportFrom) and node.module:
                 names = [node.module]
             for name in names:
-                assert not any(name == b or name.startswith(b + ".") for b in banned_imports), (
-                    path, name)
+                if path not in network_allowed:
+                    assert not any(name == b or name.startswith(b + ".") for b in banned_imports), (
+                        path, name)
+                if any(d in path.as_posix() for d in pipeline_dirs):
+                    assert not name.startswith("hererisk.elevation.gsi_poc"), (path, name)
                 if "/common/" in path.as_posix():
                     assert not name.startswith("hererisk.elevation"), (path, name)
     assert no_network == []
