@@ -67,13 +67,28 @@
 | モード | 起動 | 受け付けるroot | 待受け |
 |---|---|---|---|
 | public（既定） | `hererisk.elevation.api.server --data-root …` | 印のないroot。private の印（内容を問わない）またはfixtureの印があれば起動しない | 指定どおり |
-| private | `… --private-experiment` | 正確なprivateの印があり、fixtureの印がないroot | **ループバックのみ**（127.0.0.1 / ::1）。それ以外のアドレスは起動しない |
+| private | `… --private-experiment --auth-token-file <file>` | 正確なprivateの印があり、fixtureの印がないroot | **ループバックのみ**（127.0.0.1 / ::1）。それ以外のアドレスは起動しない。**Bearer Tokenが必須** |
 | fixture demo | `… --fixture-demo` | fixtureのroot | ループバックのみ |
 
 - `--private-experiment` と `--fixture-demo` は同時に指定できない。
 - 起動時の検証（ポインタ → 改訂 → 全実体のchecksum → Validate）に失敗すると、exit 3で起動しない。
 - アプリケーションのログには、request_id・status・error_codeだけを出す。座標・本文・パスは出さない。標準ライブラリのアクセスログは無効にしている。
-- 独自のユーザー管理はない。本人限定であることは、ループバックでの待受けとSSHトンネル（[Runbook](../operations/elevation-private-experiment-runbook-v0.1.md)）で保証する。VPSでは、Caddy等の公開リバースプロキシからこのAPIへルーティングしない。
+- 独自のユーザー管理はない。本人限定であることは、ループバックでの待受けと共通Bearer Token（次節）で保証する。
+
+### 4.1 共通Bearer Token認証（2026-10-17 OWNER方針変更）
+
+当初の「SSHトンネル必須」の方式から、Mac・VPS・将来のクライアントで共通に使える**共通Bearer Token**の方式に変更した。SSHトンネルは、保守用の代替手段として残す（必須ではない）。
+
+- 実装: `src/hererisk/common/api_auth.py`（`BearerAuth`。将来のHazard APIでも再利用できる、API非依存の小さなモジュール）。OAuth・利用者の登録・管理画面・認証データベース・権限ロールはない。
+- トークンファイル: Git管理外。1行に1トークン（43〜128文字、`[A-Za-z0-9_-]`）で、ローテーション中だけ2行。通常ファイル・リンク数1・symlinkでない・所有者が実行ユーザーかroot・group/otherの権限なし（0600/0400）・4 KiB以下。リポジトリ内のファイルは拒否する。起動時に1回だけ読み込み、メモリにはSHA-256のダイジェストだけを持つ。照合は定数時間で行う。
+- `--private-experiment` では `--auth-token-file` が必須である。ない場合や不正な場合は、起動しない（exit 3）。他のモードでは任意で、指定した場合は同じ規則で全リクエストに認証を求める（指定しない場合の挙動は従来と同じ）。
+- 判定の順序: **認証を最初に確認する**（パス・メソッド・本文・地点の選択・公開実体の読取りより前）。HTTPアダプタは、認証に失敗したリクエストの本文を読まない。
+- 受け付ける形式: `Authorization: Bearer <token>` がちょうど1つ（scheme の大文字・小文字は問わない）。ヘッダーがない、2つ以上ある、`Bearer` 以外、空白の過不足、トークンの不一致は、すべて401。
+- 401の応答: 7キーの形式で、`status = invalid_request`、`error = {code: "unauthorized", message: "認証が必要です。"}`、`location`・`evaluated_at`・`dataset` はnull。ヘッダーは `WWW-Authenticate: Bearer`、`Cache-Control: no-store`。
+- ログ: トークンの値・Authorizationヘッダー・緯度経度は記録しない（従来どおり、request_id・status・error_codeだけ）。起動失敗のメッセージにも、トークンとパスを含めない。
+- VPS: バックエンドはループバックで待ち受け、CaddyがHTTPSを終端して `POST /api/v1/elevation` だけを中継する（[Runbook 第2章](../operations/elevation-private-experiment-runbook-v0.1.md)）。外部からの経路を有効にするかは、OWNERが判断する。
+- 承認記録の `private_use.access = owner_only_loopback`（Schemaは変更していない）は、「バックエンドはループバックで待ち受け、OWNER本人のトークンを持つリクエストだけを受け付ける」ことを意味する。
+- トークンの作成・ローテーション・失効は `api-token-generate`（`--append`）・`api-token-retire`（[Runbook 第1.7・2.8節](../operations/elevation-private-experiment-runbook-v0.1.md)）。
 
 ## 5. 互換性
 

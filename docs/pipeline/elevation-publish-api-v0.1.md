@@ -123,6 +123,7 @@ HTTPアダプタでは、`Transfer-Encoding` 付き、または不正な `Conten
 | メソッド不可 | 405 | invalid_request | method_not_allowed | null |
 | 形式不可 | 415 | invalid_request | unsupported_media_type | null |
 | パス不明 | 404 | invalid_request | not_found（P4） | null |
+| 認証の失敗（Bearer Tokenを設定したモードのみ。最初に判定） | 401 | invalid_request | unauthorized | null |
 | 想定外の例外 | 500 | retrieval_failed | internal_error | null |
 
 - `invalid_request` では `location` と `evaluated_at` はnullである。それ以外では、`location` は入力値そのもの、`evaluated_at` はミリ秒のUTC。

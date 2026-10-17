@@ -290,15 +290,21 @@ def test_private_api_refuses_corrupt_registry(private) -> None:
 
 
 def test_private_server_is_loopback_only(private) -> None:
+    from hererisk.common.api_auth import write_new_token_file
+
     private.use_store()
     private.run()
+    token = private.tmp / "api-token"
+    write_new_token_file(token)
     for host in ("0.0.0.0", "192.0.2.1", "::"):
         with pytest.raises(StartupError):
-            server.build_server(private.data_root, host, 0, private_experiment=True)
+            server.build_server(private.data_root, host, 0, private_experiment=True,
+                                auth_token_file=token)
     with pytest.raises(StartupError):
         server.build_server(private.data_root, "127.0.0.1", 0, private_experiment=True,
-                            fixture_demo=True)
-    httpd = server.build_server(private.data_root, "127.0.0.1", 0, private_experiment=True)
+                            fixture_demo=True, auth_token_file=token)
+    httpd = server.build_server(private.data_root, "127.0.0.1", 0, private_experiment=True,
+                                auth_token_file=token)
     assert httpd.server_address[0] == "127.0.0.1"
     httpd.server_close()
 

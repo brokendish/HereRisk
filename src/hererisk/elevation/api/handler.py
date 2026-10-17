@@ -8,6 +8,11 @@ read / quality -> no-data or value. The first failure ends processing.
 
 Nothing about the request position is logged: logs carry a server-generated
 request_id, the public status / error code and the duration only.
+
+With a ``BearerAuth`` (Phase 1-G; required for the private_experiment API),
+authentication is checked FIRST - before path, method, body, selection or any
+read of published data - and a failure ends with 401 ``unauthorized``. Neither
+the token nor the Authorization header is ever logged or echoed.
 """
 
 from __future__ import annotations
@@ -20,6 +25,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
+from hererisk.common.api_auth import BearerAuth
 from hererisk.common.config import ConfigurationError, parse_strict_json
 from hererisk.common.logging import StructuredLogger
 from hererisk.elevation.api.published import PublishedDataset, PublishedSet, public_dataset
@@ -42,7 +48,8 @@ ERRORS: dict[str, tuple[int, str, str]] = {
     "request_too_large": (413, "invalid_request", "リクエストが大きすぎます。"),
     "method_not_allowed": (405, "invalid_request", "このメソッドは利用できません。"),
     "unsupported_media_type": (415, "invalid_request", "この形式のリクエストは利用できません。"),
-    "not_found": (404, "invalid_request", "このエンドポイントはありません。"),  # proposal
+    "not_found": (404, "invalid_request", "このエンドポイントはありません。"),  # P4
+    "unauthorized": (401, "invalid_request", "認証が必要です。"),  # Bearer token (Phase 1-G)
     "internal_error": (500, "retrieval_failed", "標高取得処理に失敗しました。"),
 }
 
@@ -81,7 +88,9 @@ class _Rejected(Exception):
 class ElevationApi:
     def __init__(self, published: PublishedSet, settings: Settings, logger: StructuredLogger,
                  *, clock: Callable[[], datetime] = _now,
-                 monotonic: Callable[[], float] = time.monotonic) -> None:
+                 monotonic: Callable[[], float] = time.monotonic,
+                 auth: BearerAuth | None = None) -> None:
+        self._auth = auth
         self._published = published
         self._settings = settings
         self._logger = logger.bind(module="elevation-api", api_id="elevation", run_id=None)
@@ -89,12 +98,18 @@ class ElevationApi:
         self._monotonic = monotonic
 
     # -- entry -------------------------------------------------------------------------
+    def authenticated(self, headers: Mapping[str, str]) -> bool:
+        """True if no authentication is configured or the credential is valid."""
+        return self._auth is None or self._auth.check(headers)
+
     def handle(self, method: str, path: str, query: str, headers: Mapping[str, str],
                body: bytes) -> Response:
         started = self._monotonic()
         log = self._logger.bind(request_id=uuid.uuid4().hex)
         location = None
         try:
+            if not self.authenticated(headers):
+                raise _Rejected("unauthorized")
             lat, lon = self._accept(method, path, query, headers, body)
         except _Rejected as rejected:
             return self._respond(log, rejected.code, location=None, dataset=None,
@@ -195,6 +210,8 @@ class ElevationApi:
         headers = {"Content-Type": "application/json", "Cache-Control": "no-store"}
         if code == "method_not_allowed":
             headers["Allow"] = "POST"
+        if code == "unauthorized":
+            headers["WWW-Authenticate"] = "Bearer"
         level = "INFO" if status in ("success", "no_data") else (
             "WARNING" if status == "invalid_request" else "ERROR")
         log.log(level, f"request {status}", error_code=code)

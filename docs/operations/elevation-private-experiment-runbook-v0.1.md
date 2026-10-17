@@ -2,6 +2,7 @@
 
 - Task ID: `phase1g-private-experiment`
 - 対象: OWNERが許可した少数のDEM10B Z14タイルについて、実GSI取得 → Normalize → Validate → Private Publish → 本人専用のHTTP標高取得を行う
+- アクセス制御: 共通Bearer Token（2026-10-17 OWNER方針変更。SSHトンネル必須の方式から変更。SSHトンネルは保守用の代替として残す）
 - **本書のコマンドは、OWNERだけが実行する。** 本書の作成時（Claude）には、実GSIへの通信、Private Publish、VPSの変更をいずれも実行していない。
 - 契約: [運用区分と個人実験の契約](../architecture/private-experiment-v0.1.md)。利用条件: [GSI利用条件チェックリスト 第5章](gsi-dem10b-usage-checklist-v0.1.md)。一般公開の手順は[本番化Runbook](elevation-production-runbook-v0.1.md)（BLOCKED）。
 
@@ -103,29 +104,59 @@ echo "exit=$?"     # stdout の run_id を控える
   --approval-root "$APPROVALS" --data-root "$DATA" --resume-run-id "<run_id>"
 ```
 
-### 1.7 個人実験APIの起動とcurlでの確認
+### 1.7 APIトークンの作成（Mac）
+
+APIは共通のBearer Token（[認証の仕様](../architecture/private-experiment-v0.1.md) 第4章）で保護する。トークンはGit管理外の秘密情報である。
+
+```sh
+install -d -m 700 "$BASE/secrets" "$HOME/.config/hererisk"
+.venv/bin/python -m hererisk.cli api-token-generate --output "$BASE/secrets/api-token"
+# 0600 のファイルを作る。トークンは画面に出さない。既存のファイルは上書きしない
+# クライアント用のヘッダーファイル（curl -H @file 用。コマンドラインにトークンを出さない）
+(umask 077; printf 'Authorization: Bearer %s\n' "$(tail -1 "$BASE/secrets/api-token")" \
+  > "$HOME/.config/hererisk/auth-header")
+```
+
+### 1.8 個人実験APIの起動
 
 ```sh
 .venv/bin/python -m hererisk.elevation.api.server --data-root "$DATA" \
-  --host 127.0.0.1 --port 8000 --private-experiment
-# 別のターミナルで
-curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"lat": 35.681236, "lon": 139.767125}' http://127.0.0.1:8000/api/v1/elevation
+  --host 127.0.0.1 --port 8000 --private-experiment --auth-token-file "$BASE/secrets/api-token"
+```
+
+- `--auth-token-file` がない、ファイルの権限が0600/0400以外、リポジトリ内にある、のいずれかの場合は起動しない（exit 3）。
+- `--private-experiment` なしで同じdata rootを指定すると起動しない（一般公開のモードは個人実験のrootを読まない）。
+- 待受けの確認: `lsof -nP -iTCP:8000 -sTCP:LISTEN` が `127.0.0.1:8000` だけであること。
+
+### 1.9 共通のcurl形式（Mac・VPSで同じ）
+
+```sh
+export HERERISK_API_URL=http://127.0.0.1:8000            # Mac のローカル
+# export HERERISK_API_URL=https://<your-domain>          # VPS（第2章）
+export HERERISK_AUTH_HEADER="$HOME/.config/hererisk/auth-header"
+curl -sS -X POST -H @"$HERERISK_AUTH_HEADER" -H 'Content-Type: application/json' \
+  -d '{"lat": 35.681236, "lon": 139.767125}' "$HERERISK_API_URL/api/v1/elevation"
 ```
 
 - `status: success`、`dataset.publication_version = pub-<run_id>`、`dataset.attribution` が承認記録の値であること。
 - 対象外の地点は `no_coverage` になること。
-- `--private-experiment` なしで同じrootを指定すると、起動しない（exit 3）こと（一般公開のモードは個人実験のrootを読まない）。
-- 待受けの確認: `lsof -nP -iTCP:8000 -sTCP:LISTEN` の結果が `127.0.0.1:8000` だけであること。
+- `-H @"$HERERISK_AUTH_HEADER"` を外すと、401（`error.code = unauthorized`、`WWW-Authenticate: Bearer`）になること。
 
-## 2. VPS での手順（本人専用API）
+## 2. VPS での手順（本人専用API、CaddyでHTTPS終端）
 
-### 2.1 方針
+### 2.1 構成
 
-- APIは `127.0.0.1` でだけ待ち受ける（`--private-experiment` はループバック以外のアドレスでは起動しない）。
-- Caddy・nginx等の公開リバースプロキシからこのAPIへルーティングしない。
-- OWNERは、SSHトンネルで接続する。未認証のインターネット利用者は到達できない。
-- データは、次のどちらかで用意する。
+```text
+インターネット --HTTPS--> Caddy（TLS終端。POST /api/v1/elevation だけを中継）
+                              --HTTP--> 127.0.0.1:8000  HereRisk API（--private-experiment、Bearer Token必須）
+```
+
+- バックエンドのAPIは `127.0.0.1` でだけ待ち受ける（`--private-experiment` はループバック以外では起動しない）。
+- CaddyはHTTPSを終端し、`POST /api/v1/elevation` のリクエストを、`Authorization` ヘッダーごとバックエンドへ中継する。それ以外のパスは404にする。
+- 認証はバックエンドが行う。トークンを持たないリクエストは、本文を読まず、公開実体にも触れずに401で拒否される。
+- アプリケーションに利用者管理・OAuth・認証データベースはない（1つの共通トークンだけ）。
+- SSHトンネル（第2.7節）は、保守のための代替手段として使える。通常の利用には不要である。
+- データの用意は、次のどちらか。
   - A（推奨）: VPS上で第1.1〜1.6節と同じ手順を実行する。承認ストア・確認記録はVPS上に置く
   - B: Macで作った個人実験のdata rootを、VPSへ複製する（第2.3節）
 
@@ -136,10 +167,14 @@ curl -s -X POST -H 'Content-Type: application/json' \
 sudo useradd --system --home /srv/hererisk --shell /usr/sbin/nologin hererisk
 sudo install -d -o hererisk -g hererisk -m 750 /srv/hererisk /srv/hererisk/private
 sudo install -d -o hererisk -g hererisk -m 700 /srv/hererisk/approvals /srv/hererisk/approvals/approvals /srv/hererisk/audit
+sudo install -d -o root -g root -m 700 /etc/hererisk
 sudo git clone https://github.com/brokendish/HereRisk.git /opt/hererisk     # 読取専用で使う
 sudo python3 -m venv /opt/hererisk/.venv && sudo /opt/hererisk/.venv/bin/pip install /opt/hererisk
 sudo -u hererisk env PYTHONPATH=/opt/hererisk/src /opt/hererisk/.venv/bin/python \
   -m hererisk.cli init-private-root --data-root /srv/hererisk/private
+# APIトークン（root所有 0600。systemd の LoadCredential でサービスへ渡す）
+sudo env PYTHONPATH=/opt/hererisk/src /opt/hererisk/.venv/bin/python \
+  -m hererisk.cli api-token-generate --output /etc/hererisk/api-token
 ```
 
 `/opt/hererisk/api/elevation/conf/sources.json` は、第1.2節と同じ内容に（作業ツリーで）編集する。Aの場合は、VPS上で第1.3〜1.6節を `sudo -u hererisk` で実行する（`APPROVALS=/srv/hererisk/approvals`、`DATA=/srv/hererisk/private`）。
@@ -163,7 +198,7 @@ APIは起動時に、Registry・全実体のchecksumを検証する。複製が�
 
 ```ini
 [Unit]
-Description=HereRisk elevation API (private_experiment, loopback only)
+Description=HereRisk elevation API (private_experiment, loopback only, Bearer token)
 After=network.target
 
 [Service]
@@ -172,8 +207,11 @@ User=hererisk
 Group=hererisk
 WorkingDirectory=/opt/hererisk
 Environment=PYTHONPATH=/opt/hererisk/src
+# トークンは systemd の資格情報としてサービスにだけ渡す（%d はサービスの資格情報ディレクトリ。systemd 249 以降）
+LoadCredential=api-token:/etc/hererisk/api-token
 ExecStart=/opt/hererisk/.venv/bin/python -m hererisk.elevation.api.server \
-  --data-root /srv/hererisk/private --host 127.0.0.1 --port 8000 --private-experiment
+  --data-root /srv/hererisk/private --host 127.0.0.1 --port 8000 --private-experiment \
+  --auth-token-file %d/api-token
 Restart=on-failure
 RestartPreventExitStatus=3
 # 強化設定（APIはデータを読むだけで、外部へ通信しない）
@@ -182,7 +220,7 @@ ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 ReadOnlyPaths=/srv/hererisk/private /opt/hererisk
-InaccessiblePaths=/srv/hererisk/approvals /srv/hererisk/audit
+InaccessiblePaths=/srv/hererisk/approvals /srv/hererisk/audit /etc/hererisk
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 IPAddressDeny=any
 IPAddressAllow=localhost
@@ -195,51 +233,99 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl enable --now hererisk-elevation-private
 sudo systemctl status hererisk-elevation-private
-journalctl -u hererisk-elevation-private -n 20     # 座標・本文は記録されない（request_id・status・error_codeのみ）
+journalctl -u hererisk-elevation-private -n 20   # request_id・status・error_code のみ（トークン・座標・ヘッダーは記録されない）
 ```
 
-- exit 3（検証の失敗）では再起動しない（`RestartPreventExitStatus=3`）。原因を調べてから起動する。
-- APIのプロセスには、承認ストアと監査記録へのアクセスを与えない（`InaccessiblePaths`）。
+- exit 3（トークンの不備・データの検証失敗）では再起動しない（`RestartPreventExitStatus=3`）。原因を調べてから起動する。
+- 資格情報のファイルの所有者・権限が、APIの検査（所有者が実行ユーザーかroot、group/otherの権限なし）に合わずに起動しない場合は、`/etc/hererisk/api-token` を `hererisk` 所有・0400にして、`--auth-token-file /etc/hererisk/api-token` を直接指定する（その場合は `InaccessiblePaths` から `/etc/hererisk` を外す）。
 
-### 2.5 SSHトンネルでの接続（OWNERのMacから）
+### 2.5 Caddy（HTTPS終端・中継）
 
-```sh
-ssh -N -L 18000:127.0.0.1:8000 <owner>@<vps>
-# 別のターミナルで
-curl -s -X POST -H 'Content-Type: application/json' \
-  -d '{"lat": 35.681236, "lon": 139.767125}' http://127.0.0.1:18000/api/v1/elevation
+`/etc/caddy/Caddyfile` の例（`<your-domain>` はOWNERのドメイン）:
+
+```caddyfile
+<your-domain> {
+	@elevation {
+		method POST
+		path /api/v1/elevation
+	}
+	handle @elevation {
+		request_body {
+			max_size 4KB
+		}
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle {
+		respond 404
+	}
+}
 ```
 
-SSHは鍵認証のみとし、パスワード認証を無効にする（`PasswordAuthentication no`）。
+- このサイトでアクセスログ（`log` ディレクティブ）を有効にしない。座標は本文にあり、本文は記録されないが、URI・ヘッダーの記録も避ける。
+- `Authorization` ヘッダーは、Caddyの既定の動作でそのまま中継される。Caddyでトークンを検査・保存しない（検査はバックエンドだけが行う）。
+- **外部からのアクセス経路を有効にするのは、OWNERが第2.6節の確認を行ったうえで判断する。** Caddyの設定を反映するまでは、外部からは到達できない。
 
-### 2.6 ネットワークに公開されていないことの確認
+### 2.6 公開状態の確認
 
 VPS上で:
 
 ```sh
 sudo ss -ltnp | grep ':8000'                  # 127.0.0.1:8000 だけであること（0.0.0.0 や [::] がないこと）
-sudo grep -rnE '8000|reverse_proxy' /etc/caddy 2>/dev/null   # このAPIへのルーティングがないこと
-sudo ufw status verbose 2>/dev/null           # 8000/tcp を許可していないこと
+sudo ufw status verbose 2>/dev/null           # 8000/tcp を許可していないこと（443/tcp は Caddy のため）
 systemctl show hererisk-elevation-private -p IPAddressDeny -p IPAddressAllow
+sudo grep -rn 'log' /etc/caddy/Caddyfile      # このサイトにアクセスログがないこと
 ```
 
-VPSの外（Mac）から、トンネルを使わずに:
+外部（Mac）から:
 
 ```sh
-curl -m 5 -s -o /dev/null -w '%{http_code}\n' http://<vps-public-ip>:8000/api/v1/elevation
-# 接続できない（000）こと
+curl -m 5 -s -o /dev/null -w '%{http_code}\n' http://<vps-public-ip>:8000/api/v1/elevation   # 000（到達できない）
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+  -d '{"lat": 35.681236, "lon": 139.767125}' https://<your-domain>/api/v1/elevation        # 401（トークンなし）
+curl -sS -o /dev/null -w '%{http_code}\n' https://<your-domain>/                          # 404（他のパス）
+HERERISK_API_URL=https://<your-domain>  # 第1.9節の curl が success になること
+```
+
+VPS用のヘッダーファイルは、VPSのトークンから作る（画面やコマンドラインにトークンを出さない）:
+
+```sh
+(umask 077; printf 'Authorization: Bearer %s\n' "$(ssh vps 'sudo tail -1 /etc/hererisk/api-token')" \
+  > "$HOME/.config/hererisk/auth-header-vps")
+export HERERISK_AUTH_HEADER="$HOME/.config/hererisk/auth-header-vps"
 ```
 
 確認の結果は、日時とともに監査記録に残す。
+
+### 2.7 （代替）SSHトンネル
+
+保守のときなどに、Caddyを経由せずに使う場合:
+
+```sh
+ssh -N -L 18000:127.0.0.1:8000 <owner>@<vps>
+HERERISK_API_URL=http://127.0.0.1:18000   # 第1.9節の curl と同じ形式（トークンは必要）
+```
+
+SSHは鍵認証のみとし、パスワード認証を無効にする（`PasswordAuthentication no`）。
+
+### 2.8 トークンの失効・ローテーション
+
+| 操作 | 手順 |
+|---|---|
+| ローテーション（無停止に近い） | 1) `api-token-generate --output <token-file> --append`（2つ目のトークンを追加）→ 2) APIを再起動（`systemctl restart …`。両方が有効）→ 3) クライアントのヘッダーファイルを新しいトークン（`tail -1`）で作り直す → 4) `api-token-retire --file <token-file> --keep newest` → 5) APIを再起動（古いトークンは無効）。各段階を監査記録に残す |
+| 失効（漏えいの疑い） | ただちにAPIを止める（`systemctl stop …`）。トークンファイルを削除し、`api-token-generate` で作り直して再起動する。クライアントのヘッダーファイルを作り直す。古いトークンは、再起動の時点で無効になる |
+| 確認 | 古いトークンのヘッダーファイルで第1.9節のcurlを実行し、401になること |
+
+トークンはファイルとして保管し、チャット・メール・リポジトリ・コマンド履歴に残さない。
 
 ## 3. 停止・失効・復旧
 
 | 状況 | 手順 |
 |---|---|
-| APIを止める | Mac: Ctrl+C。VPS: `sudo systemctl stop hererisk-elevation-private`（常駐をやめる場合は `disable`） |
+| APIを止める | Mac: Ctrl+C。VPS: `sudo systemctl stop hererisk-elevation-private`（常駐をやめる場合は `disable`）。外部からの経路も止める場合は、Caddyの該当サイトを削除して再読込みする |
+| トークンが漏れた・不要になった | 第2.8節の失効の手順 |
 | 承認を取り消す | `revocations.json` の `revoked` に `{"approval_id": "apr-private-…", "revoked_at": "<UTC>", "reason_ref": "<理由>"}` を追加する。以後の取得・Publishはすべて BLOCKED になる。監査記録に追記する。公開済みの個人実験データは残るため、使わない場合はAPIを止める |
 | 期限切れ | `approval-check` が `production approval not in force` 等の理由でBLOCKEDを返す。延長する場合は、確認記録を見直したうえで `expires_at` を変更し、digestを計算し直す |
 | 取得・検証の失敗（exit 10・11・12） | 自動で再試行しない。stderrのログと記録を確認し、必要なら `--resume-run-id` で再開する |
 | Publishの記録だけ失敗（exit 13） | 公開自体は有効。同じ `run_id` で再開すると、記録が補完される |
-| API が起動しない（exit 3） | rootの区分の印、Registryの破損、実体の欠落・改ざんのいずれか。印を手で付け替えたり、Registryを手で直したりしない。直前の状態に戻す場合は、Bの複製をやり直すか、取得からやり直す |
+| API が起動しない（exit 3） | トークンファイルの不備（なし・権限・リポジトリ内）、rootの区分の印、Registryの破損、実体の欠落・改ざんのいずれか。印を手で付け替えたり、Registryを手で直したりしない。直前の状態に戻す場合は、Bの複製をやり直すか、取得からやり直す |
 | 一般公開に使いたくなった | 個人実験のデータ・Registry・承認は使えない（拒否される）。一般公開の公開資格（[本番化Runbook](elevation-production-runbook-v0.1.md)。現在BLOCKED）を得たうえで、一般公開のrootで取得からやり直す |

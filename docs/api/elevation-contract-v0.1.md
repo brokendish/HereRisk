@@ -564,3 +564,11 @@ O01～O09はUNDECIDED（提案の採否待ち）。採用案の承認とデー�
 - P1〜P7以外のUNDECIDED・PROVISIONALの項目（checksum必須profileの一般化、元データ日の正式な対応先、水平系の近似の許容、複数Registryの原子性等）。
 
 **実GSIの本番取得・Publish・一般公開は、引き続きBLOCKEDである。** 公開資格は[GSI利用条件チェックリスト](../operations/gsi-dem10b-usage-checklist-v0.1.md)の未確認事項（測量法上の手続、出典文言、第三者の権利）が解消し、OWNERが判断するまで成立しない。P1〜P7の採用は、実データの取得・公開の承認ではない。
+
+## Bearer Token認証（2026-10-17 OWNER方針）
+
+- OWNERの方針（2026-10-17）により、`POST /api/v1/elevation` に共通Bearer Token認証を導入した。個人実験（`private_experiment`）のAPIでは必須、他のモードでは任意（トークンファイルを指定した場合だけ有効）。
+- 認証は、§5の検査順序の**先頭**（パスより前）で判定する。失敗は 401 / invalid_request / `unauthorized`（「認証が必要です。」）、`WWW-Authenticate: Bearer`。応答の7キー・null の規則は §4 と同じ（location・evaluated_at・dataset は null）。
+- トークン・Authorizationヘッダー・緯度経度はログに記録しない。詳細は[運用区分と個人実験の契約 4.1](../architecture/private-experiment-v0.1.md)。
+- 本節は、第12節のO01〜O09、P1〜P7、他の判断状態を変更しない。一般公開の公開資格は引き続きBLOCKEDである。
+

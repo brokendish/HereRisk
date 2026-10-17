@@ -9,8 +9,13 @@
 * fixture data roots are refused unless ``--fixture-demo`` is given, which is
   only allowed on a loopback address (local development demo)
 * ``--private-experiment`` (Phase 1-G) serves only a private experiment data
-  root (``init-private-root``) and only on a loopback address (reach it through
-  an SSH tunnel); without it, private roots are refused
+  root (``init-private-root``), only on a loopback address, and only with
+  ``--auth-token-file`` (shared Bearer token, ``hererisk.common.api_auth``);
+  without the flag, private roots are refused. A TLS-terminating reverse proxy
+  (Caddy) on the same host forwards authenticated requests to the loopback port
+* ``--auth-token-file`` may also be given in the other modes; then every
+  request needs the token. Unauthenticated requests get 401 before the body is
+  read and before any published data is touched
 * the request body is read bounded (max + 1 bytes); no request line, path,
   query, body or position is logged (the stdlib access log is disabled)
 * settings come from ``api/elevation/conf/api.json`` via the Configuration Manager
@@ -26,7 +31,9 @@ from pathlib import Path
 from typing import Sequence
 from urllib.parse import urlsplit
 
+from hererisk.common.api_auth import BearerAuth, TokenFileError
 from hererisk.common.config import ConfigurationError, ConfigurationManager
+from hererisk.common.storage import is_within
 from hererisk.common.logging import StructuredLogger
 from hererisk.elevation.api.handler import ElevationApi, Settings
 from hererisk.elevation.api.published import PublishedSet, StartupError
@@ -55,18 +62,25 @@ def make_handler(api: ElevationApi, max_body: int):
 
         def _dispatch(self) -> None:
             parts = urlsplit(self.path)
+            headers = dict(self.headers.items())
+            if len(self.headers.get_all("Authorization") or []) > 1:
+                headers["Authorization"] = ""  # ambiguous credentials are never accepted
+            if not api.authenticated(headers):
+                # 401 without reading the body (nothing of the request is used).
+                self._send(api.handle(self.command, parts.path, parts.query, headers, b""))
+                return
             try:
                 length = int(self.headers.get("Content-Length") or 0)
             except ValueError:
                 length = -1
             if length < 0 or self.headers.get("Transfer-Encoding"):
                 body = b""
-                headers = dict(self.headers.items())
                 headers["Content-Type"] = "invalid/unsupported"  # unsupported framing -> 415
             else:
                 body = self.rfile.read(min(length, max_body + 1)) if length else b""
-                headers = dict(self.headers.items())
-            response = api.handle(self.command, parts.path, parts.query, headers, body)
+            self._send(api.handle(self.command, parts.path, parts.query, headers, body))
+
+        def _send(self, response) -> None:
             self.close_connection = True
             self.send_response(response.status)
             for name, value in response.headers.items():
@@ -81,17 +95,31 @@ def make_handler(api: ElevationApi, max_body: int):
     return Handler
 
 
+def load_auth(token_file: Path | None, *, required: bool) -> BearerAuth | None:
+    if token_file is None:
+        if required:
+            raise StartupError("a Bearer token file is required in this mode")
+        return None
+    if is_within(Path(token_file), REPO_ROOT):
+        raise StartupError("the token file must be outside the repository")
+    try:
+        return BearerAuth.from_file(Path(token_file))
+    except TokenFileError as exc:
+        raise StartupError("token file rejected") from exc
+
+
 def build_server(data_root: Path, host: str, port: int, *, fixture_demo: bool = False,
-                 private_experiment: bool = False,
+                 private_experiment: bool = False, auth_token_file: Path | None = None,
                  logger: StructuredLogger | None = None) -> ThreadingHTTPServer:
     if fixture_demo and private_experiment:
         raise StartupError("--fixture-demo and --private-experiment are exclusive")
     if (fixture_demo or private_experiment) and not ipaddress.ip_address(host).is_loopback:
         raise StartupError("demo / private modes are only allowed on a loopback address")
+    auth = load_auth(auth_token_file, required=private_experiment)
     settings = load_settings()
     published = PublishedSet.load(data_root, allow_fixture_root=fixture_demo,
                                   private_experiment=private_experiment)
-    api = ElevationApi(published, settings, logger or StructuredLogger())
+    api = ElevationApi(published, settings, logger or StructuredLogger(), auth=auth)
     server = ThreadingHTTPServer((host, port), make_handler(api, settings.request_body_max_bytes))
     server.daemon_threads = True
     return server
@@ -105,13 +133,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--fixture-demo", action="store_true",
                         help="serve a fixture data root (loopback only, local demo)")
     parser.add_argument("--private-experiment", action="store_true",
-                        help="serve a private experiment data root (loopback only)")
+                        help="serve a private experiment data root (loopback only; "
+                             "requires --auth-token-file)")
+    parser.add_argument("--auth-token-file", type=Path,
+                        help="shared Bearer token file (outside Git, 0600)")
     args = parser.parse_args(argv)
     logger = StructuredLogger()
     try:
         server = build_server(args.data_root, args.host, args.port,
                               fixture_demo=args.fixture_demo,
-                              private_experiment=args.private_experiment, logger=logger)
+                              private_experiment=args.private_experiment,
+                              auth_token_file=args.auth_token_file, logger=logger)
     except (StartupError, ConfigurationError, ValueError, OSError):
         sys.stderr.write("hererisk-elevation-api: published data or settings invalid; not serving\n")
         return 3

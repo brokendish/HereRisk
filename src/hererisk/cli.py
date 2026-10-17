@@ -65,6 +65,13 @@ Definition. No network access, no data root, nothing is written.
 
     python -m hererisk.cli approval-digest --record /path/to/record.json
 
+    python -m hererisk.cli api-token-generate --output /path/outside/git/api-token [--append]
+    python -m hererisk.cli api-token-retire --file /path/outside/git/api-token --keep newest
+
+``api-token-generate`` creates a 0600 Bearer token file (never prints the
+token); ``--append`` adds a second token for a rotation, ``api-token-retire``
+then keeps only one of the two (``hererisk.common.api_auth``).
+
 ``approval-digest`` prints the ``record_sha256`` of a hand-written record (read
 only; it never writes or completes a record).
 Result: one JSON line on stdout. Logs: JSON lines on stderr. Exit code from
@@ -180,6 +187,12 @@ def build_parser() -> argparse.ArgumentParser:
     ip.add_argument("--data-root", required=True, type=Path)
     ad = sub.add_parser("approval-digest", help="print record_sha256 of an approval record")
     ad.add_argument("--record", required=True, type=Path)
+    tg = sub.add_parser("api-token-generate", help="create a Bearer token file (0600, no output)")
+    tg.add_argument("--output", required=True, type=Path)
+    tg.add_argument("--append", action="store_true", help="add a second token (rotation)")
+    tr = sub.add_parser("api-token-retire", help="rotation: keep one of two tokens")
+    tr.add_argument("--file", required=True, type=Path)
+    tr.add_argument("--keep", required=True, choices=("newest", "oldest"))
     init = sub.add_parser("init-fixture-root",
                           help="mark an existing empty directory as a fixture data root")
     init.add_argument("--data-root", required=True, type=Path)
@@ -263,6 +276,26 @@ def _init_fixture_root(data_root: Path) -> int:
     return 0
 
 
+def _api_token(args: argparse.Namespace) -> int:
+    """Token file maintenance. Prints only a fixed status line (never the token)."""
+    from hererisk.common.api_auth import TokenFileError, remove_token, write_new_token_file
+
+    path = args.output if args.command == "api-token-generate" else args.file
+    if is_within(path, REPO_ROOT):
+        sys.stderr.write("hererisk-pipeline: token file must be outside the repository\n")
+        return EXIT_USAGE
+    try:
+        if args.command == "api-token-generate":
+            write_new_token_file(path, append=args.append)
+        else:
+            remove_token(path, keep=args.keep)
+    except (TokenFileError, OSError):
+        sys.stderr.write("hererisk-pipeline: token file not created / updated (see docs)\n")
+        return EXIT_USAGE
+    sys.stdout.write(json.dumps({"status": "SUCCESS", "command": args.command}) + "\n")
+    return 0
+
+
 def _init_private_root(data_root: Path) -> int:
     from hererisk.common.storage import init_private_data_root
 
@@ -283,6 +316,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _init_fixture_root(args.data_root)
     if args.command == "init-private-root":
         return _init_private_root(args.data_root)
+    if args.command in ("api-token-generate", "api-token-retire"):
+        return _api_token(args)
     logger = StructuredLogger()
     if args.command == "pipeline":
         return _run_pipeline(args, logger)
