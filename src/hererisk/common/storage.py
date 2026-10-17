@@ -54,7 +54,7 @@ from typing import Iterator
 
 _PART_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
-WRITABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
+DOWNLOAD_AREAS: frozenset[tuple[str, str]] = frozenset(
     {
         ("work", "download"),
         ("work", "acquisitions"),
@@ -64,7 +64,15 @@ WRITABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
         ("records", "commits"),
     }
 )
-# Download only reads back evidence the pipeline management code itself wrote.
+# Normalize candidates and the per-run Normalize record (Phase 1-B.3-A).
+NORMALIZE_AREAS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("work", "normalized"),
+        ("records", "normalizations"),
+    }
+)
+WRITABLE_AREAS: frozenset[tuple[str, str]] = DOWNLOAD_AREAS | NORMALIZE_AREAS
+# Pipeline management code only reads back evidence it wrote itself.
 # dl/, rel/ and any Registry are neither readable nor writable through this class.
 READABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
     {
@@ -74,7 +82,7 @@ READABLE_AREAS: frozenset[tuple[str, str]] = frozenset(
         ("records", "acquisitions"),
         ("records", "commits"),
     }
-)
+) | NORMALIZE_AREAS
 
 PRODUCTION_DATA_ROOT = Path("/data")
 FIXTURE_ROOT_MARKER = ".hererisk-fixture-data-root"

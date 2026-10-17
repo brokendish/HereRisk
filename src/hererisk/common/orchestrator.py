@@ -33,8 +33,8 @@ from hererisk.common.config import (
 from hererisk.common.logging import StructuredLogger
 from hererisk.common.result import ModuleResult, PipelineError
 from hererisk.common.storage import (
+    DOWNLOAD_AREAS,
     PRODUCTION_DATA_ROOT,
-    WRITABLE_AREAS,
     ApiDataArea,
     StorageError,
     is_within,
@@ -286,7 +286,7 @@ class Orchestrator:
 
     @staticmethod
     def _prepare_area(area: ApiDataArea) -> None:
-        dirs = [area.path(*parts) for parts in sorted(WRITABLE_AREAS)]
+        dirs = [area.path(*parts) for parts in sorted(DOWNLOAD_AREAS)]
         for directory in dirs:
             area.ensure_dir(directory)
         # Finalisation relies on same-filesystem link/rename; verify it.
