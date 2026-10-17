@@ -1,0 +1,9 @@
+*
+!src/hererisk
+!api/elevation/conf
+!tests/fixtures/elevation-fixture
+!deploy/fixture-vps/requirements.txt
+!deploy/fixture-vps/init-fixture.sh
+**/__pycache__
+**/*.pyc
+**/.DS_Store

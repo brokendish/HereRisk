@@ -13,6 +13,12 @@
   ``--auth-token-file`` (shared Bearer token, ``hererisk.common.api_auth``);
   without the flag, private roots are refused. A TLS-terminating reverse proxy
   (Caddy) on the same host forwards authenticated requests to the loopback port
+* ``--container`` (Phase 1-I, fixture demo only): inside a container the API
+  must bind a non-loopback address to be reachable through the published
+  port, so ``--fixture-demo --container`` allows that, and only together with
+  ``--auth-token-file``. Host exposure is then decided by the container port
+  mapping (``127.0.0.1:<port>`` in the HereRisk Compose file). Private and
+  public modes are unchanged (private stays loopback only)
 * ``--auth-token-file`` may also be given in the other modes; then every
   request needs the token. Unauthenticated requests get 401 before the body is
   read and before any published data is touched
@@ -110,12 +116,18 @@ def load_auth(token_file: Path | None, *, required: bool) -> BearerAuth | None:
 
 def build_server(data_root: Path, host: str, port: int, *, fixture_demo: bool = False,
                  private_experiment: bool = False, auth_token_file: Path | None = None,
+                 container: bool = False,
                  logger: StructuredLogger | None = None) -> ThreadingHTTPServer:
     if fixture_demo and private_experiment:
         raise StartupError("--fixture-demo and --private-experiment are exclusive")
-    if (fixture_demo or private_experiment) and not ipaddress.ip_address(host).is_loopback:
-        raise StartupError("demo / private modes are only allowed on a loopback address")
-    auth = load_auth(auth_token_file, required=private_experiment)
+    if container and (not fixture_demo or auth_token_file is None):
+        raise StartupError("--container is only for --fixture-demo with --auth-token-file")
+    loopback = ipaddress.ip_address(host).is_loopback
+    if private_experiment and not loopback:
+        raise StartupError("the private mode is only allowed on a loopback address")
+    if fixture_demo and not loopback and not container:
+        raise StartupError("the fixture demo is only allowed on a loopback address")
+    auth = load_auth(auth_token_file, required=private_experiment or container)
     settings = load_settings()
     published = PublishedSet.load(data_root, allow_fixture_root=fixture_demo,
                                   private_experiment=private_experiment)
@@ -138,6 +150,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--private-experiment", action="store_true",
                         help="serve a private experiment data root (loopback only; "
                              "requires --auth-token-file)")
+    parser.add_argument("--container", action="store_true",
+                        help="fixture demo inside a container: allow a non-loopback bind "
+                             "(requires --auth-token-file; expose only via 127.0.0.1 port mapping)")
     parser.add_argument("--auth-token-file", type=Path,
                         help="shared Bearer token file (outside Git, 0600)")
     args = parser.parse_args(argv)
@@ -157,7 +172,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         server = build_server(args.data_root, args.host, args.port,
                               fixture_demo=args.fixture_demo,
                               private_experiment=args.private_experiment,
-                              auth_token_file=args.auth_token_file, logger=logger)
+                              auth_token_file=args.auth_token_file, container=args.container,
+                              logger=logger)
     except (StartupError, ConfigurationError, ValueError, OSError):
         sys.stderr.write("hererisk-elevation-api: published data or settings invalid; not serving\n")
         return 3

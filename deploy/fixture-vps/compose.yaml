@@ -1,0 +1,86 @@
+# HereRisk elevation API - fixture deployment (Phase 1-I).
+# Independent project: always run with
+#   docker compose -f deploy/fixture-vps/compose.yaml ...
+# Names (project, containers, volume, network) all start with "hererisk-fixture".
+name: hererisk-fixture
+
+x-hardening: &hardening
+  image: hererisk-elevation-fixture:local
+  user: "10001:10001"
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  mem_limit: 256m
+  memswap_limit: 256m
+  cpus: 0.5
+  pids_limit: 64
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  api:
+    <<: *hardening
+    build:
+      context: ../..
+      dockerfile: deploy/fixture-vps/Dockerfile
+    container_name: hererisk-fixture-api
+    restart: unless-stopped
+    command:
+      - python
+      - -m
+      - hererisk.elevation.api.server
+      - --data-root
+      - /var/lib/hererisk/fixture
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --fixture-demo
+      - --container
+      - --auth-token-file
+      - /run/secrets/hererisk_fixture_api_token
+    ports:
+      - "127.0.0.1:18080:8000"
+    volumes:
+      - data:/var/lib/hererisk:ro
+    secrets:
+      - hererisk_fixture_api_token
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2).close()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  init:
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    command: ["/bin/sh", "/app/bin/init-fixture.sh"]
+    volumes:
+      - data:/var/lib/hererisk
+
+  token:
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    command: ["python", "-m", "hererisk.cli", "api-token-generate", "--output", "/secrets/api-token"]
+    volumes:
+      - ${HERERISK_FIXTURE_SECRET_DIR:-/srv/hererisk-fixture/secrets}:/secrets
+
+volumes:
+  data:
+    name: hererisk-fixture-data
+
+secrets:
+  hererisk_fixture_api_token:
+    file: ${HERERISK_FIXTURE_SECRET_DIR:-/srv/hererisk-fixture/secrets}/api-token
