@@ -6,6 +6,9 @@
 - 改訂: 2026-10-21 Phase 2-B.2 — Codex独立設計監査（Phase 2-B.1、FAIL: HIGH 7 / MEDIUM 3 / LOW 1）の指摘 F-03・F-04・F-08・F-09・F-10・F-11 等への対応。対応の全体は [監査対応表](../../reviews/phase2/phase2b2-codex-findings-resolution.md)
 - 改訂: 2026-10-23 Phase 2-B.6 — Phase 2-B.3〜B.5の実測に基づく無効形状の取扱方針。改訂の内容と旧章番号との対応は [方針決定書](../../reviews/phase2/phase2b6-invalid-geometry-policy-decision.md)
   - 主な変更: 原典忠実性の検証と形状妥当性の評価を分離した（第2章・第8章・第9章）。派生ジオメトリの条件と来歴を新設した（第10章）。旧第9〜12章は第11〜14章に繰り下げた
+- 改訂: 2026-10-24 Phase 2-B.8 — Codex独立監査（Phase 2-B.7、FAIL: HIGH 6 / MEDIUM 3）の指摘 B7-02・B7-03・B7-05・B7-06・B7-07・B7-09 への契約訂正。対応の全体は [監査対応表](../../reviews/phase2/phase2b8-codex-audit-remediation.md)
+  - 主な変更: 原典Feature階層の完全保持（第4.3節・第4.5節・第8.1節）、初期座標プロファイル（第5章・第6.3節）、Feature全体の妥当性と構成集合（第9.3節）、全Polygon・全Featureの評価行と集合照合（第9.5節・第9.6節）、派生形状の集合等価性の要件とGEOS共通依存の明示（第10.2節）、N03の入力資格（第4.4節）
+  - **本改訂は文書上の訂正であり、アルゴリズムの独立監査・実装・実データ検証を経ていない。派生形状の製品利用は引き続きBLOCKEDである**
 - 対象: 災害種別 `flood`、国土数値情報 A31a（2025年度・想定最大規模）、補助データ N03（行政区域、東京都2025年版）
 - 関連: [Flood Integration Contract v0.1（案）](flood-integration-contract-v0.1.md)
 
@@ -132,12 +135,14 @@ Download ─► Normalize ─► Source Fidelity Validate ─► Geometry Validi
   "configuration_content_sha256": "<設定スナップショットの内容（正規化JSON）のSHA-256>",
   "crs": "EPSG:6668",
   "coordinate_unit": "nano_degree_integer",
+  "coordinate_profile": {"id": "coord-profile-geographic-planar-v0.1", "allowed_extent_sha256": "<許容範囲の設定の内容ハッシュ>"},
   "members": [
     {"product_id": "A31a-20-25_83_8303040001_10",
      "zip_member": "20_想定最大規模/A31a-20-25_83_8303040001_10.geojson",
      "zip_member_raw": "20_想定最大規模\\A31a-20-25_83_8303040001_10.geojson",
      "member_size": 0, "member_crc32": "<中央ディレクトリの値>", "member_sha256": "<展開バイト列のSHA-256>",
-     "source_root_properties": {"type": "FeatureCollection", "name": "<原典の値>", "crs": "<原典の値>",
+     "source_root_properties": {"type": "FeatureCollection", "name": "<原典の値>", "crs": "<原典の値（型付き）>",
+                                 "bbox": {"present": false},
                                  "other": [{"key": "xy_coordinate_resolution", "type": "number", "token": "1e-09"}]},
      "output": "members/A31a-20-25_83_8303040001_10.ndjson", "output_sha256": "<出力のSHA-256>",
      "features": 0, "polygons": 0, "interior_rings": 0, "vertices": 0,
@@ -157,6 +162,11 @@ Download ─► Normalize ─► Source Fidelity Validate ─► Geometry Validi
 ```json
 {"key": {"zip_sha256": "<…>", "zip_member": "20_想定最大規模/A31a-20-25_83_8303040001_10.geojson", "feature_index": 0},
  "product_id": "A31a-20-25_83_8303040001_10",
+ "source_feature_members": {
+   "id": {"present": true, "type": "string", "value": "river-zone-17"},
+   "bbox": {"present": false},
+   "other": [{"key": "note", "type": "string", "value": "<原典の値>"}]},
+ "source_geometry_members": {"bbox": {"present": false}, "other": []},
  "source_properties": [
    {"key": "A31a_201", "type": "string", "value": "8303040001"},
    {"key": "A31a_202", "type": "string", "value": "荒川"},
@@ -171,7 +181,9 @@ Download ─► Normalize ─► Source Fidelity Validate ─► Geometry Validi
 
 | 項目 | 規則 | 区分 |
 |---|---|---|
-| `key` | **原典Featureの安定した複合一意キー**: 原典ZIPのSHA-256 ＋ 正規化したZIPメンバー名 ＋ 0始まりの `feature_index`。実行ごとに変わる値を含めない | ［提案］ |
+| `key` | **原典Featureの安定した複合一意キー**: 原典ZIPのSHA-256 ＋ 正規化したZIPメンバー名 ＋ 0始まりの `feature_index`。実行ごとに変わる値を含めない。**システムが生成するキーであり、原典の `Feature.id` ではない**（第4.5節） | ［提案］ |
+| `source_feature_members` | Feature自身の `id`・`bbox`・追加メンバー（`type`・`geometry`・`properties` 以外の全メンバー）を、存在・型・値の区別を保って保持する（第4.5節） | ［提案。B7-06］ |
+| `source_geometry_members` | geometryの `type`・`coordinates` 以外のメンバー（`bbox`・追加メンバー）を同様に保持する（第4.5節） | ［提案。B7-06］ |
 | `source_properties` | 原典 `properties` の**全キー**を、原典の出現順に、型（`string`・`number`・`boolean`・`null`・`object`・`array`）と値で保持する。数値は原典の数値トークン（文字列）を `token` に保持する。値が `null` のキーは `type: null` として残し、**キーが存在しないことと区別する** | ［提案］ |
 | `derived` | 検索用の派生列。`source_properties` から規則どおりに導出し、原典の値を置き換えない（派生ジオメトリとは別の概念。第10章） | ［提案］ |
 | `derived.rank` | 整数 1〜6。原典のランクは文字列（東京都）と整数（関東地方整備局）が確認されている［実測］。**同一成果品の中で型が混在する場合は、v0.1では拒否する**（第5章）［提案。OWNER判断 ON-12］ | ［提案］ |
@@ -195,8 +207,35 @@ N03には専用の目録・レコード・検証プロファイルを適用す�
 | 地物レコード | `key`（ZIPのSHA-256・メンバー名・地物の出現順）、地物の `gml:id`、参照する `gml:Surface` の `gml:id`、**全子要素を型付きで保持**（`prefectureName`・`municipalityName`・`administrativeAreaCode`・`districtName`［実測］、その他の要素も出現順に）、`geometry`（外周1・穴0以上。`curveMember` の数も記録） |
 | 目録 | `content.json` 相当（`schema: hererisk-flood-n03-normalized-content-v0.1`）。地物数・Surface数・穴の数・頂点数、行政区域コード別の件数、データセットの `boundedBy`、出力のSHA-256 |
 | 地域の区分 | **本土・島しょ部などの区分はNormalizeでは行わない**。区分の規則は、Integrationの地域定義（版管理された設定）で与える。公式属性には本土・島しょ部の区別がない［実測］ |
-| 形状妥当性 | A31aと同じGeometry Validity Assessment（第9章）を適用する。東京都本土の154ポリゴンは全件有効［実測: Phase 2-B.3］。N03に無効形状がある場合の地域判定での扱いは［未決定: ON-21］ |
+| 形状妥当性 | A31aと同じGeometry Validity Assessment（第9章）を適用する。東京都本土の154ポリゴンは全件有効と報告されている［実測: Phase 2-B.3］が、**過去の報告は更新後の入力資格の代わりにならない** |
+| 地域判定での入力資格（B7-05） | **A31aとN03の扱いを区別する。** A31aの無効形状は判定保留として保持して処理を続けられる（第9章）が、N03は地域そのものを定義するため、初期プロファイルでは**対象地域の構築に必要なN03のPolygon（およびFeature全体）がすべて `valid` であることをIntegrationの入力資格とする**。1件でも無効・未検証・評価成果物との不一致がある場合、その行政区域だけを除外して処理を続けない。Integrationの地域選別をFAILED / BLOCKEDとし、既存の公開世代を維持する（Integration契約 第4.5節）。N03の派生形状の利用は、別途の検証・承認事項として残す［未決定: ON-21］ |
 | 注意 | N03は行政区域を表すだけであり、A31aの洪水の評価済み範囲を表さない |
+
+### 4.5 原典Feature階層の保持・拒否規則［提案。B7-06］
+
+**原典の情報を黙って捨ててSource Fidelity PASSにしてはならない。** 各階層のメンバーは、次のいずれかに必ず分類する: (1) 規定の格納先に保持する、(2) 対応対象外として入力全体を拒否する（第5章）。どちらにも当たらないメンバーは存在しない（未分類のメンバーを検出した場合は拒否）。
+
+| 階層 | メンバー | 規則 |
+|---|---|---|
+| FeatureCollection | `type` | `FeatureCollection` 以外は拒否（第5章） |
+| | `name`・`crs` | `source_root_properties` に型付きで保持（`crs` のオブジェクトは下記の型付きの表現で保持）。値の条件は第5章 |
+| | `bbox` | 存在する場合は数値トークンの配列として保持（`{"present": true, "tokens": [...]}`）。存在しない場合は `{"present": false}`。**値の正しさは検証しないが、Integrationの外接矩形には使わない**（外接矩形は座標から計算する） |
+| | `features` | 各Featureを正規化レコードへ（Feature数はV-2で照合） |
+| | その他の追加メンバー | `source_root_properties.other` に、原典の出現順に型付きで保持 |
+| Feature | `type` | `Feature` 以外は拒否 |
+| | `id` | `source_feature_members.id` に保持。**存在しない（`present: false`）、`null`（`present: true, type: null`）、文字列（`type: string`・`value`）、数値（`type: number`・`token` に原典の数値トークン）を区別する**。オブジェクト・配列・真偽値の `id` は、RFC 7946の想定外として拒否する。原典の `id` を `key` の代わりに使わず、`key` を `id` として出力しない。同一成果品内で `id` が重複しても拒否しない（原典の性質として保持し、件数を記録する） |
+| | `bbox` | FeatureCollectionの `bbox` と同じ |
+| | `geometry` | 第4.3節。`null` は拒否（第5章） |
+| | `properties` | `source_properties`（第4.3節）。`properties` 自体が `null`・オブジェクト以外の場合は拒否（必須属性を持てないため） |
+| | その他の追加メンバー | `source_feature_members.other` に、原典の出現順に型付きで保持 |
+| Geometry | `type`・`coordinates` | 第4.3節。座標・リング・構成Polygonの順序を原典のまま保持 |
+| | `bbox` | FeatureCollectionの `bbox` と同じ |
+| | その他の追加メンバー | `source_geometry_members.other` に保持 |
+| `properties` | 全キー | `source_properties`（全キー・出現順・型・値）。値のオブジェクト・配列は下記の型付きの表現で保持する |
+
+- 型付きの値の表現は `source_properties` と同じ（`string`・`number`（`token`）・`boolean`・`null`・`object`・`array`）。オブジェクト・配列の内部も同じ規則で再帰的に型付けし、キーの出現順を保つ。
+- 原典の数値の文字列表記（`token`）は、`properties`・`id`・`bbox`・追加メンバーのすべてで保持する。座標だけは整数化する（第6.3節）。
+- 対応対象外として拒否する場合は、Normalizeの失敗の証跡（実行結果のエラー情報）に、拒否した階層・メンバー名・位置（成果品ID・`feature_index`）を記録する。拒否した入力のNormalize成果物は確定しない。
 
 ## 5. 拒否・隔離・許容の条件
 
@@ -212,7 +251,10 @@ N03には専用の目録・レコード・検証プロファイルを適用す�
 | ランクが整数1〜6（または文字列"1"〜"6"）以外 | 拒否 |
 | 同一成果品の中でランクの型が混在 | 拒否［未決定: ON-12］ |
 | geometryがnull・空、`Polygon`/`MultiPolygon` 以外 | 拒否 |
+| **空の構成**: 構成Polygonが0個のMultiPolygon、リングが0本のPolygon（構成Polygonを含む）、座標が0個のリング | 拒否（原典の領域を解釈できない）。座標が1〜3個のリング・閉じていないリングは空ではないので拒否せず、第9章で `zero_area_ring` として分類する |
 | 非有限値、2次元以外の座標 | 拒否 |
+| **初期座標プロファイル（第6.3節）の範囲外**の座標、経度のラップを疑わせる辺（日付変更線を跨ぐ表現） | 拒否（黙って処理しない）［提案。B7-09］ |
+| Feature・Geometry・FeatureCollectionの対応対象外のメンバー（第4.5節。例: オブジェクト型の `Feature.id`） | 拒否［提案。B7-06］ |
 | 小数10桁以上の座標（整数化で不可逆になる）、指数表記など許可しない数値表記 | 拒否（第6.3節） |
 | 座標の配列構造の破損（リングが座標の配列でない、座標が2要素の数値でない等） | 拒否（原典を解釈できない） |
 | **幾何形状の位相的な無効**（自己接触・自己交差・リングが閉じていない・4点未満・穴の配置の不正・内部の非連結等） | **拒否しない**。原典のとおり保持し、Geometry Validity Assessment（第9章）で分類する。既定は判定保留 |
@@ -252,8 +294,24 @@ Phase 2-A.1・A.3の調査では、調査で検査した項目（属性・座標
 - 原典の座標は小数9桁以下と報告されている［実測。対象: 関東地方整備局の8成果品は `xy_coordinate_resolution` 1e-09、東京都15成果品も最大9桁］。10⁻⁹度単位の整数に変換しても、**座標の数値を失わない（数値的な可逆性）**。
 - 変換は、JSONの数値を浮動小数として読まず、**数値トークン（文字列）から直接**整数へ変換する。小数10桁以上、および許可しない数値表記（指数表記等。許可する表記は［未決定］）は拒否する（丸めない）。4成果品・約1,170万座標で、数値トークンからの厳密な変換と浮動小数を経由する変換の差は0件だった［実測: Phase 2-B.3］。製品では厳密な変換を維持する。
 - **原典の文字列表記（例: `139.0` と `139.000` の違い）は、Normalize成果物からは復元できない**。原典の文字列表記は、不変の原典ZIP（Download）と `member_sha256` によって保持・照合する。
-- 範囲: 経度・緯度とも符号付き64ビット整数に収まる。
 - より粗い単位（例: 10⁻⁷度）への丸めは不可逆であり、Normalizeでは採用しない（Integrationの検索専用の派生データで使う場合は、そちらの契約に従う）。
+
+**初期座標プロファイル（`coord-profile-geographic-planar-v0.1`）［提案。B7-09］**
+
+初期プロファイルは次の条件に限定する。条件を満たさない入力は第5章で拒否する（丸め・折り返し・切り捨てで処理を続けない）。
+
+| 条件 | 内容 |
+|---|---|
+| 次元 | 有限な2次元座標（経度, 緯度）だけ。3次元以上・非有限値は拒否 |
+| 経緯度の絶対範囲 | 経度 −180°＜x＜180°（**±180°ちょうどは拒否**。日付変更線上の表現を初期プロファイルで扱わないため）、緯度 −90°≦y≦90° |
+| 許容範囲（データの範囲） | Source Definitionの版管理された設定で、データソースごとに経緯度の許容範囲（矩形）を与える。範囲外の座標を含むFeatureがあれば入力全体を拒否する。初期値は［未決定: ON-22］（例: 日本の範囲に余裕を持たせた矩形） |
+| nano-degree整数の表現範囲 | 上記の範囲から、経度の整数は \|x\|＜1.8×10¹¹、緯度は \|y\|≦9×10¹⁰。いずれも `2^53`（約9.007×10¹⁵）より十分小さい |
+| 辺の解釈 | 連続する2頂点を結ぶ**（経度, 緯度）平面上の直線分**とする（測地線・大円ではない）。内外判定・交差判定・外接矩形はすべてこの平面上で定義する |
+| 経度のラップ | 行わない。連続する2頂点の経度差が180°を超える辺は、日付変更線を跨ぐ表現の可能性があるため拒否する |
+
+- **int64に収まることは、float64で厳密に表せることの保証ではない。** 例えばnano-degree値 `2^53+1` はint64に収まるが、float64へ厳密に変換できない。初期プロファイルでは経緯度の範囲の検査によって全座標が `2^53` 未満であることを保証し、その保証を根拠として、Integrationで整数をfloat64として渡すことを許す（Integration契約 第6.3節）。範囲の検査を省略した場合、float64への変換の厳密性を前提にしてはならない。
+- プロファイルIDと版を `content.json` の `coordinate_profile` と Normalize Record に記録する。異なるプロファイルの成果物を、同じIntegrationで混ぜない。
+- 日付変更線を跨ぐデータ・極域・測地線の辺を扱う場合は、新しいプロファイルとして別途定義・検証・承認する。
 
 ### 6.4 座標系［未決定］
 
@@ -296,6 +354,10 @@ Normalize Recordの新規作成（上書き禁止）を、Normalize全体の成�
 | V-9 | 出力のハッシュ | 各出力ファイルのSHA-256が `content.json` と一致し、`content.json` の内容ハッシュがNormalize Recordと一致 |
 | V-10 | 目録の完全性 | 採用シナリオのフォルダの全メンバーが目録にある（またはSource Definitionの列挙と一致） |
 | V-11 | キーの一意性 | `key` が成果物全体で一意 |
+| V-12 | Feature階層の保持（B7-06） | 全Featureについて、原典の `Feature.id` の存在・型・値（数値は `token`）、Feature・Geometry・FeatureCollectionの `bbox` と追加メンバーのキー・順序・型・値が、`source_feature_members`・`source_geometry_members`・`source_root_properties` と一致する。**原典の全メンバーが、保持されたか拒否されたかのどちらかに分類されている**（保持も拒否もされていないメンバーが0件）。`key` と `Feature.id` を取り違えていない |
+| V-13 | 座標プロファイル（B7-09） | 全頂点が第6.3節の初期座標プロファイルの範囲内で、経度差が180°を超える辺がない。`content.json` の `coordinate_profile` がNormalize Recordと一致 |
+
+V-12は、原典を独立に解析した結果と出力を照合する（Normalizeの出力から原典を推定しない）。照合に使う解析は、Normalizeと同じく重複キーを拒否し、メンバーの出現順を保つ。
 
 ### 8.2 N03の検証プロファイル
 
@@ -346,7 +408,7 @@ Normalize Recordの新規作成（上書き禁止）を、Normalize全体の成�
 | 真の辺交差・辺の重複・スパイク・面積0のリング・頂点‐辺の接触 | 0 |
 
 - 26成果品のすべてに無効形状がある（最少は霞川の0.16%）。1つのFeatureに無効な構成Polygonが2つ以上ある例はなかった。
-- 解釈不一致の46件は、いずれもMultiPolygonの構成Polygonである。外周と同じ向きの穴を持ち、その穴が同じFeatureの他の構成（島）を内側に含む型である。
+- 解釈不一致の46件は、いずれもMultiPolygonの構成Polygonで、外周と同じ向きの穴を持つ。Phase 2-B.5の199個の穴は、すべて同じFeatureの他の構成（島）を内側に含む。**Phase 2-B.4の4個の穴が島を含むかは確認していない**（Phase 2-B.6 方針決定書）。したがって「46件すべてが島を含む型」とは一般化しない。
 - Shapely（GEOS 3.14.1）と整数の参照判定器の有効／無効の判定は、全1,508,379件で一致した。
 - **これらの件数は、調査した26成果品についての測定値であり、全A31aデータで保証されたものではない。** 関東地方整備局ZIPの残りの成果品・他の都道府県では、未出現の分類（真の交差・スパイク等）が現れうる。
 
@@ -369,8 +431,31 @@ Normalize Recordの新規作成（上書き禁止）を、Normalize全体の成�
 | `invalid_unclassified` | 無効だが、既知の分類に当てはめられない（「その他・判定不能」） | **判定保留**。派生形状の対象外 |
 | `validation_error` | 検証器の異常、検証器間の不一致、評価できない入力 | **Assessment全体をFAILEDとする**（後続を進めない） |
 
-- MultiPolygonは、構成Polygonごとの状態に加えて、**Feature全体の妥当性**（構成どうしの内部の重なり・辺の共有）を評価する。
 - Feature件数と構成Polygon件数は分けて集計する。
+
+#### 9.3.1 Feature全体の妥当性と構成集合［提案。B7-02］
+
+MultiPolygonでは、構成Polygonがそれぞれ有効でも、構成どうしの内部の重なり・辺の共有によってFeature全体が無効になりうる（例: 有効な正方形PとQが内部で重なる）。**構成Polygonの `valid` で、Feature全体の無効性を上書きしてはならない。** 全Feature（Polygon型を含む）について、次を別々に記録する。
+
+| 項目 | 内容 |
+|---|---|
+| `feature_status` | Feature全体の妥当性。`valid`（全構成が `valid` で、Feature全体も2つの検証器で有効）／`invalid`（構成のいずれかが無効、またはFeature全体の検査で無効）／`validation_error`（検証器の異常・不一致。AssessmentはFAILED）。Polygon型のFeatureでは、その唯一の構成Polygonの状態から決まる |
+| `feature_level_classes` | Feature全体の検査で検出した分類（`multipolygon_overlap` 等）。構成Polygon単体の分類とは別に持つ |
+| `polygon_status` | 構成Polygonごとの状態（第9.3節）の一覧（`polygon_index` 順） |
+| `feature_invalid_components` | **Feature全体の無効原因に関与する構成Polygonの集合**（例: 重なるPとQ）。2つの検証器で集合が一致することを要求し、一致しない・特定できない場合は `validation_error` |
+| `usable_components` | 判定に利用できる構成Polygonの集合（下の規則） |
+| `pending_components` | 判定保留の構成Polygonの集合（下の規則） |
+
+**構成集合の規則（初期プロファイル）**:
+
+1. 構成Polygonの状態が `invalid_classified`・`invalid_unclassified` の構成は、`pending_components` に入れる。
+2. `feature_invalid_components` に含まれる構成は、**単体では `valid` であっても `pending_components` に入れる**。Feature全体の無効原因に関与する構成を正常な判定に使う規則は、明示的に承認されたものがない限り存在しない（承認する場合は、規則ID・版・承認記録を持つ別のポリシーとする［未決定: ON-23］）。
+3. 上記のどちらにも当たらない `valid` の構成は、`usable_components` に入れる。Feature全体が無効でも、無効原因に関与しない有効な構成の浸水区域は失わない。
+4. `usable_components` と `pending_components` は互いに素で、和集合はそのFeatureの全構成Polygonに等しい。
+5. 承認された派生形状がある場合でも、本節の集合は変えない。派生形状の利用はIntegrationが別に記録する（Integration契約 第4.1節）。
+
+- `feature_invalid_components` の特定方法（重なり・辺の共有を生じさせた構成の組の検出）は、妥当性モデル（第9.2節）とともに固定する。関与の特定に失敗した場合は、そのFeatureの**全構成を `pending_components` とする**のではなく、`validation_error` としてAssessmentをFAILEDにする（不明を黙って保守側に倒すと、失敗が見えなくなるため）。
+- Feature全体の妥当性は、構成どうしの関係も含めて検査する。構成Polygonの状態の集計だけから導出しない。
 
 ### 9.4 無効形状の分類［提案。Phase 2-B.4・B.5の分類体系を採用候補とする］
 
@@ -395,17 +480,25 @@ Normalize Recordの新規作成（上書き禁止）を、Normalize全体の成�
 
 ### 9.5 評価成果物［提案］
 
+**全Polygon・全Featureについて状態行を記録する**（B7-07）。旧版の「valid以外と向きの検査に該当するPolygonだけを記録する省略形式」は、Integrationの全件追跡（IV-17）と矛盾するため廃止した。**行がないことを `valid` と解釈しない**（黙示の `valid` は採用しない）。
+
 ```text
 work/geometry_assessment/<run_id>/
-  summary.json            成果品ごとの件数（Feature・Polygon・状態別・分類別・向きの検査）。実行固有値を含まない
-  assessments.ndjson      valid以外の全Polygonと、向きの検査に該当する全Polygonの1行ずつ
+  summary.json                  成果品ごとの件数（Feature・Polygon・状態別・分類別・向きの検査）と、キー集合のハッシュ。実行固有値を含まない
+  polygon_assessments.ndjson    全構成Polygonの1行ずつ（valid を含む）
+  feature_assessments.ndjson    全原典Featureの1行ずつ（Polygon型を含む。第9.3.1節）
+  locations/                    位置の詳細が多いPolygonの全件（任意。形式は［未決定］）
 ```
 
-`assessments.ndjson` の1行（例示）:
+`polygon_assessments.ndjson` の1行（例示。`valid` の行は最小の項目だけ）:
 
 ```json
+{"key": {"zip_sha256": "<…>", "zip_member": "<…>", "feature_index": 0}, "polygon_index": 1,
+ "polygon_geometry_sha256": "<構成Polygon単体の正規化表現のSHA-256>", "status": "valid",
+ "orientation": {"shell": "ccw", "holes_same_orientation_as_shell": []},
+ "validators": {"reference": "valid", "geos": "valid"}}
 {"key": {"zip_sha256": "<…>", "zip_member": "<…>", "feature_index": 0}, "polygon_index": 0,
- "source_geometry_sha256": "<…>", "status": "invalid_classified",
+ "polygon_geometry_sha256": "<…>", "status": "invalid_classified",
  "classes": ["self_touch_vertex_vertex", "shell_hole_touch"],
  "locations": [{"class": "self_touch_vertex_vertex", "ring": 0, "vertex_indices": [7, 11]},
                {"class": "shell_hole_touch", "rings": [0, 3], "vertex_indices": [[120], [0]]}],
@@ -413,8 +506,23 @@ work/geometry_assessment/<run_id>/
  "validators": {"reference": "invalid", "geos": "invalid"}}
 ```
 
-- 位置の情報はリング・頂点・辺の番号で記録する（座標の値そのものは記録しない。原典から再現できる）。1つのPolygonで位置が多い場合は件数と先頭N件を記録し、全件は別ファイルに分けてよい［未決定: 形式］。
-- 決定的なシリアライズ規則（第11.1節）に従い、`key`・`polygon_index` の昇順で出力する。内容ハッシュを計算する。
+`feature_assessments.ndjson` の1行（例示）:
+
+```json
+{"key": {"zip_sha256": "<…>", "zip_member": "<…>", "feature_index": 0},
+ "source_geometry_sha256": "<原典geometry全体のSHA-256>", "n_polygons": 2,
+ "feature_status": "invalid", "feature_level_classes": [],
+ "polygon_status": ["invalid_classified", "valid"],
+ "feature_invalid_components": [], "usable_components": [1], "pending_components": [0],
+ "validators": {"reference": "invalid", "geos": "invalid"}}
+```
+
+- `polygon_geometry_sha256` は、構成Polygon単体を `{"type":"Polygon","coordinates":…}` として第11.1節の規則で正規化した表現のSHA-256（Feature全体の `source_geometry_sha256` とは別）。Polygon型のFeatureでも構成Polygon単体として計算する。Integrationの検索用の形状の識別に使う（Integration契約 第6.2節）。
+- 位置の情報はリング・頂点・辺の番号で記録する（座標の値そのものは記録しない。原典から再現できる）。1つのPolygonで位置が多い場合は件数と先頭N件を記録し、全件は `locations/` に分けてよい［未決定: 形式］。
+- 決定的なシリアライズ規則（第11.1節）に従い、`polygon_assessments.ndjson` は（`key`, `polygon_index`）の昇順、`feature_assessments.ndjson` は `key` の昇順で出力する。内容ハッシュを計算する。
+- `summary.json` に、全評価Polygonキーの集合と全評価Featureキーの集合のそれぞれについて、昇順の正規化表現のSHA-256（`polygon_key_set_sha256`・`feature_key_set_sha256`）を記録する。
+
+**別案（省略形式）［採用しない。容量上の理由で再検討する場合だけ］**: `valid` の行を省略する場合は、評価済みキー集合（またはそのハッシュと件数）、黙示の `valid` の定義、例外集合、重複・欠落の検証方法を契約化し、監査を経ることを条件とする。本書は省略形式を採用していない。
 
 ### 9.6 Geometry Validity Assessment Record（必須項目）［提案］
 
@@ -426,13 +534,22 @@ work/geometry_assessment/<run_id>/
 | `validators` | 2つの検証器のID・版、Python・Shapely・GEOSの版 |
 | `model` | 妥当性モデルのID・版、分類体系のID・版 |
 | `configuration` | 検証設定の内容ハッシュ |
-| `outputs` | `summary.json`・`assessments.ndjson` の参照・SHA-256、評価成果物の内容ハッシュ |
-| `counts` | 成果品ごと・全体の、Feature数・Polygon数・状態別・分類別・向きの検査の件数 |
-| `completeness` | 評価したPolygon数が、Normalize成果物のPolygon数と一致すること |
+| `outputs` | `summary.json`・`polygon_assessments.ndjson`・`feature_assessments.ndjson` の参照・SHA-256、評価成果物の内容ハッシュ |
+| `counts` | 成果品ごと・全体の、Feature数・Polygon数・状態別・分類別・向きの検査の件数、Feature全体の状態別の件数 |
+| `completeness` | 下記の**集合の照合**の結果。`polygon_key_set_sha256`・`feature_key_set_sha256` と、Normalize成果物から独立に計算した入力キー集合のハッシュ |
 | `record_sha256` | 実行証跡ハッシュ |
 
-- 全件の無効形状の識別子は評価成果物に保持し、Recordにはその参照・SHA-256・件数を持たせる。
-- 成功の条件: 全Polygonに状態が付き、`validation_error` が0件で、`completeness` が一致すること。**無効形状が存在してもSUCCESSになりうる**（状態の記録が完了したことを意味する）。
+**完全性の照合（B7-07）**: 件数の一致だけでは合格としない。次をすべて検証する。
+
+1. Normalize成果物の全構成Polygonのキー（`key`, `polygon_index`）の集合と、`polygon_assessments.ndjson` のキーの集合が**集合として一致**する。
+2. Normalize成果物の全Featureの `key` の集合と、`feature_assessments.ndjson` のキーの集合が一致する。
+3. 評価行のキーに重複がない（同じキーの行が2行以上ない）。
+4. 各評価行の `source_geometry_sha256`・`polygon_geometry_sha256` が、同じキーのNormalize成果物の形状から計算した値と一致する（**別キーの行への差し替え**を検出する）。
+5. `feature_assessments.ndjson` の `polygon_status` が、`polygon_assessments.ndjson` の同じFeatureの行と一致し、`usable_components` と `pending_components` が第9.3.1節の規則を満たす。
+
+いずれかの不成立（重複キー・欠落キー・余分なキー・別キーへの差し替え・集合規則の違反）はAssessmentをFAILEDとする。
+
+- 成功の条件: 全Polygon・全Featureに状態行があり、`validation_error` が0件で、上記の照合がすべて成立すること。**無効形状が存在してもSUCCESSになりうる**（状態の記録が完了したことを意味する）。
 
 ## 10. 派生ジオメトリ［提案。利用ポリシーは未承認］
 
@@ -442,19 +559,26 @@ work/geometry_assessment/<run_id>/
 
 **現時点では、派生形状の利用ポリシーは承認されていない**（ON-15）。承認までは、無効形状はすべて判定保留のまま扱う。条件(a)〜(e)の成立は、**原典作成者が意図した浸水区域との一致を証明しない**。
 
-### 10.2 適用条件(a)〜(e)
+### 10.2 適用条件(a)〜(f)
 
 派生形状の採用候補とするには、`invalid_classified` のPolygonについて次のすべてを満たす必要がある。
 
 | 条件 | 内容 | 検証方法 |
 |---|---|---|
-| (a) 接触の種類 | すべての接触が、既存の頂点同士の接触である | 第9.4節の分類で、`self_touch_vertex_edge`・`proper_crossing` がないこと |
+| (a) 接触の種類 | すべての接触が、既存の頂点同士の接触である。**適用範囲は同一リング内に限らず、リング間（外周‐穴、穴‐穴）と、必要なMultiPolygonの構成Polygon間の接触を含む** | 第9.4節の分類で `self_touch_vertex_edge`・`proper_crossing` がないことだけでは不十分（`self_touch_vertex_edge` は同一リング内の定義であるため）。全リングの組と、関係する構成Polygonの組について、頂点が他のリングの辺の内部に接する場合（例: 穴の頂点が外周の辺の内部に接する）がないことを、整数演算で直接検査する［B7-03］ |
 | (b) 対象外の不正を含まない | 真の辺交差、辺の重複、スパイク、面積0のリングを含まない | 同上（`proper_crossing`・`collinear_overlap`・`spike`・`zero_area_ring`・`other_undetermined` がない） |
 | (c) 面の解釈が一致 | **偶奇規則・非ゼロ巻き数規則・GeoJSONのPolygon / MultiPolygonの構造**（1番目のリングを外周、以降を穴）の3つの内外の解釈が、**全域で一致**する | リングを繰り返し現れる頂点で単純なループに分解し、ループの包含関係と向きから、各領域での3つの解釈を整数演算で厳密に比較する。**有限個の地点（ランダム地点等）の一致では代用しない**。包含関係を決められない場合は不成立 |
 | (d) 独立した派生方式の一致 | 次の3方式の出力が、いずれも有効なPolygon / MultiPolygonで、互いに位相的に一致する: (1) 整数演算によるリングの分割・再構成（C-3）、(2) `make_valid(method="linework")`、(3) `make_valid(method="structure")` | 低次元の要素・GeometryCollection・予期しない構成要素は**不成立**。同じ入力での再実行で同一の結果になること。C-3の出力は整数の参照判定器とGEOSの両方で有効であること |
-| (e) 原典にない頂点を追加しない | 派生形状の頂点集合が、原典の頂点集合に含まれる | 派生形状の全座標を原典の頂点集合と照合する |
+| (e) 原典にない頂点を追加しない | 派生形状の頂点集合が、原典の頂点集合に含まれる | 派生形状の全座標を原典の頂点集合と照合する。**頂点集合の包含は面の欠落を防がない**（(f)が必要） |
+| (f) 入力の数学的領域との集合等価性［B7-03で追加。検証方式は未完了］ | 派生出力の点集合が、(c)で確定した入力の数学的領域と、**全域で集合として等しい**。対象は内部・境界・穴・微小な領域（小さい葉など）・構成Polygon間の接触を含む | **GEOSの出力どうしの相互比較（(d)）だけでは合格できない。** 入力の解釈で定めた領域と派生出力を、面生成・比較の実装を共有しない独立の方式で直接比較する。独立方式の設計・監査は**未完了**（ON-24）。未完了の間、(f)は常に「未判定」とし、`eligible` にならない |
 
+- 条件(a)〜(e)は**保守的な候補の制限**であり、派生形状が原典の意味を保存することの必要十分条件ではない。(a)〜(e)の成立だけで、派生形状の意味的な等価性が証明されたとは扱わない。
+- **現在のC-3はGEOSから独立していない。** Phase 2-B.4・B.5の調査用のC-3は、面の生成・合成に `shapely.polygonize`・`shapely.point_on_surface`・`shapely.union_all` を使っている（Phase 2-B.7監査の静的確認）。整数による面の選択の部分があっても、面の生成・合成はGEOSと共通の依存であり、(d)の3方式は共通の欠陥を共有しうる。(d)を「独立した派生方式の一致」として扱うには、C-3の面生成をGEOSに依存しない方式にするか、(f)の独立検証を成立させる必要がある。
+- 共通の欠陥の例（概念上の反例。現行GEOSで発生すると実証したものではない）: 頂点で接する大小2つの葉を持ち、入力の3解釈が一致する形で、共通の前処理・面生成の欠陥によって小さい葉が3方式とも落ちた場合、出力は有効で、3方式は一致し、新しい頂点もない。(a)〜(e)はこの欠落を検出しない。(f)はこれを拒否しなければならない。
+- (f)の受入条件: 小さい葉の脱落、穴の脱落、頂点だけを保ったまま辺の接続を誤った出力、リング間の頂点‐辺の接触を、いずれも必ず拒否すること（第13章 N-33）。
+- GEOS・Shapelyの版と設定、比較の方法を固定し、版の更新時は(a)〜(f)を再評価する。
 - 条件を判定できなかった場合（資源制限・検証器の異常）は「未判定」とし、採用候補にしない。
+- **派生形状の製品利用は引き続きBLOCKEDとする。** (f)の独立方式の設計・監査（ON-24）、整数の参照判定器・C-3・条件(c)の独立監査（ON-18）、利用ポリシーの承認（ON-15）のすべてが成立するまで、派生形状をIntegrationへ入力しない。
 - 調査では、26成果品の無効23,388件のうち23,342件が(a)〜(e)を満たし、46件が(c)だけ満たさなかった［実測。調査PoCでの判定であり、製品の検証器による判定ではない］。
 
 ### 10.3 解釈不一致（条件(c)の不成立）の扱い
@@ -465,7 +589,7 @@ work/geometry_assessment/<run_id>/
 - **2つの不確実性を区別する**:
   - (1) **原典の解釈そのものの不確実性**: 作成者がどの領域を浸水区域としたかが原典から決まらないこと。条件(a)〜(e)を満たしても残る。
   - (2) **数学的に異なる解釈の領域**: 3つの解釈規則で内外が異なる点の集合。条件(c)の解析で厳密に特定できる。
-- 判定保留の範囲（unknownの範囲）の設計は、Integration契約 第4.4節で定める。精密な範囲（レベル2）は、検証と承認が成立するまで使わない。
+- 判定保留の範囲（unknownの範囲）の設計は、Integration契約 第4.4節で定める。**初期プロファイルはL1だけを許可し、精密な範囲（L2）は未承認・利用禁止とする**（B7-04）。(2)の領域が空であっても、(1)の不確実性と、未承認の無効形状であることによるunknownは消えない。
 
 ### 10.4 派生成果物と来歴［提案］
 
@@ -486,8 +610,8 @@ work/derived_geometry/<run_id>/
 | `method` | 派生方法（C-3）・設定・処理版。比較に使った `make_valid` の方式と結果のハッシュ |
 | `dependencies` | Python・Shapely・GEOS等の版 |
 | `classification` | 評価成果物の分類（第9.4節）と、その行の参照 |
-| `conditions` | (a)〜(e)の判定結果と根拠（(c)の領域の比較結果、(d)の一致結果、(e)の照合結果） |
-| `status` | `eligible`（(a)〜(e)を満たす）／`not_eligible`／`undetermined` |
+| `conditions` | (a)〜(f)の判定結果と根拠（(a)のリング間・構成間の検査結果、(c)の領域の比較結果、(d)の一致結果、(e)の照合結果、(f)の集合等価性の結果と方式） |
+| `status` | `eligible`（(a)〜(f)をすべて満たす）／`not_eligible`／`undetermined`（(f)の独立方式が未確定の間は、(a)〜(e)を満たしても `undetermined`） |
 
 - **派生形状を作れることと、採用されることは別である**。`eligible` は採用の承認ではない。
 - 同じ形状であっても、異なる原典Feature・浸水深ランク・来歴を統合して消してはならない（派生形状は原典Feature・Polygonごとに1行）。
@@ -499,7 +623,7 @@ work/derived_geometry/<run_id>/
 
 - 派生形状の参照する原典が存在すること
 - ハッシュが一致すること
-- 条件(a)〜(e)を再計算して一致すること
+- 条件(a)〜(f)を再計算して一致すること（(f)は作成工程と面生成・比較の実装を共有しない方式で）
 - `eligible` 以外が判定に使われる設定になっていないこと
 
 | 項目 | 内容 |
@@ -515,7 +639,7 @@ work/derived_geometry/<run_id>/
 
 派生形状を判定に使うには、次のすべてが必要である。
 
-1. **派生形状の利用ポリシー**（ID・版付き）がOWNERに承認されている。ポリシーには、対象とする分類（例: 条件(a)〜(e)を満たす頂点同士の接触だけの形）、条件の最終要件、公開時の加工表示を定める。
+1. **派生形状の利用ポリシー**（ID・版付き）がOWNERに承認されている。ポリシーには、対象とする分類（例: 条件(a)〜(f)を満たす頂点同士の接触だけの形）、条件の最終要件、公開時の加工表示を定める。
 2. Derived Geometry Validate RecordがPASSで、その `policy` が承認されたポリシーと一致する。
 3. OWNERの承認記録への参照がある（承認の範囲に、対象の成果物・ポリシーの版が含まれる）。
 
@@ -528,7 +652,7 @@ work/derived_geometry/<run_id>/
 | 1. 原典保持に成功 | Normalize Record、Source Fidelity Validate Record（PASS） | 形状が有効であること |
 | 2. 形状の位相妥当性検査に合格（`valid`） | Geometry Validity Assessment（Polygonの状態） | 浸水区域の評価範囲が分かること |
 | 3. 無効形状の分類に成功（`invalid_classified`） | 評価成果物 | 派生形状を作れること |
-| 4. 派生形状の生成に成功 | 派生成果物 | 条件(a)〜(e)を満たすこと |
+| 4. 派生形状の生成に成功 | 派生成果物 | 条件(a)〜(f)を満たすこと |
 | 5. 派生形状の独立検証に合格（`eligible`） | Derived Geometry Validate Record | 採用されたこと |
 | 6. 派生形状の採用承認が成立 | 承認された利用ポリシー＋OWNER承認記録 | 統合・公開ができること |
 | 7. 統合・公開資格が成立 | Integrated Validate・公開の承認（既存契約） | 原典作成者の意図との一致 |
@@ -544,7 +668,7 @@ work/derived_geometry/<run_id>/
 - **決定的なシリアライズ規則**（`content.json`・NDJSON・`source_geometry_sha256`・評価成果物・派生成果物の対象に共通）:
   1. UTF-8、BOMなし。
   2. 改行はLF。NDJSONは1レコード1行で、最終行の後にも改行を置く。`content.json` は1行の正規化JSONとし、末尾に改行を1つ置く。
-  3. オブジェクトのキーは、本書で定めた順序（レコード: `key`・`product_id`・`source_properties`・`derived`・`geometry`・`source_geometry_sha256`）、それ以外はUnicodeコードポイントの昇順。`source_properties` は原典の出現順を保つ配列。
+  3. オブジェクトのキーは、本書で定めた順序（レコード: `key`・`product_id`・`source_feature_members`・`source_geometry_members`・`source_properties`・`derived`・`geometry`・`source_geometry_sha256`。型付きの値は `key`・`type`・`value`/`token` の順。`present` を持つ項目は `present` を先頭）、それ以外はUnicodeコードポイントの昇順。`source_properties` は原典の出現順を保つ配列。
   4. 区切りは `,` と `:`（空白なし）。
   5. 文字列のエスケープ: `"`・`\`・制御文字（U+0000〜U+001F）だけをエスケープし（`\"`・`\\`・`\b`・`\f`・`\n`・`\r`・`\t`、その他は小文字16進の `\u00xx`）、他の文字（非ASCIIを含む）はUTF-8のまま出力する。
   6. 数値: 出力に浮動小数を含めない。整数は10進、符号は負の場合のみ、先頭のゼロなし。原典の数値は `token`（文字列）で保持する。
@@ -612,9 +736,18 @@ Normalize Record・Source Fidelity Validate Record・Geometry Validity Assessmen
 | N-24 | 検証器が途中で異常終了・Polygonが1件欠落 | AssessmentはFAILED。後続は実行されない |
 | N-25 | 無効形状のリングの順序・始点・向き | Normalize成果物で原典と同一（V-6） |
 | N-26 | 外周と同じ向きの穴（島を含む型、Phase 2-B.4・B.5の46件と同型の合成データ） | `hole_same_orientation_as_shell` が記録され、派生形状は条件(c)不成立で `not_eligible` |
-| N-27 | 条件(a)〜(e)を満たす頂点同士の自己接触（Phase 2-B.4の合成ケースY1・Y3） | `eligible`。ただし利用ポリシー未承認では判定に使われない |
+| N-27 | 条件(a)〜(e)を満たす頂点同士の自己接触（Phase 2-B.4の合成ケースY1・Y3） | (a)〜(e)は成立。**(f)の独立方式が未確定の間は `undetermined`**（`eligible` にならない）。(f)の成立後でも、利用ポリシー未承認では判定に使われない |
 | N-28 | 派生成果物の1件のハッシュを改変・原典への参照を削除 | Derived Geometry Validate FAILED |
 | N-29 | ランダム地点では解釈の差を検出できない形（解釈が異なる領域が小さい形） | 条件(c)の厳密な比較で不成立を検出する |
+| N-30 | `Feature.id` が文字列・数値（`17` と `17.0` の表記差を含む）・`null`・存在しない合成データ（B7-06） | 4つが区別して保持され、数値は `token` で原典の表記が残る。`key` と混同されない。V-12で照合 |
+| N-31 | Feature・Geometry・FeatureCollectionに `bbox` と追加メンバーを持つ合成データ。および、それらを出力から削除した改変成果物（B7-06） | 原典どおりの順序・型で保持される。削除した改変成果物はV-12でFAILED（他のV項目が合格していても） |
+| N-32 | オブジェクト型の `Feature.id`、未分類のメンバー（B7-06） | Normalizeが拒否し、拒否した階層・メンバー名・位置が記録される。黙って削除してSUCCESSにならない |
+| N-33 | 条件(f)の反例（B7-03）: (1) 小さい葉が脱落した派生出力、(2) 穴が脱落した派生出力、(3) 頂点集合を保ったまま辺の接続を誤った派生出力、(4) 穴の頂点が外周の辺の内部に接する入力（リング間の頂点‐辺の接触） | (1)〜(3)は(f)で不成立、(4)は(a)で不成立。(d)のGEOS出力どうしの一致だけでは合格しない。(f)の独立方式の確定前はすべて `eligible` にならない |
+| N-34 | 有効な正方形PとQが内部で重なるMultiPolygon（B7-02） | P・Qの `polygon_status` は `valid`、`feature_status` は `invalid`、`feature_invalid_components = [P, Q]`、両方が `pending_components` |
+| N-35 | 有効なPと無効なQ（自己接触）を持つMultiPolygon（B7-02） | `usable_components = [P]`、`pending_components = [Q]`。両方の評価行がある |
+| N-36 | 評価成果物の改変（B7-07）: (1) `valid` の行を1行削除、(2) 1行を重複させ別の1行を削除（件数は同じ）、(3) 行のキーを別のPolygonのキーに差し替え、(4) `valid` だけの成果品 | (1)〜(3)は集合の照合でAssessment FAILED（件数の一致だけで合格しない）。(4)は全Polygonの `valid` 行があり、矛盾なくSUCCESS |
+| N-37 | 座標プロファイル外の入力（B7-09）: 経度180°・−180°ちょうど、経度179°と−179°を結ぶ辺、緯度90.5°、許容範囲外の座標、nano-degreeで `2^53+1` に相当する値 | すべてNormalizeが拒否する。丸め・折り返しで処理を続けない |
+| N-38 | 空の構成（B7-09）: 構成0個のMultiPolygon、リング0本の構成Polygon、座標0個のリング | 拒否。座標が3個のリングは拒否せず `zero_area_ring` に分類される |
 
 ## 14. 未決定事項とOWNER判断事項（旧第12章）
 
@@ -635,11 +768,15 @@ Normalize Record・Source Fidelity Validate Record・Geometry Validity Assessmen
 | ON-13 | 資源上限の値 | 観測値に余裕を持たせた初期値を、テストで確定 |
 | ON-14 | Flood用の認可プロファイル | 成立まで実データ処理はBLOCKED |
 | ON-15 | 派生形状の利用ポリシーの正式採用 | **未承認**。承認まで無効形状はすべて判定保留 |
-| ON-16 | 条件(a)〜(e)の最終要件 | 本書の(a)〜(e)を候補とする。製品の検証器での再判定が必要 |
+| ON-16 | 条件(a)〜(f)の最終要件 | 本書の(a)〜(f)を候補とする。(a)〜(e)は保守的な候補の制限であり、意味の等価性の証明ではない。製品の検証器での再判定が必要 |
 | ON-17 | 解釈不一致（条件(c)不成立）の型の扱い | 判定保留（推奨。自動採用しない）。GeoJSONの構造・偶奇規則を優先するかはOWNER判断 |
 | ON-18 | 整数の参照判定器・C-3・条件(c)の判定方法の独立監査 | 実装前に実施（推奨） |
 | ON-19 | 原典の作成者への照会 | 島を含む穴の向き、自己接触の記述方法が論点 |
 | ON-20 | 派生形状を使った場合の公開時の加工表示 | 未決定 |
-| ON-21 | N03に無効形状がある場合の扱い | 東京都本土は全件有効［実測］。他地域の追加時に決める |
+| ON-21 | N03の無効形状の派生形状による利用 | 初期プロファイルでは、対象地域に必要なN03が1件でも使用不能ならIntegrationを停止する（第4.4節。B7-05で確定案に変更）。派生形状によるN03の利用は別途の検証・承認事項 |
+| ON-22 | 初期座標プロファイルの許容範囲の値 | データソースごとの経緯度の矩形。日本の範囲に余裕を持たせた値を候補とし、OWNERが確定する（第6.3節） |
+| ON-23 | Feature全体の無効原因に関与する有効な構成Polygonを判定に使う規則 | 初期プロファイルでは使わない（判定保留。第9.3.1節）。使う場合は規則ID・版・承認記録を持つ別のポリシーとする |
+| ON-24 | 条件(f)（入力の数学的領域と派生出力の集合等価性）を検証する独立方式 | **設計・監査は未完了**。完了まで派生形状は `eligible` にならず、製品利用はBLOCKED |
+| ON-25 | 対応対象外のメンバー（第4.5節）の範囲 | オブジェクト・配列・真偽値の `Feature.id` は拒否（推奨）。その他の範囲は実データの観測後に確定 |
 
 本書の採用は、Normalizeの実装・実データの処理・派生形状の製品採用・公開・性能試験の承認ではない。
