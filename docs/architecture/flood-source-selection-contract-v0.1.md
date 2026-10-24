@@ -3,6 +3,9 @@
 - Task: Phase 2-B.10 Flood Source Selection Contract 設計改訂
 - 状態: **契約案（OWNERレビュー待ち。正式採用されていない）**。本書は製品実装・設定の承認・実データの処理・公開の承認ではない
 - 作成: 2026-10-25（Claude）
+- 改訂: 2026-10-25 Phase 2-B.12 — Codex独立契約監査（Phase 2-B.11、FAIL: HIGH 3 / MEDIUM 4）の指摘 B11-01〜B11-07 への契約訂正。基準コミット `c3ace814c59e62d99c08a9983c4ba021ab570642`。対応の全体は [監査対応表](../../reviews/phase2/phase2b12-source-selection-audit-remediation.md)
+  - 所属の完全性と空の目録（第3.4節・第3.5節）［B11-02・B11-05］、ソースの事実と状態の導出順序・全体の状態の決定表（第5.2節）［B11-04］、区分の同一性のキー（第5.3節）［B11-06］、`deeper_in_other_sources` の三値判定（第7章）［B11-03］、変更の区分と統合成果物の再利用（第8.3節）［B11-01］、全件の計算（第5.1節）［B11-07］、回帰テスト SS-17〜SS-36
+  - **本改訂は文書上の訂正であり、Codex監査のPASS・実装の開始・公開を意味しない**
 - 基準コミット: `fdf4f2df7d7a29f18519183ff8d2b931e6f4adc5`
 - 置き換える設計案: [Flood Source Priority & Risk Aggregation Contract v0.1（案）](flood-source-priority-contract-v0.1.md)（Phase 2-B.9）。旧案は履歴資料として残す。**「置き換え」は設計案の変更履歴であり、どちらの案もOWNERに正式採用されていない**
 - 前提: [Flood Normalize Contract v0.1（案）](flood-normalize-contract-v0.1.md)、[Flood Integration Contract v0.1（案）](flood-integration-contract-v0.1.md)、[Phase 2-B.8 監査対応表](../../reviews/phase2/phase2b8-codex-audit-remediation.md)
@@ -58,7 +61,8 @@ APIの入出力は [Flood API MVP Contract](../api/flood-api-mvp-contract-v0.1.m
 
 - `source_id`・`zone_ref` は不透明な識別子とする。**内部のファイル名・ZIPメンバー名・ローカルパス・`record_key` を公開しない**（共通API契約 §5）。公開世代の中で安定し、内部の原典（原典ZIPのSHA-256・成果品・Feature・構成Polygon）へ戻せること。生成規則は［未決定: SS-U4］。
 - **`source_id` の粒度**（初期案）: 「提供主体（河川管理者）×シナリオ×原典の配布単位の系列」とする。東京都管理河川は2つのZIP（`_13_10`・`_13_20`）を1つの `source_id`、関東地方整備局は1つの `source_id` とする案である。成果品（河川）ごとに `source_id` を分ける案もある。その場合は選択肢が多く（関東地方整備局は48成果品［実測］）、利用者にとって単純でなくなる。粒度は［未決定: SS-U1］。
-- 1つの `source_id` に属する成果品・Featureの一覧は、公開世代に固定する（Source Catalog。第3.3節）。
+- **粒度は安全上の情報の意味を変える**（Phase 2-B.11監査 §5）。東京都を1つの `source_id` にすると、隅田川（0.5m未満）と神田川（5〜10m）の重なりは同一ソース内で集約される（第5.3節）。成果品ごとに分けると、神田川は「他ソース」になり、`other_sources_count`・`deeper_in_other_sources` の対象になる。粒度を決めるときは、所属集合（第3.4節）・IDの世代間の継続性・安全上の情報の意味を一緒に固定する。
+- 1つの `source_id` に属する成果品・Featureの一覧は、公開世代に固定する（Source Catalog。第3.3節）。所属の完全性は第3.4節で検証する。
 
 ### 3.2 提供主体の区分の確定（Source Category Assignment）［提案。Phase 2-B.9から維持］
 
@@ -93,9 +97,61 @@ APIの入出力は [Flood API MVP Contract](../api/flood-api-mvp-contract-v0.1.m
 | `service_region` | そのソースのサービス対象地域の参照（初期は統合の対象地域＝東京都本土で全ソース共通） |
 | `assessed_extent` | 評価済み範囲の表現。**A31aは `unknown`**（評価済み範囲を持たない）。範囲を持つデータを将来扱う場合の値は予約 |
 | `classification_scheme` | 浸水深区分の体系のID・版（第5.3節） |
-| `products` | 内部の成果品の集合（公開しない。目録の内部版にだけ持つ） |
+| `products` | 内部の成果品の集合（公開しない。目録の内部版にだけ持つ）。各要素は（原典ZIPのSHA-256, `product_id`）の組。第3.4節の所属割当の単位 |
+| `membership_digest` | 内部。第3.4節の照合に使う、ソースごとのFeatureキー集合のSHA-256と件数（公開しない） |
 
-目録は、Source Category Assignment Record・表示順の設定とともに公開世代に固定する（第8章）。
+- **目録は1件以上のソースを持つ。空の目録は公開できない**（第3.5節）。各ソースは1件以上の成果品を持つ（成果品0件のソースは拒否）。
+- 目録は、Source Category Assignment Record・表示順の設定とともに公開世代に固定する（第8章）。
+
+### 3.4 所属の完全性（Catalog Membership Completeness）［提案。B11-02］
+
+**公開対象として採用した統合成果物の全Feature・全構成Polygon・全unknownは、Source Catalogから所属先の `source_id` を一意に解決できなければならない。** 件数の一致だけでは合格としない。
+
+**用語**:
+
+| 用語 | 定義 |
+|---|---|
+| 公開対象集合（正本） | 公開世代が参照する統合成果物（DB）の `zone_record` の全行（Integration契約 第6.2節）。統合成果物に含まれる全原典Featureであり、`search_target`・`unknown_region` の全行はこのいずれかの行を参照する（Integration契約 IV-25） |
+| Featureキー | `zone_record.record_key`（原典ZIPのSHA-256・正規化メンバー名・`feature_index`）。原典ハッシュを含み、安定している（Normalize契約 第4.3節） |
+| 入力成果品集合 | Integration Manifestの全入力（Integration Recordが開始時に照合した値）の成果品の（原典ZIPのSHA-256, `product_id`）の組。Manifestの `products` で理由を記録して除外した成果品は含まない。採用（保持）0件の成果品は含む |
+| 所属割当 | 目録の `products`。成果品の組 → `source_id` |
+
+**所属の規則**:
+
+1. 所属は成果品単位で割り当て、Featureの所属は、そのFeatureの成果品の所属から導く。Feature・構成Polygon・unknownの所属は、それぞれ `record_key` → 成果品 → `source_id` の順で解決する。
+2. **初期MVPでは、1つの成果品（したがって1つのFeature）を複数の `source_id` に所属させない。** 別名・別視点による重複所属は、将来の拡張事項として保留する（SS-U12）。
+
+**照合（Source Catalog Validate）**: 公開世代を作る前に、目録と統合成果物を照合し、**Source Catalog Validate Record**（対象の目録・統合成果物のハッシュ、結果）を新規に作る。次のすべてを検証する。
+
+| No | 検証 | 検出する反例 |
+|---|---|---|
+| CV-1 | 目録の成果品の集合と入力成果品集合が、**集合として一致**する | 成果品の欠落・余分な成果品 |
+| CV-2 | 目録の中で、同じ成果品の組が2回以上現れない（複数の `source_id` への所属、同じソース内の重複） | 二重所属 |
+| CV-3 | 公開対象集合の全行について、`record_key` の原典ZIPのSHA-256と成果品が、目録の成果品の組のいずれかに一致する（未割当のFeatureが0件） | 未割当のFeature |
+| CV-4 | 全 `search_target`・全 `unknown_region` の行が、所属を解決できる `zone_record` を参照する | unknownだけを持つFeatureの未割当、検索対象の未割当 |
+| CV-5 | ソースごとに、公開対象集合から再計算したFeatureキーの集合のSHA-256と件数が、目録の `membership_digest` と一致する | 件数を保ったままのFeatureの差替え |
+| CV-6 | 各ソースの全成果品が、目録のソースの `scenario` と同じシナリオのフォルダ（例: `20_想定最大規模`）に属する | シナリオの混在 |
+| CV-7 | 各ソースの全Featureの `A31a_203`・`A31a_204` が、Source Category Assignment Recordのそのソースの根拠と一致する | 管理主体の混在・誤った所属 |
+| CV-8 | 目録のソースが1件以上あり、各ソースの成果品が1件以上ある | 空の目録・空のソース |
+| CV-9 | 目録の成果品の原典ZIPのSHA-256が、統合成果物の来歴（Lineage Manifest）にある | 来歴にない原典の混入 |
+
+- いずれかが不成立なら、その組合せの公開世代を作らない（Publication Readinessの阻害理由とすることを提案。第11章 SS-C3）。
+- **意図的な除外**: 公開対象から成果品を外す場合は、目録の段階ではなく、Integration Manifestの `products` の除外（理由と根拠の記録。Integration契約 第3章）で行う。その除外にはOWNERの承認記録を結び付ける。目録だけで、統合成果物にあるFeatureを除外・非表示にすることはできない（CV-3で拒否）。
+- APIの起動時・公開世代の切替時にも、目録の内容ハッシュとSource Catalog Validate Recordの対象が一致することを確認し、不一致なら起動・切替をしない。
+- **`candidate_completeness = not_guaranteed`（第4.2節）は、公開世代に登録されていない外部の公表データがありうることを表す。公開対象として採用したデータの所属漏れを許す意味ではない。**
+
+### 3.5 空の目録［提案。B11-05］
+
+初期MVPでは、**公開対象のFloodのSource Catalogが空の場合、公開を阻害する**（CV-8の不成立。Publication ReadinessをBLOCKEDとする方式を第一候補とする）。空の目録を「浸水想定なし」と解釈しない。次の4つを区別する。
+
+| No | 状況 | 扱い |
+|---|---|---|
+| 1 | Floodが未公開（公開Registryにfloodのデータセットがない） | API: `no_data`（`flood_not_published`） |
+| 2 | 公開候補の目録が空 | 公開しない（CV-8・Readinessで阻害）。万一、空の目録の公開世代を読んだ場合、APIは `indeterminate`（`flood_integrity_error`）とし、正常な「該当なし」を返さない |
+| 3 | 目録にソースがあるが、地点で確認済みの該当がない | API: `success`。各ソースの `assessment_status` と `overall_status` は `no_match_extent_unknown`（浸水なしではない） |
+| 4 | 地点がサービス対象地域の外 | API: `no_data`（`outside_service_region`） |
+
+意図的に空の公開世代（例: 公開停止の代わりの空世代）を将来認める場合は、別の契約とOWNERの承認を必要とする。
 
 ## 4. Source Discovery Contract［提案］
 
@@ -148,23 +204,54 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 
 - 同じソースで複数の区域が該当する場合は、全件を保持する。
 - 同じFeatureの有効な構成P（地点を含む）と判定保留の構成Q（L1の範囲に地点を含む）は、`zone_hits` と `unknowns` の両方に現れる（Integration契約 `has_area_match`・`has_unknown`）。どちらも削除しない。
-- 判定器の判定保留・読込みの失敗は、該当なしとして扱わない（API契約のエラー・判定不能へ）。
+- 判定器の判定保留・読込みの失敗は、該当なしとして扱わない（API契約のエラー・判定不能へ）。**1つのソースでも評価に失敗した場合は、応答全体をエラーとし（API契約 第6章。`retrieval_failed` 等、`result = null`）、成功したソースだけの成功応答にしない。** 失敗を正常な `not_evaluated` に置き換えない（第5.2節）。
+- 判定・集約・安全上の情報（第7章）は、常に**全ソース・全区域**を使って計算する。応答の大きさの上限は計算の対象を減らさない（API契約 第5.4節）。
 - 派生形状（`geometry_basis = derived`）はMVPで使わない（BLOCKED）。unknownの範囲はL1だけ。
 - 異なるソース間の浸水深の統合は、Point Assessmentの責務に含めない（SS-7）。
 
-### 5.2 ソースごとの `assessment_status`
+### 5.2 ソースごとの事実と `assessment_status`［B11-04で改訂］
 
-| 値 | 確認済みの該当 | そのソース内の不確実性（unknown・境界接触・集約不能） | 意味 |
-|---|---|---|---|
-| `determined_match` | あり | なし | そのソースの結果が確定している |
-| `partial_unknown` | あり | unknown・境界接触あり | 該当はあるが、そのソース内に判定保留・境界上の区域もある |
-| `aggregation_undetermined` | あり | 集約不能 | 該当はあるが、ソース内の区分を比較できず、1つの浸水深に決められない |
-| `unknown_only` | なし | unknown・境界接触あり | 判定保留・境界上の区域だけがある。**浸水なしではない** |
-| `no_match_extent_unknown` | なし | なし | 該当もunknownもない。**評価範囲不明であり、区域外・浸水なしと確定しない** |
-| `not_evaluated` | — | — | 地点がそのソースのサービス対象地域の外、またはそのソースだけ評価できない（初期はサービス対象地域が全ソース共通のため、通常は発生しない） |
+**事実を独立して保持する。** 状態名は、事実から決まった順序で導く1つの要約であり、事実を置き換えない。
 
-- 地点がサービス対象地域の外縁上の場合は、上の値に加えて、`region_boundary` を不確実性の理由として返す（API契約）。
+| 事実（ソースごと） | 値 |
+|---|---|
+| `has_confirmed_match` | 確認済みの該当の有無 |
+| `has_unknown` | unknown（L1）の有無 |
+| `has_boundary_contact` | 境界接触の有無 |
+| `aggregation` | `ok`（集約できた）／`undetermined`（集約不能）／`not_applicable`（確認済みの該当なし） |
+| `evaluation` | `succeeded`／`failed`。**`failed` のソースがあれば応答全体がエラーになり、ソースの結果は返らない**（第5.1節）。成功応答の中の値は常に `succeeded` |
+| `service_region_relation` | `inside`／`boundary`／`outside` |
+
+**`assessment_status` の導出順序**（上から順に、最初に当たった値。相互に排他的）:
+
+| 順 | 条件 | `assessment_status` |
+|---|---|---|
+| 0 | `evaluation = failed` | （ソースの状態にしない。応答全体がエラー） |
+| 1 | `service_region_relation = outside` | `not_evaluated`（**予約**。下記） |
+| 2 | `has_confirmed_match` かつ `aggregation = undetermined` | `aggregation_undetermined` |
+| 3 | `has_confirmed_match` かつ（`has_unknown` または `has_boundary_contact` または `service_region_relation = boundary`） | `partial_unknown` |
+| 4 | `has_confirmed_match` | `determined_match` |
+| 5 | `has_unknown` または `has_boundary_contact` または `service_region_relation = boundary` | `unknown_only` |
+| 6 | 上記のいずれでもない | `no_match_extent_unknown` |
+
+- **集約不能とunknown・境界接触が同時に成り立つ場合は、`aggregation_undetermined`**（順2）とし、unknown・境界接触は事実（`has_unknown`・`has_boundary_contact`）と `uncertainty_reasons`（全理由）で返す。状態名が1つでも、理由は失わない。
+- `uncertainty_reasons` は、事実から独立に作る（重複なし・昇順）。`assessed_extent_unknown`（A31aでは常に付く）、`unknown_invalid_geometry`（`has_unknown`）、`zone_boundary_contact`（`has_boundary_contact`）、`aggregation_undetermined`（`aggregation = undetermined`）、`region_boundary`（`service_region_relation = boundary`）。
+- **`not_evaluated` は予約値とする。** ソースごとに異なるサービス対象地域を持つ将来の構成で、地点がそのソースの対象地域の外にあり、他のソースの対象地域の内部にある場合だけに使う。初期MVPではサービス対象地域が全ソース共通であり、地点が対象地域の外なら応答全体が `no_data`（`outside_service_region`）になるため、**正常応答に `not_evaluated` は現れない**。読込み失敗・判定器の異常・整合性の異常を `not_evaluated` で表さない。
 - 評価済みの区域外を表す値（`confirmed_no_match`）は予約とし、**A31aでは使わない**。
+
+**全体の状態（`overall_status`）の決定表**（全ソースの `assessment_status` を入力とする。目録は空でない（第3.5節）。`not_evaluated` はMVPでは現れないが、現れた場合の扱いも示す）:
+
+ここで「該当ソース」は `determined_match`・`partial_unknown`・`aggregation_undetermined` のいずれか、「不確実ソース」は `partial_unknown`・`aggregation_undetermined`・`unknown_only`・`not_evaluated` のいずれかとする。
+
+| 該当ソースがある | 不確実ソースがある | `overall_status` |
+|---|---|---|
+| はい | いいえ（全ソースが `determined_match` または `no_match_extent_unknown`） | `determined_match` |
+| はい | はい | `partial_unknown` |
+| いいえ | はい | `unknown_only` |
+| いいえ | いいえ（全ソースが `no_match_extent_unknown`） | `no_match_extent_unknown` |
+
+- `aggregation_undetermined` のソースがある場合の `overall_status` は `partial_unknown` である。全体の状態は浸水深を持たないため、集約不能を独立の値にしない（集約不能は、そのソースの `assessment_status` と理由で示す）。
+- `assessed_extent_unknown` は全ソースに付くため、不確実ソースの判定には使わない（API契約 第5.7節）。
 
 ### 5.3 ソース内の集約（Within-Source Aggregation）［提案］
 
@@ -196,6 +283,13 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 | 異なる体系・版 | 体系の同一性が承認されていない | **比較不能** |
 
 - 比較不能の場合は任意の値を選ばない。`depth = null`・`aggregation_undetermined` とし、該当の全件を返す。
+
+**区分の同一性のキーと比較の資格（B11-06）**:
+
+- **区分の同一性のキー**は（`scheme_id`, `scheme_version`, `class_code`）の3つ組とする。ソース内の集約の結果、`matches[]` の各区域、`overview` の `depth_classes_present`、安全上の比較（第7章）で、同じキーを使う。
+- **同じ `scheme_id`・同じ `class_code` でも、`scheme_version` が異なれば別の区分とする。** 重複排除でまとめず、比較不能として扱う。ただし、2つの版の区間定義が同じであることが確認・承認された場合（版の同等性の承認。CQ-1）は、比較可能としてよい。その場合も、キーは版ごとに別のまま返す（版の情報を失わない）。
+- **比較の資格**: 2つの区分が比較可能なのは、(1) 同じ `scheme_id`・同じ `scheme_version`（または承認された同等の版）で、(2) その体系がソース間の比較について承認されている（CQ-1・CQ-3。安全上の比較の場合）ときだけである。ソース内の集約は、(1) だけを要件とする（同じソースの中の区分の順序）。
+- APIの各 `depth` は、`scheme_id`・`scheme_version`・`class_code` を必ず持つ（API契約 第5.5節）。
 - 集約の結果の `depth` は、そのソースの「主表示の浸水深」であり、地点の唯一の正しい浸水深ではない（第7章）。
 
 **比較仕様の確定に必要な確認項目**（Phase 2-B.9から維持）:
@@ -277,11 +371,54 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 | 6 | 評価範囲不明を浸水区域外と断定しない | `assessed_extent_relation = unknown`、`no_match_extent_unknown` |
 | 7 | 選択中の値を、地点の唯一の正しい浸水深として提示しない | `selected_result_is_exclusive = false`（常に `false`）。説明の文言 |
 
-**`deeper_in_other_sources`（他ソースのより深い想定）**:
+**`deeper_in_other_sources`（他ソースのより深い想定）の三値判定［B11-03で改訂］**:
 
-- 選択中のソースの `depth` と、他の各ソースの `depth`（いずれもソース内の集約の結果）を、第5.3節の規則で比較した結果である。値は `true`（比較可能で、より深い区分の確認済みの該当が他ソースにある）・`false`（比較可能で、ない）・`null`（比較不能・体系の同一性が未承認・選択中のソースの `depth` が `null`）とする。
-- 他ソースの `depth` が `aggregation_undetermined`（`null`）でも、そのソースの該当の区域ごとに比較し、より深い区域が1つでもあれば `true` とする。
-- `overview` では、選択中のソースがないので `deeper_in_other_sources` は返さない。代わりに、全ソースの確認済みの該当の区分の一覧（重複なし・深さの順。比較不能な場合は列挙だけ）を `depth_classes_present` として返す。これは**ソース間の統合ではなく、事実の列挙**である。
+`single_source` だけで返す。比較の基準は、選択中のソースのソース内の集約の結果 `S = depth`（第5.3節）とする。比較の対象は、**選択していない全ソースの、全確認済み区域**（`matches[]` の各区域。ソース内の集約の結果ではなく個別の区域）とする。unknown・境界接触は比較の対象にしない（独立して保持する）。
+
+各対象区域 z を、第5.3節の比較の資格と規則で、次のどれかに分類する。
+
+| 区域の分類 | 条件 |
+|---|---|
+| `deeper` | z と S が比較可能で、z が S より深い |
+| `not_deeper` | z と S が比較可能で、z が S と同じ、または浅い |
+| `incomparable` | 比較の資格がない（体系・版の違い、ソース間の比較が未承認、区間の包含・長さを持つ重なり） |
+
+**判定の順序**（上から順に、最初に当たった値）:
+
+| 順 | 条件 | 値 | `basis`（理由） |
+|---|---|---|---|
+| 1 | 選択中のソースに確認済みの該当がない（`S` を作れない） | `null` | `selected_has_no_confirmed_match` |
+| 2 | 選択中のソースが `aggregation_undetermined`（`S = null`） | `null` | `selected_depth_unavailable` |
+| 3 | 他のソースが0件 | `false` | `no_other_sources` |
+| 4 | `deeper` の区域が1件以上 | `true` | `deeper_zone_found` |
+| 5 | `incomparable` の区域が1件以上 | `null` | `incomparable_zones_present`（ソース間の比較が未承認の場合は `cross_source_comparison_unapproved`） |
+| 6 | 他のソースに確認済み区域が0件 | `false` | `no_confirmed_match_in_other_sources` |
+| 7 | 全対象区域が `not_deeper` | `false` | `all_compared_none_deeper` |
+
+- **`false` の意味は「必要な比較の対象（他ソースの全確認済み区域）について、選択中より深い確認済みの区域がない」であり、「より深い浸水の可能性がない」ではない。** unknown・評価範囲不明は、`false` の場合も別に返す。
+- 判定できなかった場合（順1・2・5）は `null` とし、**`false` へ代替しない**。
+- 応答には値とあわせて `basis` と、`deeper`・`not_deeper`・`incomparable` の区域の件数を返す（API契約 第5.6節）。
+
+**必須ケースの判定**（選択中 S＝3.0〜5.0m未満、比較の資格はソース間の比較が承認済みの同一体系・同一版。ただし最後の行を除く）:
+
+| ケース | 他ソースの状況 | 値 | `basis` |
+|---|---|---|---|
+| 比較可能な深い区域＋比較不能な区域 | B: 5.0〜10.0m未満、C: 比較不能な体系 | `true` | `deeper_zone_found` |
+| 浅い区域＋比較不能な区域 | B: 0.5〜3.0m未満、C: 比較不能な体系 | `null` | `incomparable_zones_present` |
+| unknownのみのソース | B: unknownだけ | `false` | `no_confirmed_match_in_other_sources`（`has_unknown_in_other_sources = true`） |
+| 選択中のソースの `depth` が `null` | 選択中が `aggregation_undetermined` | `null` | `selected_depth_unavailable` |
+| 選択中のソースに確認済みの該当がない | 選択中が `unknown_only`・`no_match_extent_unknown` | `null` | `selected_has_no_confirmed_match` |
+| 集約不能のソースの内部に深い区域 | B: `aggregation_undetermined`、区域 5.0〜10.0m未満と比較不能な区域 | `true` | `deeper_zone_found` |
+| 他ソースが0件 | — | `false` | `no_other_sources` |
+| 他ソースに確認済みの該当がない | B: `no_match_extent_unknown` | `false` | `no_confirmed_match_in_other_sources` |
+| 同じ深さだけ | B: 3.0〜5.0m未満 | `false` | `all_compared_none_deeper` |
+| 体系の同一性・ソース間の比較が未承認 | B: 5.0〜10.0m未満 | `null` | `cross_source_comparison_unapproved` |
+
+**`depth_classes_present`（`overview`）**:
+
+- 選択中のソースがないので `deeper_in_other_sources` は返さない。代わりに、全ソースの全確認済み区域の区分を、区分の同一性のキー（`scheme_id`, `scheme_version`, `class_code`）で重複排除して列挙する。各要素は、キー・`label`・区間と、その区分を持つ `source_id` の一覧を持つ。
+- 並び順: 比較可能な区分どうしは深さの順（浅い順）、比較不能な区分を含む場合は区分の同一性のキーの昇順とし、`ordering` で `by_depth`／`by_key` を示す（任意の順で深さの順のように見せない）。
+- これは**ソース間の統合ではなく、事実の列挙**である。
 - 比較はソース間で区分の深さの順序を示すだけであり、異なる提供主体の想定の条件（河川・降雨・計算条件）は異なる。この比較を「総合的な危険度」として示さない。
 - 比較が意味を持つ前提は、各ソースの区分の体系が同じであることの確認（CQ-1・CQ-3）とその承認である。承認前は `null` を返す。
 
@@ -311,7 +448,24 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 - Source Display Settings（第8.1節）
 - unknownポリシー（Integration契約 第3.1節）
 
-これらの変更だけの場合は、同じ統合成果物を参照する新しい公開世代を作り、既存のPublishの原子的な切替えで有効にする。統合成果物は再生成しない。APIは1つの応答で1つの公開世代だけを使い、応答にその識別子と各設定の版・内容ハッシュを含める。キャッシュのキーには公開世代を含める。
+APIは1つの応答で1つの公開世代だけを使い、応答にその識別子と各設定の版・内容ハッシュを含める。キャッシュのキーには公開世代を含める。
+
+### 8.3 変更の区分と統合成果物の再利用［B11-01で改訂］
+
+**表示だけの変更と、統合成果物の意味を変える変更を分ける。** 旧版の「これらの変更だけなら統合成果物を再生成しない」は、unknownポリシーを含んでいたため、Integration契約（第3.1節・第11.2節「unknownポリシーの改版」）と矛盾していた。本節で置き換える。
+
+| 変更 | 統合成果物（DB） | 必要な手順 | 再利用の条件 |
+|---|---|---|---|
+| **表示順・グルーピングだけ**（Source Display Settings） | **再利用する**（DBのファイルのSHA-256は不変） | 新しい表示設定の検証・承認 → 新しい公開世代 → Publication Readinessの再作成 → Publish | 目録・区分の割当・unknownポリシー・統合成果物・Integration Record・Integrated Validate Recordが旧世代と同じ（内容ハッシュ・`record_sha256` が一致） |
+| **unknownポリシーの改版**（内容・版の変更） | **再生成する** | Integration契約に従い、新しいManifest → Integration → Integrated Validate → Publication Readiness → Publish。旧版の承認を新版へ適用しない | 再利用しない |
+| **Source Category Assignment Recordの変更**（区分・根拠・公表元の名称） | 再利用してよい | 新しい割当記録の承認 → Source Catalog Validate（CV-7） → 新しい公開世代 → Readiness → Publish | 公開対象集合（DB）は変わらない。CV-1〜CV-9が新しい割当記録で成立する。`source_id` の意味（所属集合）を変えない |
+| **Source Catalogの変更で、所属集合が変わらないもの**（名称・`title`・出典の文言・`lineage_ref` 等の表示項目） | 再利用してよい | 新しい目録 → Source Catalog Validate → 新しい公開世代 → Readiness → Publish | CV-1〜CV-9が成立し、各ソースの `membership_digest` が旧世代と同じ |
+| **Source Catalogの変更で、所属集合が変わるもの**（成果品の別のソースへの移動・ソースの分割・統合） | 再利用してよい（DBの内容は変わらないため） | 新しい目録 → Source Catalog Validate → 新しい公開世代 → Readiness → Publish。`source_id` の継続性の規則（SS-U4）に従う | CV-1〜CV-9が成立する。**所属が変わったソースには、旧世代と同じ `source_id` を再利用しない**（同じIDの意味が世代で変わらないようにする）。安全上の情報の意味が変わるため（第3.1節）、変更の内容をOWNERの承認の対象に含める |
+| **公開対象集合が変わる変更**（成果品の追加・削除・除外、原典の更新、地域定義・N03の変更、ソースの追加・削除） | **再生成する** | 新しいManifestから再統合（Integration契約 第11.2節） | 再利用しない |
+
+- **異なるunknownポリシーのDBと公開設定を結び付けない。** 公開世代の `settings.unknown_region`（ID・版・内容ハッシュ）は、統合成果物の `metadata` のunknownポリシー（Integration契約 第6.2節）・Integrated Validate Record・Publication Readiness Recordの値と一致しなければならない。Publication Readinessの作成時・Publish直前・APIの起動時・公開世代の切替時に照合し、不一致なら公開・起動・切替をしない。
+- 統合成果物を再利用する場合も、**Publication Readiness Recordは新しい公開世代ごとに新規に作る**（Integration契約 第7.3節の照合を時点ごとに行うため）。Integration Record・Integrated Validate Recordは変更しない。
+- 表示順だけの変更でも、Normalize・Integrationは再実行しない。
 
 既存のData Publish・Registryには、公開世代にこれらを含める項目がない。追加の契約が必要な論点として記録する（第11章 SS-C1）。
 
@@ -365,13 +519,15 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 |---|---|---|
 | SS-C1 | Data Publish・Dataset Registry・Integration契約 第9.3節 | 公開世代にSource Catalog・区分の割当記録・表示設定・unknownポリシーを含める項目がない |
 | SS-C2 | データソース定義 §2（3種類の情報の正本） | 区分の割当（確認済みの事実＋承認）とSource Catalogは、Source Definition（予定）にも公開Registryにも入らない。新設が必要 |
-| SS-C3 | Integration契約 第7.3節（Publication Readiness） | 阻害理由に、`unclassified` のソース・Source Catalogの不整合がない |
+| SS-C3 | Integration契約 第7.3節（Publication Readiness） | 阻害理由に、`unclassified` のソース、Source Catalog Validate（第3.4節 CV-1〜CV-9）の不成立、空の目録（第3.5節）がない |
 | SS-C4 | 共通API契約 §6、Dataset Registry §6 | 「複数データセットの優先順位・集約・競合時の扱いは未決定。先着順・最大値・最新という理由だけの選択を独断で導入しない」。本書は**システムによる優先順位・自動選択を導入しない**ため、この規定と整合する。ソース内の最大区分の集約（第5.3節）は、1つのソースの中の規則であり、OWNERの承認まで提案である |
 | SS-C5 | 共通API契約 §2「利用者に都道府県やデータセットの選択を要求しない」 | 本書は選択を**要求しない**（`overview` が既定で、選択は任意）。ただし、データソースの任意の選択という入力が共通契約にないため、追加の論点とする |
 | SS-C6 | 共通API契約 §3 `dataset` の複数件の形は未決定 | 1応答に複数ソースの根拠を含める形（`sources[]` と `dataset` の関係） |
 | SS-C7 | 本番実行認可 | 設定の承認記録のSchemaがない（Integration契約 OI-27と同じ） |
 | SS-C8 | Integration契約 第10章「有効な区域で該当しても、判定保留の区域のランクが分からないことを示す」 | unknownの区域の原典のランクを、可能性として返すか（API契約 FA-U5） |
 | SS-C9 | Integration契約 第4.1節 選別 | 選別は全ソースの全Featureに同じ規則を適用しており、ソースの選択の影響を受けない（整合）。ソースの選択は公開世代の統合成果物を変えない |
+| SS-C10 | Integration契約 第7.3節・第11.2節 | Source Catalog Validate Record（第3.4節）をPublication Readinessの照合対象にする項目がない。公開世代の `settings.unknown_region` と統合成果物の `metadata` のunknownポリシーの一致の照合（第8.3節）も、Readinessの照合項目として追加が必要 |
+| SS-C11 | 共通API契約 §3.1 | 応答の上限を超えた場合のエラーの `status`（API契約 第5.4節で `retrieval_failed` を提案）。共通契約の分類の意味（取得できない）に当てはめた提案であり、未承認 |
 
 ## 12. テストケース（設計のみ。いずれも実行していない）
 
@@ -394,6 +550,31 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 | SS-15 | 地点が地域の外縁上 | ソースを列挙し、`service_region_relation = boundary` と不完全でありうることを示す |
 | SS-16 | 同じ公開世代・同じ地点・同じ選択で繰り返し | 結果・並び順が同一 |
 
+**Phase 2-B.12の回帰テスト（B11-01〜B11-07）**。いずれも設計上の受入条件で、テストコードは作成・実行していない。
+
+| ID | 入力・条件 | 期待 | 指摘 |
+|---|---|---|---|
+| SS-17 | unknownポリシーv1で生成したDBに、v2のunknownポリシーを設定した公開世代を結び付ける | Readiness・Publish直前・API起動時の照合で拒否（第8.3節） | B11-01 |
+| SS-18 | 表示順だけを変更した新しい公開世代 | 同じDBを再利用し、DBのファイルのSHA-256が不変。Readiness Recordは新規作成。判定・安全上の情報は同一 | B11-01 |
+| SS-19 | 目録から成果品を1つ欠落させる | CV-1で拒否 | B11-02 |
+| SS-20 | 所属の件数を保ったまま、Featureキーを別のFeatureへ差し替える | CV-5で拒否（件数の一致だけで合格しない） | B11-02 |
+| SS-21 | unknownだけを持つFeatureの成果品の所属を欠落させる | CV-3・CV-4で拒否 | B11-02 |
+| SS-22 | 同じ成果品（同じFeature）を異なる `source_id` に二重登録する | CV-2で拒否 | B11-02 |
+| SS-23 | 1つの `source_id` に想定最大規模と計画規模の成果品が混在 | CV-6で拒否 | B11-02 |
+| SS-24 | 選択中3.0〜5.0m、他ソースに5.0〜10.0m＋比較不能な区域 | `true`（`deeper_zone_found`） | B11-03 |
+| SS-25 | 選択中3.0〜5.0m、他ソースに0.5〜3.0m＋比較不能な区域 | `null`（`incomparable_zones_present`）。`false` にしない | B11-03 |
+| SS-26 | 他ソースがunknownだけ | `false`（`no_confirmed_match_in_other_sources`）。`has_unknown_in_other_sources = true` | B11-03 |
+| SS-27 | 選択中の `depth = null`（集約不能）、または選択中に確認済みの該当なし | `null`（`selected_depth_unavailable`・`selected_has_no_confirmed_match`） | B11-03 |
+| SS-28 | 他ソースが0件 | `false`（`no_other_sources`）。`other_sources_count = 0` | B11-03 |
+| SS-29 | 他ソースが集約不能で、その内部に選択中より深い個別区域がある | `true`（`deeper_zone_found`） | B11-03 |
+| SS-30 | 1つのソースで集約不能＋unknown＋境界接触が同時に成立 | `assessment_status = aggregation_undetermined`（導出順2）。`has_unknown`・`has_boundary_contact` が真、`uncertainty_reasons` に全理由 | B11-04 |
+| SS-31 | ソースAは評価に成功、ソースBは読込みに失敗 | 応答全体が `retrieval_failed`・`result = null`。Aだけの成功応答・Bの `not_evaluated` にしない | B11-04 |
+| SS-32 | 空の目録の公開候補、および非空の目録で全ソース該当0件 | 空の目録はCV-8・Readinessで阻害（万一読んだ場合は `indeterminate`）。非空の該当0件は `success`・`no_match_extent_unknown` | B11-05 |
+| SS-33 | 同じ `scheme_id`・`class_code` で `scheme_version` が異なる2区域 | 別の区分として返し、重複排除でまとめない。版の同等性が未承認なら比較不能 | B11-06 |
+| SS-34 | 応答の上限の直後に、最も深い区域がある | 部分結果を返さず、明示的なエラー（API契約 第5.4節）。上限内の場合は全件を返す | B11-07 |
+| SS-35 | 応答の上限の直後にunknownがある、または同じ深さの寄与区域が上限の外にある | SS-34と同じ。`contributing_zones` の参照先が欠けた成功応答を返さない | B11-07 |
+| SS-36 | `source_id` を変更（なし・A・B）しても、他ソースの判定の項目が変わらない | 全ソースの事実・`assessment_status`・`depth`・区域の一覧が同一 | 独立性 |
+
 ## 13. 未決定事項とOWNER判断事項
 
 | No | 事項 | 本書の提案 |
@@ -409,5 +590,10 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 | SS-U9 | 将来のモード（`multiple_sources`・`compare`）の採否と、ソース間の比較の規則 | 保留 |
 | SS-U10 | 公開世代に目録・設定を含める追加契約（SS-C1）、目録・割当記録の保存先（SS-C2） | Publish・Registryの追加契約として別途設計 |
 | SS-U11 | 境界接触を確認済みの該当にしないこと | 提案どおり |
+| SS-U12 | 同一Featureの複数 `source_id` への所属（別名・別視点） | 初期MVPでは禁止（CV-2）。将来の拡張として、別名関係と件数・比較への扱いを定める |
+| SS-U13 | 意図的な除外の承認 | Integration Manifestの除外に、理由とOWNERの承認記録を結び付ける（第3.4節） |
+| SS-U14 | 所属集合が変わる目録の変更の承認と `source_id` の継続性 | 所属が変わったソースに旧IDを再利用しない。承認の対象に含める（第8.3節） |
+| SS-U15 | ソース間の比較の承認（`deeper_in_other_sources` の資格）と、版の同等性の承認 | CQ-1・CQ-3の確認後にOWNERが承認。未承認の間は `null` |
+| SS-U16 | 意図的な空の公開世代 | 初期MVPでは認めない（第3.5節） |
 
 本書の採用は、製品実装・設定の承認・実データの処理・公開の承認ではない。
