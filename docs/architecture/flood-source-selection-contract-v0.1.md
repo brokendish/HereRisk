@@ -6,6 +6,9 @@
 - 改訂: 2026-10-25 Phase 2-B.12 — Codex独立契約監査（Phase 2-B.11、FAIL: HIGH 3 / MEDIUM 4）の指摘 B11-01〜B11-07 への契約訂正。基準コミット `c3ace814c59e62d99c08a9983c4ba021ab570642`。対応の全体は [監査対応表](../../reviews/phase2/phase2b12-source-selection-audit-remediation.md)
   - 所属の完全性と空の目録（第3.4節・第3.5節）［B11-02・B11-05］、ソースの事実と状態の導出順序・全体の状態の決定表（第5.2節）［B11-04］、区分の同一性のキー（第5.3節）［B11-06］、`deeper_in_other_sources` の三値判定（第7章）［B11-03］、変更の区分と統合成果物の再利用（第8.3節）［B11-01］、全件の計算（第5.1節）［B11-07］、回帰テスト SS-17〜SS-36
   - **本改訂は文書上の訂正であり、Codex監査のPASS・実装の開始・公開を意味しない**
+- 改訂: 2026-10-25 Phase 2-B.14 — Codex独立再監査（Phase 2-B.13、FAIL: HIGH 1 / MEDIUM 3）の指摘 B13-01〜B13-04 への訂正。基準コミット `7ef60043ce4638ad2417dcb17b723ce4411c43bc`。対応の全体は [再監査対応表](../../reviews/phase2/phase2b14-codex-reaudit-remediation.md)
+  - 状態の導出の正本を第5.2節に一本化（第3.5節・SS-03・SS-32）［B13-01］、ソース間の比較の承認の適用範囲と判定の順序（第7章）［B13-02］、版をまたぐ比較・集約をMVPの対象外に（第5.3節）［B13-03］、比較を実施しない場合の件数（第7章）［B13-04］、回帰テスト SS-37〜SS-51
+  - **本改訂も文書上の訂正であり、Codex監査のPASS・実装の開始・公開を意味しない**
 - 基準コミット: `fdf4f2df7d7a29f18519183ff8d2b931e6f4adc5`
 - 置き換える設計案: [Flood Source Priority & Risk Aggregation Contract v0.1（案）](flood-source-priority-contract-v0.1.md)（Phase 2-B.9）。旧案は履歴資料として残す。**「置き換え」は設計案の変更履歴であり、どちらの案もOWNERに正式採用されていない**
 - 前提: [Flood Normalize Contract v0.1（案）](flood-normalize-contract-v0.1.md)、[Flood Integration Contract v0.1（案）](flood-integration-contract-v0.1.md)、[Phase 2-B.8 監査対応表](../../reviews/phase2/phase2b8-codex-audit-remediation.md)
@@ -142,16 +145,28 @@ APIの入出力は [Flood API MVP Contract](../api/flood-api-mvp-contract-v0.1.m
 
 ### 3.5 空の目録［提案。B11-05］
 
-初期MVPでは、**公開対象のFloodのSource Catalogが空の場合、公開を阻害する**（CV-8の不成立。Publication ReadinessをBLOCKEDとする方式を第一候補とする）。空の目録を「浸水想定なし」と解釈しない。次の4つを区別する。
+初期MVPでは、**公開対象のFloodのSource Catalogが空の場合、公開を阻害する**（CV-8の不成立。Publication ReadinessをBLOCKEDとする方式を第一候補とする）。空の目録を「浸水想定なし」と解釈しない。次の4つを区別する。**ソース・全体の状態名はここでは決めない。状態の導出の正本は第5.2節である**（B13-01）。
 
 | No | 状況 | 扱い |
 |---|---|---|
 | 1 | Floodが未公開（公開Registryにfloodのデータセットがない） | API: `no_data`（`flood_not_published`） |
 | 2 | 公開候補の目録が空 | 公開しない（CV-8・Readinessで阻害）。万一、空の目録の公開世代を読んだ場合、APIは `indeterminate`（`flood_integrity_error`）とし、正常な「該当なし」を返さない |
-| 3 | 目録にソースがあるが、地点で確認済みの該当がない | API: `success`。各ソースの `assessment_status` と `overall_status` は `no_match_extent_unknown`（浸水なしではない） |
+| 3 | 目録にソースがあり、地点がサービス対象地域の内部または外縁上にある（確認済みの該当の有無を問わない） | API: `success`。各ソースの `assessment_status` と `overall_status` は、**第5.2節の導出順序と決定表で決める**（下表）。いずれの場合も浸水なしではない |
 | 4 | 地点がサービス対象地域の外 | API: `no_data`（`outside_service_region`） |
 
 意図的に空の公開世代（例: 公開停止の代わりの空世代）を将来認める場合は、別の契約とOWNERの承認を必要とする。
+
+**確認済みの該当が0件の場合の状態**（第5.2節の導出の結果。全ソースが同じ状況の場合）:
+
+| 条件 | ソースの `assessment_status` | `overall_status` |
+|---|---|---|
+| 該当0件＋L1 unknownあり | `unknown_only`（順5） | `unknown_only` |
+| 該当0件＋境界接触あり | `unknown_only`（順5） | `unknown_only` |
+| 地域の外縁上＋該当0件 | `unknown_only`（順5） | `unknown_only` |
+| 地域の内部で、該当・unknown・境界接触がすべて0件 | `no_match_extent_unknown`（順6） | `no_match_extent_unknown` |
+| 空の目録 | （ソースなし） | 状態を作らない。`indeterminate`・`flood_integrity_error`（そもそも公開しない） |
+
+ソースごとに状況が異なる場合は、ソースごとに第5.2節の導出順序を適用し、`overall_status` は第5.2節の決定表で決める。`assessment_status`（ソースごと）と `overall_status`（全体の要約）を混同しない。
 
 ## 4. Source Discovery Contract［提案］
 
@@ -210,6 +225,8 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 - 異なるソース間の浸水深の統合は、Point Assessmentの責務に含めない（SS-7）。
 
 ### 5.2 ソースごとの事実と `assessment_status`［B11-04で改訂］
+
+**本節は、ソースの `assessment_status` と `overall_status` の導出の唯一の正本である**（B13-01）。他の節・API契約・テストの状態名は、本節の導出の結果として書く。
 
 **事実を独立して保持する。** 状態名は、事実から決まった順序で導く1つの要約であり、事実を置き換えない。
 
@@ -277,18 +294,25 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 
 | 関係 | 条件 | 扱い |
 |---|---|---|
-| 同じ | 同じ体系・同じ版・同じコード | 同じ深さ。寄与した区域をすべて列挙する |
-| Aの方が深い | 同じ体系・同じ版で、`A.lower_m >= B.upper_m`（`B.upper_m` が `null` でない） | Aを採る。端点だけを共有する場合（`A.lower_m = B.upper_m`）も、重なりは高々1点なので深い側をAとしてよい |
-| 包含・長さを持つ重なり | 一方の区間が他方を含む、または長さを持って重なる | **比較不能**（`aggregation_undetermined`） |
-| 異なる体系・版 | 体系の同一性が承認されていない | **比較不能** |
+| 同じ | 比較の資格があり（下記）、同じ `class_code` | 同じ深さ。寄与した区域をすべて列挙する |
+| Aの方が深い | 比較の資格があり、`A.lower_m >= B.upper_m`（`B.upper_m` が `null` でない） | Aを採る。端点だけを共有する場合（`A.lower_m = B.upper_m`）も、重なりは高々1点なので深い側をAとしてよい |
+| 包含・長さを持つ重なり | 比較の資格があるが、一方の区間が他方を含む、または長さを持って重なる | **比較不能**（`aggregation_undetermined`） |
+| 異なる体系・異なる版・異なる比較規則 | 比較の資格がない | **比較不能**（閾値が同じに見えても比較しない） |
 
 - 比較不能の場合は任意の値を選ばない。`depth = null`・`aggregation_undetermined` とし、該当の全件を返す。
 
 **区分の同一性のキーと比較の資格（B11-06）**:
 
 - **区分の同一性のキー**は（`scheme_id`, `scheme_version`, `class_code`）の3つ組とする。ソース内の集約の結果、`matches[]` の各区域、`overview` の `depth_classes_present`、安全上の比較（第7章）で、同じキーを使う。
-- **同じ `scheme_id`・同じ `class_code` でも、`scheme_version` が異なれば別の区分とする。** 重複排除でまとめず、比較不能として扱う。ただし、2つの版の区間定義が同じであることが確認・承認された場合（版の同等性の承認。CQ-1）は、比較可能としてよい。その場合も、キーは版ごとに別のまま返す（版の情報を失わない）。
-- **比較の資格**: 2つの区分が比較可能なのは、(1) 同じ `scheme_id`・同じ `scheme_version`（または承認された同等の版）で、(2) その体系がソース間の比較について承認されている（CQ-1・CQ-3。安全上の比較の場合）ときだけである。ソース内の集約は、(1) だけを要件とする（同じソースの中の区分の順序）。
+- **同じ `scheme_id`・同じ `class_code` でも、`scheme_version` が異なれば別の区分とする。** 重複排除でまとめず、比較不能として扱う。
+- **比較の資格（MVP。B13-03で改訂）**: 2つの区分が比較可能なのは、次の3つがすべて一致するときだけである。`class_code` は個々の区分を識別する項目であり、異なる深さの区分を比較するために同じ値である必要はない。
+  1. `scheme_id`
+  2. `scheme_version`
+  3. 区分体系の比較規則（`comparison_rule_id`。体系・版ごとにSource Catalogの `classification_scheme` に登録された、区間の順序づけの規則。内部の項目で、公開しない）
+- ソース間の安全上の比較（第7章）は、上の3つの一致に加えて、**ソース間の比較の承認**（CQ-1・CQ-3の確認後のOWNERの承認）を要件とする。ソース内の集約は、上の3つの一致だけを要件とする（同じソースの中の区分の順序）。
+- **MVPでは、浸水深区分の版をまたいだ比較・集約を行わない。** 異なる版の区分は、閾値が同じに見えても比較不能とする。版の同等性を承認して比較する仕組みは、将来の拡張事項としMVPの対象外とする（SS-U17）。
+- 異なる版の区分も、原典の情報と区分（キー・`label`・区間）をそれぞれ保持してAPIへ返す。
+- **集約の結果の識別子**: ソース内の集約の結果は、集約に使った区域と同じ（`scheme_id`, `scheme_version`, `class_code`）を持つ。MVPでは比較の資格が3つの一致を要件とするため、集約できる区域は常に同じ体系・同じ版であり、代表の識別子を選ぶ余地はない。**任意の版を選んで代表 `depth` の識別子に採用しない。** 同じソースに異なる版の区域が該当した場合は、集約不能（`aggregation = undetermined`、`depth = null`）とする。
 - APIの各 `depth` は、`scheme_id`・`scheme_version`・`class_code` を必ず持つ（API契約 第5.5節）。
 - 集約の結果の `depth` は、そのソースの「主表示の浸水深」であり、地点の唯一の正しい浸水深ではない（第7章）。
 
@@ -381,7 +405,7 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 |---|---|
 | `deeper` | z と S が比較可能で、z が S より深い |
 | `not_deeper` | z と S が比較可能で、z が S と同じ、または浅い |
-| `incomparable` | 比較の資格がない（体系・版の違い、ソース間の比較が未承認、区間の包含・長さを持つ重なり） |
+| `incomparable` | 比較の資格がない（体系・版・比較規則の違い、ソース間の比較が未承認）、または区間の包含・長さを持つ重なり。**`incomparable` の区域について、深さの数値の比較は行わない** |
 
 **判定の順序**（上から順に、最初に当たった値）:
 
@@ -390,37 +414,54 @@ MVPでは「現在地に関係するソース」を厳密に特定できない�
 | 1 | 選択中のソースに確認済みの該当がない（`S` を作れない） | `null` | `selected_has_no_confirmed_match` |
 | 2 | 選択中のソースが `aggregation_undetermined`（`S = null`） | `null` | `selected_depth_unavailable` |
 | 3 | 他のソースが0件 | `false` | `no_other_sources` |
-| 4 | `deeper` の区域が1件以上 | `true` | `deeper_zone_found` |
-| 5 | `incomparable` の区域が1件以上 | `null` | `incomparable_zones_present`（ソース間の比較が未承認の場合は `cross_source_comparison_unapproved`） |
-| 6 | 他のソースに確認済み区域が0件 | `false` | `no_confirmed_match_in_other_sources` |
+| 4 | 他のソースに確認済み区域が0件（unknown・境界接触だけ、または何もない） | `false` | `no_confirmed_match_in_other_sources` |
+| 5 | `deeper` の区域が1件以上 | `true` | `deeper_zone_found` |
+| 6 | `deeper` の区域がなく、`incomparable` の区域が1件以上 | `null` | ソース間の比較が未承認なら `cross_source_comparison_unapproved`、承認済みなら `incomparable_zones_present` |
 | 7 | 全対象区域が `not_deeper` | `false` | `all_compared_none_deeper` |
 
-- **`false` の意味は「必要な比較の対象（他ソースの全確認済み区域）について、選択中より深い確認済みの区域がない」であり、「より深い浸水の可能性がない」ではない。** unknown・評価範囲不明は、`false` の場合も別に返す。
-- 判定できなかった場合（順1・2・5）は `null` とし、**`false` へ代替しない**。
-- 応答には値とあわせて `basis` と、`deeper`・`not_deeper`・`incomparable` の区域の件数を返す（API契約 第5.6節）。
+- **比較の承認の適用範囲（B13-02）**: ソース間の比較の承認が必要なのは、実際に異なるソースの浸水深区分を比較する場合（順5〜7）だけである。**比較の対象がない場合（順1〜4）は、承認の有無によって結果を変えない。** 一方、他のソースに確認済み区域があり、ソース間の比較が未承認なら、その全区域を `incomparable` とし、深さを比較しない（順6で `null`）。旧版（Phase 2-B.12）の「承認前は全ケース `null`」は、この規則に置き換えた。
+- 順4と順5〜7の対象の集合は、他のソースの `matches[]` の全区域（確認済み区域）と一致する。順4の「0件」はこの集合が空であることを意味する。
+- 順6の `basis` は、ソース間の比較が未承認なら常に `cross_source_comparison_unapproved`（未承認では全区域が `incomparable` になるため）、承認済みなら `incomparable_zones_present` とする。
+- **`false` の意味は「確認済み区域について、選択中より深い結果を確認していない」であり、「より深い浸水の可能性がない」ではない。** unknown・評価範囲不明は、`false` の場合も別のフィールド（`has_unknown_in_other_sources`・各ソースの `uncertainty_reasons` 等）で返す。
+- 判定できなかった場合（順1・2・6）は `null` とし、**`false` へ代替しない**。
 
-**必須ケースの判定**（選択中 S＝3.0〜5.0m未満、比較の資格はソース間の比較が承認済みの同一体系・同一版。ただし最後の行を除く）:
+**比較の件数（`deeper_comparison` の `deeper_zones`・`not_deeper_zones`・`incomparable_zones`。B13-04）**:
 
-| ケース | 他ソースの状況 | 値 | `basis` |
-|---|---|---|---|
-| 比較可能な深い区域＋比較不能な区域 | B: 5.0〜10.0m未満、C: 比較不能な体系 | `true` | `deeper_zone_found` |
-| 浅い区域＋比較不能な区域 | B: 0.5〜3.0m未満、C: 比較不能な体系 | `null` | `incomparable_zones_present` |
-| unknownのみのソース | B: unknownだけ | `false` | `no_confirmed_match_in_other_sources`（`has_unknown_in_other_sources = true`） |
-| 選択中のソースの `depth` が `null` | 選択中が `aggregation_undetermined` | `null` | `selected_depth_unavailable` |
-| 選択中のソースに確認済みの該当がない | 選択中が `unknown_only`・`no_match_extent_unknown` | `null` | `selected_has_no_confirmed_match` |
-| 集約不能のソースの内部に深い区域 | B: `aggregation_undetermined`、区域 5.0〜10.0m未満と比較不能な区域 | `true` | `deeper_zone_found` |
-| 他ソースが0件 | — | `false` | `no_other_sources` |
-| 他ソースに確認済みの該当がない | B: `no_match_extent_unknown` | `false` | `no_confirmed_match_in_other_sources` |
-| 同じ深さだけ | B: 3.0〜5.0m未満 | `false` | `all_compared_none_deeper` |
-| 体系の同一性・ソース間の比較が未承認 | B: 5.0〜10.0m未満 | `null` | `cross_source_comparison_unapproved` |
+| 順 | 比較の実施 | 3つの件数 |
+|---|---|---|
+| 1・2 | **比較を実施していない**（比較の基準 `S` がない） | すべて `null`。他ソースの件数（0件を含む）にかかわらず、選択側の理由（`basis`）を優先する |
+| 3・4 | 比較を実施した（対象が空） | すべて `0` |
+| 5・6・7 | 比較を実施した | 各分類の区域の件数（0以上の整数）。3つの和は、他のソースの確認済み区域の総数に等しい |
+
+- `null` は「比較を実施していない」、`0` は「比較を実施し、その分類の区域が0件」を意味し、区別する。
+- `basis` と件数は常に対応する: `basis` が `selected_has_no_confirmed_match`・`selected_depth_unavailable` なら件数はすべて `null`、それ以外なら件数はすべて整数。
+- 応答には値とあわせて `basis` と3つの件数を返す（API契約 第5.6節）。
+
+**必須ケースの判定**（特に断らない限り、選択中 S＝3.0〜5.0m未満、ソース間の比較は承認済み、比較の対象の区域は S と同じ体系・同じ版・同じ比較規則。「比較不能な体系」は S と体系・版・比較規則のいずれかが異なる区域）:
+
+| ケース | 他ソースの状況 | 値 | `basis` | 件数（deeper / not_deeper / incomparable） |
+|---|---|---|---|---|
+| 比較可能な深い区域＋比較不能な区域 | B: 5.0〜10.0m未満、C: 比較不能な体系の1区域 | `true` | `deeper_zone_found` | 1 / 0 / 1 |
+| 浅い区域＋比較不能な区域 | B: 0.5〜3.0m未満、C: 比較不能な体系の1区域 | `null` | `incomparable_zones_present` | 0 / 1 / 1 |
+| unknownのみのソース | B: unknownだけ | `false` | `no_confirmed_match_in_other_sources`（`has_unknown_in_other_sources = true`） | 0 / 0 / 0 |
+| 選択中のソースの `depth` が `null` | 選択中が `aggregation_undetermined` | `null` | `selected_depth_unavailable` | null / null / null |
+| 選択中のソースに確認済みの該当がない | 選択中が `unknown_only`・`no_match_extent_unknown` | `null` | `selected_has_no_confirmed_match` | null / null / null |
+| 集約不能のソースの内部に深い区域 | B: `aggregation_undetermined`、区域 5.0〜10.0m未満と比較不能な体系の区域 | `true` | `deeper_zone_found` | 1 / 0 / 1 |
+| 他ソースが0件 | — | `false` | `no_other_sources` | 0 / 0 / 0 |
+| 他ソースに確認済みの該当がない | B: `no_match_extent_unknown` | `false` | `no_confirmed_match_in_other_sources` | 0 / 0 / 0 |
+| 同じ深さだけ | B: 3.0〜5.0m未満 | `false` | `all_compared_none_deeper` | 0 / 1 / 0 |
+| ソース間の比較が未承認、他ソースに確認済み区域あり | B: 5.0〜10.0m未満 | `null` | `cross_source_comparison_unapproved` | 0 / 0 / 1 |
+| ソース間の比較が未承認、他ソース0件 | — | `false` | `no_other_sources` | 0 / 0 / 0 |
+| ソース間の比較が未承認、他ソースunknownのみ | B: unknownだけ | `false` | `no_confirmed_match_in_other_sources` | 0 / 0 / 0 |
+| 他ソース0件、選択中 `depth = null` | 選択中が `aggregation_undetermined` | `null` | `selected_depth_unavailable` | null / null / null |
 
 **`depth_classes_present`（`overview`）**:
 
 - 選択中のソースがないので `deeper_in_other_sources` は返さない。代わりに、全ソースの全確認済み区域の区分を、区分の同一性のキー（`scheme_id`, `scheme_version`, `class_code`）で重複排除して列挙する。各要素は、キー・`label`・区間と、その区分を持つ `source_id` の一覧を持つ。
-- 並び順: 比較可能な区分どうしは深さの順（浅い順）、比較不能な区分を含む場合は区分の同一性のキーの昇順とし、`ordering` で `by_depth`／`by_key` を示す（任意の順で深さの順のように見せない）。
+- 並び順: 列挙した全区分が互いに比較可能（同じ体系・同じ版・同じ比較規則で、異なるソースの区分を含む場合はソース間の比較が承認済み）なら深さの順（浅い順。`ordering = by_depth`）、そうでなければ区分の同一性のキーの昇順（`ordering = by_key`）とする。任意の順で深さの順のように見せない。
 - これは**ソース間の統合ではなく、事実の列挙**である。
 - 比較はソース間で区分の深さの順序を示すだけであり、異なる提供主体の想定の条件（河川・降雨・計算条件）は異なる。この比較を「総合的な危険度」として示さない。
-- 比較が意味を持つ前提は、各ソースの区分の体系が同じであることの確認（CQ-1・CQ-3）とその承認である。承認前は `null` を返す。
+- ソース間の比較が意味を持つ前提は、各ソースの区分の体系が同じであることの確認（CQ-1・CQ-3）とその承認である。承認前は、比較の対象の区域がある場合に `null`（`cross_source_comparison_unapproved`）を返す。比較の対象がない場合は承認の有無にかかわらず判定の順序（順1〜4）のとおり。
 
 ## 8. 表示順の設定と公開世代［提案］
 
@@ -535,7 +576,7 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 |---|---|---|
 | SS-01 | **ケースA**: 東京都ランク1（0～0.5m未満）、関東地方整備局ランク4（5.0～10.0m未満）。利用者が東京都を選択 | 東京都の浸水深を主表示。関東地方整備局の該当を `sources[]` に保持。`deeper_in_other_sources = true` |
 | SS-02 | **ケースB**: 東京都がunknownだけ、関東地方整備局がランク3（3.0～5.0m未満）。利用者が関東地方整備局を選択 | 関東地方整備局の確認済みの結果（`determined_match`）を主表示。東京都のunknownを保持し、`has_unknown_in_other_sources = true`。応答全体の状態（`overall_status`。API契約）は `partial_unknown`（確定したように表示しない） |
-| SS-03 | **ケースC**: どのソースにも確認済みの該当がない（地域の内部） | 浸水深0m・浸水なし・安全と返さない。各ソースは `no_match_extent_unknown`・`assessed_extent_relation = unknown`。評価範囲不明を説明する |
+| SS-03 | **ケースC**: どのソースにも確認済みの該当・unknown・境界接触がない（地域の内部） | 浸水深0m・浸水なし・安全と返さない。各ソースは `no_match_extent_unknown`・`assessed_extent_relation = unknown`。評価範囲不明を説明する（unknown・境界接触・外縁上がある場合はSS-37〜SS-39。Phase 2-B.14で前提を明記） |
 | SS-04 | `overview`（未選択）で、ケースAの地点 | 主表示のソースはない（`selected_source = null`）。全ソースの結果を並べ、`depth_classes_present` に2つの区分。特定ソースを暗黙に代表にしない |
 | SS-05 | 同じソースの2つの区域（ランク2とランク3）が地点に該当 | ソースの `depth` はランク3。両方の区域を保持 |
 | SS-06 | 同じソース内で比較不能な体系の区域（合成データ） | そのソースは `aggregation_undetermined`・`depth = null`。全区域を保持 |
@@ -564,16 +605,38 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 | SS-24 | 選択中3.0〜5.0m、他ソースに5.0〜10.0m＋比較不能な区域 | `true`（`deeper_zone_found`） | B11-03 |
 | SS-25 | 選択中3.0〜5.0m、他ソースに0.5〜3.0m＋比較不能な区域 | `null`（`incomparable_zones_present`）。`false` にしない | B11-03 |
 | SS-26 | 他ソースがunknownだけ | `false`（`no_confirmed_match_in_other_sources`）。`has_unknown_in_other_sources = true` | B11-03 |
-| SS-27 | 選択中の `depth = null`（集約不能）、または選択中に確認済みの該当なし | `null`（`selected_depth_unavailable`・`selected_has_no_confirmed_match`） | B11-03 |
-| SS-28 | 他ソースが0件 | `false`（`no_other_sources`）。`other_sources_count = 0` | B11-03 |
+| SS-27 | 選択中の `depth = null`（集約不能）、または選択中に確認済みの該当なし | `null`（`selected_depth_unavailable`・`selected_has_no_confirmed_match`）。件数はすべて `null`（比較を実施していない。Phase 2-B.14で追記） | B11-03・B13-04 |
+| SS-28 | 他ソースが0件（選択中に `depth` がある場合） | `false`（`no_other_sources`）。`other_sources_count = 0`。件数はすべて `0`。選択中の `depth = null` の場合はSS-51（Phase 2-B.14で前提を明記） | B11-03・B13-04 |
 | SS-29 | 他ソースが集約不能で、その内部に選択中より深い個別区域がある | `true`（`deeper_zone_found`） | B11-03 |
 | SS-30 | 1つのソースで集約不能＋unknown＋境界接触が同時に成立 | `assessment_status = aggregation_undetermined`（導出順2）。`has_unknown`・`has_boundary_contact` が真、`uncertainty_reasons` に全理由 | B11-04 |
 | SS-31 | ソースAは評価に成功、ソースBは読込みに失敗 | 応答全体が `retrieval_failed`・`result = null`。Aだけの成功応答・Bの `not_evaluated` にしない | B11-04 |
-| SS-32 | 空の目録の公開候補、および非空の目録で全ソース該当0件 | 空の目録はCV-8・Readinessで阻害（万一読んだ場合は `indeterminate`）。非空の該当0件は `success`・`no_match_extent_unknown` | B11-05 |
-| SS-33 | 同じ `scheme_id`・`class_code` で `scheme_version` が異なる2区域 | 別の区分として返し、重複排除でまとめない。版の同等性が未承認なら比較不能 | B11-06 |
+| SS-32 | 空の目録の公開候補、および非空の目録で全ソース該当0件 | 空の目録はCV-8・Readinessで阻害（万一読んだ場合は `indeterminate`・`flood_integrity_error`）。非空の該当0件は `success` で、状態は第5.2節で導出する（unknown・境界接触・外縁上があれば `unknown_only`、地域の内部でいずれもなければ `no_match_extent_unknown`。SS-37〜SS-40）。Phase 2-B.14で期待値を訂正 | B11-05・B13-01 |
+| SS-33 | 同じ `scheme_id`・`class_code` で `scheme_version` が異なる2区域 | 別の区分として返し、重複排除でまとめない。MVPでは版をまたぐ比較を行わず、常に比較不能（Phase 2-B.14で訂正。SS-46・SS-47） | B11-06・B13-03 |
 | SS-34 | 応答の上限の直後に、最も深い区域がある | 部分結果を返さず、明示的なエラー（API契約 第5.4節）。上限内の場合は全件を返す | B11-07 |
 | SS-35 | 応答の上限の直後にunknownがある、または同じ深さの寄与区域が上限の外にある | SS-34と同じ。`contributing_zones` の参照先が欠けた成功応答を返さない | B11-07 |
 | SS-36 | `source_id` を変更（なし・A・B）しても、他ソースの判定の項目が変わらない | 全ソースの事実・`assessment_status`・`depth`・区域の一覧が同一 | 独立性 |
+
+**Phase 2-B.14の回帰テスト（B13-01〜B13-04）**。いずれも設計上の受入条件で、テストコードは作成・実行していない。
+
+共通の前提（特に断らない限り）: 地点はサービス対象地域の内部。区分の体系は国土数値情報の浸水ランクコードで、同じ体系・同じ版・同じ比較規則。ソース間の比較は承認済み。選択中のソースはA。「比較不能な体系の区域」は、Aの区分と体系・版・比較規則のいずれかが異なる区域。Aにunknown・境界接触はない。
+
+| ID | 入力・条件 | `assessment_status` | `overall_status` | `deeper_in_other_sources` / `basis` / 件数（deeper・not_deeper・incomparable） | 指摘 |
+|---|---|---|---|---|---|
+| SS-37 | 非空の目録（ソースAだけ）、`overview`。Aに確認済みの該当0件、L1 unknownあり | A: `unknown_only` | `unknown_only` | 返さない（`overview`） | B13-01 |
+| SS-38 | 非空の目録（Aだけ）、`overview`。Aに該当0件、境界接触あり | A: `unknown_only` | `unknown_only` | 返さない | B13-01 |
+| SS-39 | 非空の目録（Aだけ）、`overview`。地点が地域の外縁上、Aに該当・unknown・境界接触なし | A: `unknown_only`（`region_boundary`） | `unknown_only` | 返さない | B13-01 |
+| SS-40 | 非空の目録（Aだけ）、`overview`。地域の内部、Aに該当・unknown・境界接触なし | A: `no_match_extent_unknown` | `no_match_extent_unknown` | 返さない | B13-01 |
+| SS-41 | ソース間の比較が**未承認**。目録はAだけ（他ソース0件）。Aは3.0〜5.0m未満の確認済み該当 | A: `determined_match` | `determined_match` | `false` / `no_other_sources` / 0・0・0 | B13-02 |
+| SS-42 | ソース間の比較が**未承認**。A: 3.0〜5.0m未満。他ソースBはunknownだけ | A: `determined_match`、B: `unknown_only` | `partial_unknown` | `false` / `no_confirmed_match_in_other_sources` / 0・0・0。`has_unknown_in_other_sources = true` | B13-02 |
+| SS-43 | ソース間の比較が**未承認**。A: 3.0〜5.0m未満。B: 5.0〜10.0m未満の確認済み区域1件 | A・B: `determined_match` | `determined_match` | `null` / `cross_source_comparison_unapproved` / 0・0・1。深さの数値比較を行わない | B13-02 |
+| SS-44 | Aに確認済みの該当なし（unknownだけ）。他ソースB・Cにそれぞれ確認済み区域1件（0.5〜3.0m未満、5.0〜10.0m未満） | A: `unknown_only`、B・C: `determined_match` | `partial_unknown` | `null` / `selected_has_no_confirmed_match` / null・null・null | B13-04 |
+| SS-45 | Aが集約不能（Aに異なる版の2区域）。他ソースB・Cにそれぞれ確認済み区域1件 | A: `aggregation_undetermined`、B・C: `determined_match` | `partial_unknown` | `null` / `selected_depth_unavailable` / null・null・null | B13-04 |
+| SS-46 | 異なる版の同深度区分: (a) A内に版v1のコード3と版v2のコード3、(b) A: v1のコード3（単独）、B: v2のコード3 | (a) A: `aggregation_undetermined`（`depth = null`）。(b) A・B: `determined_match` | (a) `partial_unknown`、(b) `determined_match` | (a) `overview` では `depth_classes_present` に2要素、`ordering = by_key`。(b) `null` / `incomparable_zones_present` / 0・0・1 | B13-03 |
+| SS-47 | 異なる版の異なる深度区分: (a) A内にv1のコード3とv2のコード4、(b) A: v1のコード3、B: v2のコード4 | (a) A: `aggregation_undetermined`。(b) A・B: `determined_match` | (a) `partial_unknown`、(b) `determined_match` | (b) `null` / `incomparable_zones_present` / 0・0・1（`true` にしない） | B13-03 |
+| SS-48 | 同一体系・同一版の異なる深度区分: (a) A内にコード2とコード3、(b) A: コード3、B: コード4 | (a) A: `determined_match`（`depth` はコード3）。(b) A・B: `determined_match` | `determined_match` | (b) `true` / `deeper_zone_found` / 1・0・0 | B13-03 |
+| SS-49 | 深い区域＋比較不能な区域: A: 3.0〜5.0m未満、B: 5.0〜10.0m未満、C: 比較不能な体系の区域 | A・B・C: `determined_match` | `determined_match` | `true` / `deeper_zone_found` / 1・0・1 | B13-02 |
+| SS-50 | 浅い区域＋比較不能な区域: A: 3.0〜5.0m未満、B: 0.5〜3.0m未満、C: 比較不能な体系の区域 | A・B・C: `determined_match` | `determined_match` | `null` / `incomparable_zones_present` / 0・1・1 | B13-02 |
+| SS-51 | 他ソース0件（目録はAだけ）、Aの `depth = null`（Aに比較不能な2区域） | A: `aggregation_undetermined` | `partial_unknown` | `null` / `selected_depth_unavailable` / null・null・null（他ソース0件より選択側の理由を優先） | B13-04 |
 
 ## 13. 未決定事項とOWNER判断事項
 
@@ -581,7 +644,7 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 |---|---|---|
 | SS-U1 | `source_id` の粒度 | 提供主体×シナリオ×配布単位の系列（東京都・関東地方整備局の2つ）。成果品ごとに分ける案は将来 |
 | SS-U2 | ソース内の集約の正式な規則 | 同じ体系の正規化した区間で最も深い区分。CQ-1〜CQ-8の確認後に確定 |
-| SS-U3 | ソース間の比較（`deeper_in_other_sources`・`depth_classes_present`）を返すことと、その前提（区分の体系の同一性の承認） | 返す。承認前は `null` |
+| SS-U3 | ソース間の比較（`deeper_in_other_sources`・`depth_classes_present`）を返すことと、その前提（区分の体系の同一性の承認） | 返す。承認前は、比較の対象の区域がある場合に `null`（第7章。Phase 2-B.14で適用範囲を明確化） |
 | SS-U4 | `source_id`・`zone_ref` の生成規則 | 公開世代の中で安定し、内部の原典へ戻せる不透明な識別子 |
 | SS-U5 | `other` に含められるデータの資格 | 初期は該当なし |
 | SS-U6 | 表示設定の承認の主体・軽重 | 版の固定と履歴は必須。承認の主体はOWNER判断 |
@@ -593,7 +656,8 @@ Phase 2-B.9の案（優先順位の高い提供主体を代表レイヤーとす
 | SS-U12 | 同一Featureの複数 `source_id` への所属（別名・別視点） | 初期MVPでは禁止（CV-2）。将来の拡張として、別名関係と件数・比較への扱いを定める |
 | SS-U13 | 意図的な除外の承認 | Integration Manifestの除外に、理由とOWNERの承認記録を結び付ける（第3.4節） |
 | SS-U14 | 所属集合が変わる目録の変更の承認と `source_id` の継続性 | 所属が変わったソースに旧IDを再利用しない。承認の対象に含める（第8.3節） |
-| SS-U15 | ソース間の比較の承認（`deeper_in_other_sources` の資格）と、版の同等性の承認 | CQ-1・CQ-3の確認後にOWNERが承認。未承認の間は `null` |
+| SS-U15 | ソース間の比較の承認（`deeper_in_other_sources` の資格） | CQ-1・CQ-3の確認後にOWNERが承認。未承認の間は、比較の対象の区域がある場合に `null`。版の同等性の承認はMVPの対象外（SS-U17） |
+| SS-U17 | 浸水深区分の版の同等性を承認して、版をまたいで比較・集約する仕組み | **MVPの対象外**（Phase 2-B.14）。将来、同等性の適用範囲・同深度の判定・集約の出力の識別子を定めて別途設計する |
 | SS-U16 | 意図的な空の公開世代 | 初期MVPでは認めない（第3.5節） |
 
 本書の採用は、製品実装・設定の承認・実データの処理・公開の承認ではない。

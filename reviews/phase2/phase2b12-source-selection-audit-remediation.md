@@ -12,6 +12,8 @@
 
 略記: 監査と同じく、Integration契約を「I」とする。節番号は本改訂後のものである。
 
+> **Phase 2-B.14による訂正の追記（2026-10-25）**: Phase 2-B.13のCodex独立再監査（FAIL: HIGH 1 / MEDIUM 3）で、本書の対応に含まれる記述の不整合が指摘された（B13-01〜B13-04）。本書の元の記述と対応状況は履歴として変更せず、訂正が必要な箇所に「［Phase 2-B.14で訂正］」の注記を追記した。訂正の内容は [Phase 2-B.14 再監査対応表](phase2b14-codex-reaudit-remediation.md) を参照。再監査の判定は、B11-03・B11-06がPARTIALLY RESOLVED、B11-04・B11-05がREGRESSIONであり、本書の「文書上の解決状況」の記載はその判定の前のものである。
+
 文書上の解決状況の区分:
 
 - **RESOLVED（文書）**: 指摘の欠陥を契約から除き、反例に対する受入条件を定めた。再監査・実装では検証していない
@@ -125,11 +127,14 @@
 
 **受入条件**: 監査が挙げた6つの組合せ（深い＋比較不能、浅い＋比較不能、unknownのみ、選択中 `depth = null`、集約不能ソース内の深い区域、他ソース0件）に、該当なし・同じ深さだけ・比較の未承認・選択中に該当なしを加えた10ケースで、値と `basis` が一意に決まる（SS §7の表、SS-24〜SS-29、FA-19）。
 
+- ［Phase 2-B.14で訂正（B13-02・B13-04）］判定の順序を「他ソースに確認済み区域0件 → `false`」を深い区域の判定より前に置く形に整理した。比較を実施しない場合（選択中に該当なし・集約不能）の3つの件数は `null` とした。[Phase 2-B.14 再監査対応表](phase2b14-codex-reaudit-remediation.md)
+
 **文書上の解決状況**: RESOLVED（文書）。
 
 **OWNER判断事項**
 
 - ソース間の比較の承認（`deeper_in_other_sources` の資格）と版の同等性の承認（SS-U15。CQ-1・CQ-3の確認後）。未承認の間は全ケースが `null`（`cross_source_comparison_unapproved`）になる。
+  - ［Phase 2-B.14で訂正（B13-02）］「全ケースが `null`」は誤り。承認が結果に影響するのは、比較の対象の区域がある場合だけである。他ソース0件・他ソースに確認済み区域0件では、承認の有無にかかわらず `false`。[Phase 2-B.14 再監査対応表](phase2b14-codex-reaudit-remediation.md)
 - 他ソースがunknownのみの場合に `false` とする規則（監査は、定義すれば即座に否定しないとしている）。
 
 **残るBlocking**: 実装前に、CQ-1〜CQ-8の確認と比較の承認。公開前に、説明文言（`false` を「深い浸水の可能性なし」と誤読させない。FA-U4）。
@@ -173,6 +178,7 @@
   - 未公開: `no_data`・`flood_not_published`
   - 空の目録: 公開しない。万一読んだ場合は `indeterminate`・`flood_integrity_error`
   - 非空の目録で該当0件: `success`・`no_match_extent_unknown`
+    - ［Phase 2-B.14で訂正（B13-01）］状態はSS §5.2で導出する。unknown・境界接触・外縁上があれば `unknown_only`、地域の内部でいずれもなければ `no_match_extent_unknown`。[Phase 2-B.14 再監査対応表](phase2b14-codex-reaudit-remediation.md)
   - 地域外: `no_data`・`outside_service_region`
 - 空の目録を「浸水想定なし」と解釈しない。意図的な空の世代は、別の契約とOWNERの承認を必要とする（SS-U16）。
 
@@ -196,7 +202,9 @@
 
 - 区分の同一性のキーを（`scheme_id`, `scheme_version`, `class_code`）とした。ソース内の集約、`matches[]`、`depth_classes_present`、安全上の比較で同じキーを使う。
 - 同じID・コードでも、版が異なれば別の区分とし、重複排除でまとめない。版の同等性が承認された場合だけ比較可能にし、その場合もキーは版ごとに返す。
+  - ［Phase 2-B.14で訂正（B13-03）］MVPでは版の同等性による比較・集約を行わず、異なる版は常に比較不能とする。版の同等性は将来の拡張（SS-U17）。[Phase 2-B.14 再監査対応表](phase2b14-codex-reaudit-remediation.md)
 - 比較の資格を2段階にした。ソース内の集約は同じ体系・同じ版だけを要件とする。安全上の比較（ソース間）は、加えてソース間の比較の承認を要件とする。
+  - ［Phase 2-B.14で訂正（B13-03）］比較の資格は、`scheme_id`・`scheme_version`・区分体系の比較規則の3つの一致とした。
 - APIの全 `depth`（例を含む）に `scheme_id`・`scheme_version`・`class_code` を持たせた。旧名 `scheme` は `scheme_id` に改めた。
 - `depth_classes_present` の各要素に、キー・`label`・区間・`source_ids` を持たせた。並び順の根拠も `ordering` で示す。
 
@@ -205,6 +213,8 @@
 **文書上の解決状況**: RESOLVED（文書）。
 
 **OWNER判断事項**: 版の同等性の承認（SS-U15）。
+
+- ［Phase 2-B.14で訂正（B13-03）］版の同等性の承認はMVPの対象外となり、SS-U17（将来の拡張）へ移した。
 
 **残るBlocking**: 実装前に、浸水ランクコードの版の確認（CQ-1）。
 
@@ -262,7 +272,7 @@
 
 | 監査 No. | ケース | 監査の評価 | 本改訂後 |
 |---|---|---|---|
-| 4 | 都unknown、国3〜5m、国選択 | 部分的に未確定（`deeper` の一般規則と例の接続） | SS §7の順6で `false`（`no_confirmed_match_in_other_sources`）。都のunknownは `has_unknown_in_other_sources = true`。`overall_status = partial_unknown` |
+| 4 | 都unknown、国3〜5m、国選択 | 部分的に未確定（`deeper` の一般規則と例の接続） | SS §7の順6で `false`（`no_confirmed_match_in_other_sources`）。都のunknownは `has_unknown_in_other_sources = true`。`overall_status = partial_unknown`。［Phase 2-B.14で訂正］順序の整理により順4（値は同じ） |
 | 5 | 都3〜5m、国unknown、都選択 | 部分的に未確定 | No.4と対称で、同じ規則による |
 | 7 | 同じソースの比較不能2区分（unknownも重なる場合） | unknownが重なる場合はB11-04 | SS §5.2の順2で `aggregation_undetermined`、理由を全件保持 |
 | 9 | 空Catalog | 非一意 | SS §3.5。公開を阻害。読んだ場合は `indeterminate` |

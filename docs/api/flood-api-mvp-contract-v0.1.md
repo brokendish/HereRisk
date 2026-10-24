@@ -5,6 +5,7 @@
 - 作成: 2026-10-24（Claude）
 - 改訂: 2026-10-25 Phase 2-B.10 — 提供主体の優先順位による自動代表選択を廃止し、利用者によるデータソースの選択（`overview`・`single_source`）へ全面改訂した。旧版の `representative`・`selection_reason`・`priority`・`finality`・`category_states` は廃止した（第12章）。基準コミット `fdf4f2df7d7a29f18519183ff8d2b931e6f4adc5`
 - 改訂: 2026-10-25 Phase 2-B.12 — Codex独立契約監査（Phase 2-B.11、FAIL: HIGH 3 / MEDIUM 4）の指摘 B11-01〜B11-07 への訂正。基準コミット `c3ace814c59e62d99c08a9983c4ba021ab570642`。`deeper_in_other_sources` の三値判定と根拠（第5.6節）、ソースの事実と状態の導出（第5.4節・第5.7節）、空の目録（第6章）、区分の版（第5.5節）、全件返却と上限超過のエラー（第5.4節・第6章）、unknownポリシーの世代の一致（第7章）。対応の全体は [監査対応表](../../reviews/phase2/phase2b12-source-selection-audit-remediation.md)
+- 改訂: 2026-10-25 Phase 2-B.14 — Codex独立再監査（Phase 2-B.13、FAIL: HIGH 1 / MEDIUM 3）の指摘 B13-01〜B13-04 への訂正。基準コミット `7ef60043ce4638ad2417dcb17b723ce4411c43bc`。状態の導出の正本をSelection契約 第5.2節に一本化（第8.3節・FA-03・FA-22）、比較の承認の適用範囲と比較を実施しない場合の件数（第5.6節）、版をまたぐ比較・集約の対象外化（第5.5節・FA-23）、回帰テスト FA-26〜FA-28。対応の全体は [再監査対応表](../../reviews/phase2/phase2b14-codex-reaudit-remediation.md)
 - 前提: [共通API契約 v0.1](common-contract-v0.1.md)、[Flood Source Selection Contract v0.1（案）](../architecture/flood-source-selection-contract-v0.1.md)、[Flood Integration Contract v0.1（案）](../architecture/flood-integration-contract-v0.1.md)
 - 履歴: [Flood Source Priority & Risk Aggregation Contract v0.1（案。Phase 2-B.9、置き換え済みの設計案）](../architecture/flood-source-priority-contract-v0.1.md)
 - 検討の記録: [Phase 2-B.9 レビュー](../../reviews/phase2/phase2b9-flood-mvp-scope-and-priority.md)、[Phase 2-B.10 レビュー](../../reviews/phase2/phase2b10-source-selection-redesign.md)
@@ -156,7 +157,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 }
 ```
 
-値はすべて架空である（ケースBの形。第8.2節）。東京都のソースは確認済みの該当がない（unknownだけ）ため、`deeper_in_other_sources = false`（`basis = no_confirmed_match_in_other_sources`）であり、東京都のunknownは `has_unknown_in_other_sources = true` で別に示す（Selection契約 第7章の判定の順6）。実在の地点の浸水想定・データの識別子・承認済みの設定を示さない。
+値はすべて架空である（ケースBの形。第8.2節）。東京都のソースは確認済みの該当がない（unknownだけ）ため、`deeper_in_other_sources = false`（`basis = no_confirmed_match_in_other_sources`）であり、東京都のunknownは `has_unknown_in_other_sources = true` で別に示す（Selection契約 第7章の判定の順4。Phase 2-B.14で順序を整理）。実在の地点の浸水想定・データの識別子・承認済みの設定を示さない。
 
 **指示書の概念例との違い**: 概念例の `selected_result` と `other_sources` は、本書では1つの `sources[]` にまとめ、各要素の `is_selected` と `result.selection.source_id` で主表示を示す。`overview` と `single_source` で同じ形を使えるようにし、選択によって他ソースの情報の形が変わらないようにするためである。
 
@@ -219,7 +220,8 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 | `contributing_zones` | ソースの `depth` に寄与した全区域の `zone_ref`（同じ深さの区域はすべて） |
 
 - **区分の同一性のキーは（`scheme_id`, `scheme_version`, `class_code`）**（Selection契約 第5.3節）。ソースの `depth`、`matches[].depth`、`depth_classes_present` の各要素、安全上の比較で同じキーを使う。同じ `scheme_id`・`class_code` でも `scheme_version` が異なれば別の区分として返し、まとめない。
-- ソースの `depth` は、そのソースの中の集約（Selection契約 第5.3節。同じ体系・同じ版の正規化した区間で最も深い区分）の結果である。異なるソース間では集約しない。
+- ソースの `depth` は、そのソースの中の集約（Selection契約 第5.3節。同じ体系・同じ版・同じ比較規則の正規化した区間で最も深い区分）の結果である。異なるソース間では集約しない。
+- **MVPでは、版をまたいだ比較・集約を行わない**（B13-03）。同じソースに異なる版の区域が該当した場合、そのソースは集約不能（`aggregation = undetermined`、`depth = null`）とし、各区域は `matches[]` でそれぞれの版のキーのまま返す。任意の版を選んで `depth` の識別子にしない。
 - 範囲・階級から架空の代表値（中央値等）を作らない［確定: 共通API契約 §4.2］。
 - 指示書の概念例の `depth_range_m: {min, max}` は、共通API契約の候補に合わせて `lower_m`・`upper_m` とした。
 
@@ -230,8 +232,8 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 | `other_sources_count` | 両方 | 主表示以外のソースの数（`overview` では全ソースの数） |
 | `has_unknown` | 両方 | いずれかのソースにunknownがある |
 | `has_unknown_in_other_sources` | `single_source` | 選択していないソースにunknownがある |
-| `deeper_in_other_sources` | `single_source` | 三値（`true`・`false`・`null`）。選択していない全ソースの全確認済み区域を対象に、Selection契約 第7章の判定の順序で決める。`false` は「必要な比較の対象について、より深い確認済みの区域がない」の意味であり、「より深い浸水の可能性がない」ではない。判定できない場合は `null` で、`false` に代替しない |
-| `deeper_comparison` | `single_source` | `basis`（`selected_has_no_confirmed_match`・`selected_depth_unavailable`・`no_other_sources`・`deeper_zone_found`・`incomparable_zones_present`・`cross_source_comparison_unapproved`・`no_confirmed_match_in_other_sources`・`all_compared_none_deeper`）と、`deeper_zones`・`not_deeper_zones`・`incomparable_zones` の件数 |
+| `deeper_in_other_sources` | `single_source` | 三値（`true`・`false`・`null`）。選択していない全ソースの全確認済み区域を対象に、Selection契約 第7章の判定の順序で決める。`false` は「確認済み区域について、より深い結果を確認していない」の意味であり、「より深い浸水の可能性がない」ではない。判定できない場合は `null` で、`false` に代替しない。ソース間の比較の承認は、比較の対象の区域がある場合だけ結果に影響する（未承認なら `null`・`cross_source_comparison_unapproved`）。他ソース0件・他ソースに確認済み区域0件では、承認の有無にかかわらず `false` |
+| `deeper_comparison` | `single_source` | `basis`（`selected_has_no_confirmed_match`・`selected_depth_unavailable`・`no_other_sources`・`no_confirmed_match_in_other_sources`・`deeper_zone_found`・`incomparable_zones_present`・`cross_source_comparison_unapproved`・`all_compared_none_deeper`）と、`deeper_zones`・`not_deeper_zones`・`incomparable_zones` の件数。**比較を実施していない場合（`basis` が `selected_has_no_confirmed_match`・`selected_depth_unavailable`）は3つの件数がすべて `null`**、比較を実施した場合は整数（対象が空なら `0`）。`null` と `0` を区別する（B13-04） |
 | `depth_classes_present` | `overview` | 全ソースの全確認済み区域の区分を、区分の同一性のキーで重複排除した一覧。各要素は `scheme_id`・`scheme_version`・`class_code`・`label`・区間・`source_ids`。`ordering`（`by_depth`・`by_key`）で並び順の根拠を示す。**ソース間の統合ではなく事実の列挙** |
 
 `result.selected_result_is_exclusive` は常に `false` とする。選択中の値が地点の唯一の正しい浸水深ではないことを、機械的に示す。
@@ -329,7 +331,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 
 第5.1節の例のとおり。関東地方整備局の確認済みの結果（`determined_match`）を主表示にする。東京都のunknownを保持する（`has_unknown_in_other_sources = true`）。`overall_status = partial_unknown` であり、総合的に確定したように表示しない。
 
-### 8.3 ケースC: どのソースにも確認済みの該当がない（地域の内部）
+### 8.3 ケースC: どのソースにも確認済みの該当・unknown・境界接触がない（地域の内部）
 
 ```json
 {"selection": {"mode": "overview", "source_id": null, "selected_by": null},
@@ -388,7 +390,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 |---|---|---|
 | FA-01 | ケースA（東京都を選択） | 東京都を主表示、関東地方整備局を保持、`deeper_in_other_sources = true` |
 | FA-02 | ケースB（関東地方整備局を選択） | 関東地方整備局を主表示、東京都のunknownを保持、`overall_status = partial_unknown` |
-| FA-03 | ケースC | `no_match_extent_unknown`・`assessment = undetermined`。浸水深0・`not_affected`・安全にならない |
+| FA-03 | ケースC（地域の内部で、全ソースに確認済みの該当・unknown・境界接触がない） | `no_match_extent_unknown`・`assessment = undetermined`。浸水深0・`not_affected`・安全にならない。unknown・境界接触・外縁上がある場合はFA-26 |
 | FA-04 | `overview` でケースAの地点 | `is_selected = true` のソースがない。`depth_classes_present` に2区分 |
 | FA-05 | 同じ地点で、`source_id` なし・A・Bの3通り | `sources[]` の各要素の判定の項目が3通りで同一。違いは `selection`・`is_selected`・`safety` の選択依存の項目だけ |
 | FA-06 | 同じFeatureの有効Pと判定保留Q | そのソースの `matches` と `unknowns` の両方に現れ、`partial_unknown` |
@@ -407,10 +409,13 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 | FA-19 | Selection契約 第7章の必須ケース（深い＋比較不能、浅い＋比較不能、unknownのみ、選択中 `depth = null`、選択中に該当なし、集約不能ソース内の深い区域、他ソース0件、他ソースに該当なし、同じ深さだけ、比較が未承認） | `deeper_in_other_sources` と `deeper_comparison.basis` が表のとおりに一意。判定できない場合に `false` を返さない |
 | FA-20 | 1つのソースで集約不能＋unknown＋境界接触 | `assessment_status = aggregation_undetermined`。事実と全理由が返る。`overall_status = partial_unknown` |
 | FA-21 | ソースAは成功、ソースBは読込み失敗 | 応答全体が `retrieval_failed`・`flood_read_failed`・`result = null` |
-| FA-22 | 空の目録の公開世代を読む／非空の目録で全ソース該当0件／未公開／地域外 | `indeterminate`（`flood_integrity_error`）／`success`・`no_match_extent_unknown`／`no_data`（`flood_not_published`）／`no_data`（`outside_service_region`） |
-| FA-23 | 同じ `scheme_id`・`class_code` で `scheme_version` が異なる2区域 | `depth_classes_present` で2つの要素として返る。比較は版の同等性の承認がなければ不能 |
+| FA-22 | 空の目録の公開世代を読む／非空の目録で全ソース該当0件／未公開／地域外 | `indeterminate`（`flood_integrity_error`）／`success` で、状態はSelection契約 第5.2節で導出（unknown・境界接触・外縁上があれば `unknown_only`、地域の内部でいずれもなければ `no_match_extent_unknown`。FA-26）／`no_data`（`flood_not_published`）／`no_data`（`outside_service_region`）。Phase 2-B.14で期待値を訂正 |
+| FA-23 | 同じ `scheme_id`・`class_code` で `scheme_version` が異なる2区域 | `depth_classes_present` で2つの要素として返り、`ordering = by_key`。MVPでは版をまたぐ比較・集約を行わず、常に比較不能（Phase 2-B.14で訂正） |
 | FA-24 | 統合成果物のunknownポリシーv1と、公開設定のunknownポリシーv2の組合せ | API起動・世代切替を拒否（`flood_integrity_error` 相当で正常結果を返さない） |
 | FA-25 | 目録の所属に漏れのある公開世代（成果品の欠落、unknownだけのFeatureの未割当、二重所属） | 公開されない（Selection契約 第3.4節）。万一読んだ場合も、起動時の照合で拒否 |
+| FA-26 | 非空の目録で確認済みの該当0件の4ケース（unknownあり・境界接触あり・外縁上・いずれもなし） | Selection契約 SS-37〜SS-40のとおり（`unknown_only` が3ケース、`no_match_extent_unknown` が1ケース）。`assessment = undetermined` |
+| FA-27 | ソース間の比較の承認の有無と比較の対象（他ソース0件・unknownのみ・確認済み区域あり）、選択中に該当なし・集約不能の組合せ、深い＋比較不能・浅い＋比較不能 | Selection契約 SS-41〜SS-45・SS-49〜SS-51のとおり。`deeper_in_other_sources`・`basis`・3つの件数が一意で、`basis` と件数（`null`・整数）が対応する |
+| FA-28 | 異なる版の同深度・異なる深度、同一体系・同一版の異なる深度（ソース内・ソース間） | Selection契約 SS-46〜SS-48のとおり。版をまたぐ区域は比較不能で、任意の版を `depth` の識別子にしない |
 
 ## 12. Phase 2-B.9の版からの変更
 
