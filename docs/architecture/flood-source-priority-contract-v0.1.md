@@ -1,7 +1,15 @@
-# Flood Source Priority & Risk Aggregation Contract v0.1（案）
+# Flood Source Priority & Risk Aggregation Contract v0.1（案・置き換え済みの設計案）
+
+> **移行案内（2026-10-25 Phase 2-B.10）**: 本書の「提供主体の優先順位に基づく自動代表選択」は、設計案の改訂により採用しないことになった。後継の設計案は [Flood Source Selection Contract v0.1（案）](flood-source-selection-contract-v0.1.md)（利用者によるデータソースの選択）である。変更の内容は [Phase 2-B.10 レビュー](../../reviews/phase2/phase2b10-source-selection-redesign.md) を参照。
+>
+> - **本書は履歴資料として残す。** 本書の規則を、実装・API契約・UIの根拠として使わない。
+> - 「置き換え（superseded）」は**設計案の変更履歴**を指す。本書も後継の設計案も、OWNERに正式採用されていない。
+> - 後継へ引き継いだ事項: 提供主体の区分とその確定（第3章。ただし順位を持たない）、原典の保持・来歴・版管理・内容ハッシュによる固定、unknownの独立した保持、区域ごとの状態（境界接触・unknown・評価範囲不明）、浸水深区分の正規化と比較の規則・確認項目CQ-1〜CQ-8（同一ソース内の集約と安全上の比較に限定）。
+> - **廃止した事項**: Source Priority Policy（第4章・第5章）、`source_category_order`・`fallback_rule`、優先順位による代表結果の選択（第7章）、`representative`・`selection_reason`・`priority`・`finality`、区分ごとの状態（第7.2節）、異なる区分にまたがる「同順位」の集約（第8章。同一ソース内の集約へ再定義）、優先順位を描画順とするレイヤー表示（第9章）。
+> - 以下の本文は、Phase 2-B.9の時点の内容のまま変更していない。
 
 - Task: Phase 2-B.9 Flood API MVP Scope / Source Priority & Risk Aggregation Contract
-- 状態: **契約案（OWNERレビュー待ち。正式採用されていない）**。本書は製品実装・ポリシーの承認・有効化・実データの処理・公開の承認ではない
+- 状態: **置き換え済みの設計案（履歴資料）**。Phase 2-B.9の時点では契約案（OWNERレビュー待ち。正式採用されていない）。本書は製品実装・ポリシーの承認・有効化・実データの処理・公開の承認ではない
 - 作成: 2026-10-24（Claude）
 - 基準コミット: `a701921540e4cf1e109b8932fcac2de1777d0870`
 - 前提: [Flood Normalize Contract v0.1（案）](flood-normalize-contract-v0.1.md)、[Flood Integration Contract v0.1（案）](flood-integration-contract-v0.1.md)、[Phase 2-B.8 監査対応表](../../reviews/phase2/phase2b8-codex-audit-remediation.md)
