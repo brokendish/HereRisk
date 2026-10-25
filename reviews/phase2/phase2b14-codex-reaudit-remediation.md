@@ -1,4 +1,10 @@
-# Phase 2-B.14 Codex再監査指摘 対応表（Source Selection / Flood API MVP）
+# Phase 2-B.14 Codex再監査指摘 対応表（Source Selection / Flood API MVP） — **HISTORICAL**
+
+> **履歴資料（2026-10-25 Phase 2-B.17で表示を追加）: 本書は現行の仕様の根拠ではない。実装・API・UI・テストの根拠として使用禁止。**
+>
+> - 本書が扱うSource Selection方式のうち、状態の導出（B13-01）・ソース間の比較の承認（B13-02）・版をまたぐ比較（B13-03）・比較の件数（B13-04）は、OWNERの仕様変更（公式データ忠実提示方式）により**廃止**された。廃止した機能を再導入しない。
+> - 現行の正本: [Design Principles](../../docs/architecture/design-principles-v1.0.md)、[Flood Official Data Presentation Contract](../../docs/architecture/flood-official-data-presentation-contract-v0.1.md)、[Flood API MVP Contract](../../docs/api/flood-api-mvp-contract-v0.1.md)。
+> - 本書の監査判定・日時・観測結果・対応の記録は改変していない。本書に記載したBlocking・OWNER判断事項のうち、廃止した機能に関するものは、現行の仕様のBlockingではない。扱いは [Phase 2-B.17 レビュー](phase2b17-official-data-presentation-realignment.md) 第8章を参照。
 
 - Task: Phase 2-B.14 Codex Re-Audit Findings Remediation
 - 作成: 2026-10-25（Claude）

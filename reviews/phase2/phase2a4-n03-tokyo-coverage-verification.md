@@ -1,5 +1,7 @@
 # Phase 2-A.4 東京都N03行政区域によるA31aカバー範囲検証
 
+> **注記（2026-10-25 Phase 2-B.17で追加）**: 本書で検討した複数成果品の「代表ランクの方式」（U-4）は、OWNERの仕様変更（公式データ忠実提示方式）により**廃止**された。HereRiskは代表ランク・最大ランクを作らず、区域ごとに原典のランクを返す（[Flood Official Data Presentation Contract](../../docs/architecture/flood-official-data-presentation-contract-v0.1.md) 第3章・第7章）。本書の調査結果・観測値は改変していない。
+
 ## 1. 調査条件・OWNER承認範囲
 
 - Task: Phase 2-A.4 国土数値情報N03（行政区域）を使い、A31a（洪水浸水想定区域・想定最大規模）のポリゴンが東京都の行政区域と実際に交差するかを検証する（**READ ONLY調査。Flood APIの実装・製品DBの生成・Publishの承認ではない**）

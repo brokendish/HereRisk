@@ -1,5 +1,7 @@
 # Phase 2-A.1 国土数値情報A31a（洪水浸水想定区域・河川単位）実データ調査
 
+> **注記（2026-10-25 Phase 2-B.17で追加）**: 本書で検討した`representative_rank`（最大値方式を第一候補とする代表ランク）は、OWNERの仕様変更（公式データ忠実提示方式）により**廃止**された。HereRiskは代表ランク・最大ランクを作らず、区域ごとに原典のランクを返す（[Flood Official Data Presentation Contract](../../docs/architecture/flood-official-data-presentation-contract-v0.1.md) 第3章・第7章）。本書の調査結果・観測値は改変していない。
+
 - Task: Phase 2-A.1 Flood API設計のためのデータソース調査（**調査・検証・報告のみ。Flood APIの実装承認ではない**）
 - 調査者: Claude（Mac。公式資料の閲覧、公式配布ZIPの取得と読取解析）
 - 調査日: 2026-10-18（JST）

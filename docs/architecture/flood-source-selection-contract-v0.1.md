@@ -1,4 +1,11 @@
-# Flood Source Selection Contract v0.1（案）
+# Flood Source Selection Contract v0.1（案）— **SUPERSEDED / HISTORICAL**
+
+> **履歴資料（2026-10-25 Phase 2-B.17）: 本書は現行の仕様ではない。実装・API・UI・テストの根拠として使用禁止。**
+>
+> - OWNERの仕様変更（公式データ忠実提示方式）により、本書の次の方式を**廃止**した: ソース間の浸水深の比較（`deeper_in_other_sources`・`deeper_comparison`・件数・`cross_source_comparison_unapproved`・比較の資格・版の同等性）、ソース内の集約（`depth`・`deepest_comparable_class`・`aggregation_undetermined`）、状態の導出（`assessment_status`・`overall_status`）、サーバ側のソースの選択（`source_id` の入力・`overview`／`single_source` のモード・状態遷移）、`depth_classes_present`。
+> - 現行の正本: [Flood Official Data Presentation Contract（案）](flood-official-data-presentation-contract-v0.1.md)、[Flood API MVP Contract（案）](../api/flood-api-mvp-contract-v0.1.md)。目録・所属の完全性（CV-1〜CV-9）・空の目録・公開世代の変更の区分など、引き継いだ規則は現行の正本に移した。本書の記述を引用して現行の規則とすることはしない。
+> - 廃止した機能を再導入しない。経緯は [Phase 2-B.17 レビュー](../../reviews/phase2/phase2b17-official-data-presentation-realignment.md)。
+> - 以下の本文は、Phase 2-B.16の時点の内容のまま変更していない（監査・改訂の履歴を保持するため）。
 
 - Task: Phase 2-B.10 Flood Source Selection Contract 設計改訂
 - 状態: **契約案（OWNERレビュー待ち。正式採用されていない）**。本書は製品実装・設定の承認・実データの処理・公開の承認ではない

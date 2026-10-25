@@ -1,5 +1,7 @@
 # Phase 2-A.3 関東地方整備局 A31a 実データ検証
 
+> **注記（2026-10-25 Phase 2-B.17で追加）**: 本書で検討した`representative_rank`（最大値方式を第一候補とする代表ランク）は、OWNERの仕様変更（公式データ忠実提示方式）により**廃止**された。HereRiskは代表ランク・最大ランクを作らず、区域ごとに原典のランクを返す（[Flood Official Data Presentation Contract](../../docs/architecture/flood-official-data-presentation-contract-v0.1.md) 第3章・第7章）。本書の調査結果・観測値は改変していない。
+
 ## 1. 調査日時・対象・参照資料
 
 - Task: Phase 2-A.3 関東地方整備局のA31a GeoJSON ZIPの取得と読取調査（**調査レポートの作成のみ。Flood APIの実装・Normalize・Publish・VPS配備の承認ではない**）

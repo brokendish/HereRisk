@@ -1,5 +1,7 @@
 # Phase 2-A.2 国管理河川・関東地方整備局 A31a 調査
 
+> **注記（2026-10-25 Phase 2-B.17で追加）**: 本書で検討した管理者をまたぐ重複区域の「代表ランクの方式」（O-7）は、OWNERの仕様変更（公式データ忠実提示方式）により**廃止**された。HereRiskは代表ランク・最大ランクを作らず、区域ごとに原典のランクを返す（[Flood Official Data Presentation Contract](../../docs/architecture/flood-official-data-presentation-contract-v0.1.md) 第3章・第7章）。本書の調査結果・観測値は改変していない。
+
 - Task: Phase 2-A.2 東京都内の洪水リスク判定に必要な国管理河川・隣接県データの特定と取得方針（**READ ONLYの調査・設計判断のみ。実データ取得・Flood API実装の承認ではない**）
 - 調査者: Claude（Mac）
 - 調査日: 2026-10-21（JST）

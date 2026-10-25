@@ -1,4 +1,6 @@
-# Flood Source Priority & Risk Aggregation Contract v0.1（案・置き換え済みの設計案）
+# Flood Source Priority & Risk Aggregation Contract v0.1（案）— **SUPERSEDED / HISTORICAL**
+
+> **履歴資料（2026-10-25 Phase 2-B.17で表示を更新）: 本書は現行の仕様ではない。実装・API・UI・テストの根拠として使用禁止。** 本書の後継だった [Flood Source Selection Contract](flood-source-selection-contract-v0.1.md) も、Phase 2-B.17で履歴資料となった。現行の正本は [Flood Official Data Presentation Contract（案）](flood-official-data-presentation-contract-v0.1.md) と [Flood API MVP Contract（案）](../api/flood-api-mvp-contract-v0.1.md) である。下の「移行案内」で「後継へ引き継いだ」とした事項のうち、ソース内の集約・安全上の比較は、Phase 2-B.17で廃止した。
 
 > **移行案内（2026-10-25 Phase 2-B.10）**: 本書の「提供主体の優先順位に基づく自動代表選択」は、設計案の改訂により採用しないことになった。後継の設計案は [Flood Source Selection Contract v0.1（案）](flood-source-selection-contract-v0.1.md)（利用者によるデータソースの選択）である。変更の内容は [Phase 2-B.10 レビュー](../../reviews/phase2/phase2b10-source-selection-redesign.md) を参照。
 >

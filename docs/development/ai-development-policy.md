@@ -178,3 +178,12 @@ OWNERが許可した範囲をcommit・pushし、GitHub上のProject Charter、�
 AIは検証対象のコミットSHAを報告し、可能な限りレビュー結果と対応付ける。未コミットの変更を検証した場合、対象コミットは「未コミット」と記載する。現在のHEADを未コミット変更の検証対象SHAとして扱わない。コミット後は実際の検証対象SHAを共有し、検証した内容との一致を確認する。追加変更があれば影響範囲を再検証する。
 
 共有許可を得る前にcommit・pushしない。ChatGPTの成果物レビュー後、OWNERが最終承認し、次工程へ進む。本番VPSの変更・再起動・デプロイは別途OWNER承認を必須とする。
+
+## 11. 設計文書の正本と履歴文書（2026-10-25 追加）
+
+- 実装・テスト・指示書の根拠は、**現行の正本**の設計文書だけとする。正本は [Design Principles](../architecture/design-principles-v1.0.md)（最上位）と、そこから参照される各契約である。洪水（Flood）の現行の正本は [Flood Official Data Presentation Contract](../architecture/flood-official-data-presentation-contract-v0.1.md) と [Flood API MVP Contract](../api/flood-api-mvp-contract-v0.1.md) である。
+- 冒頭に **SUPERSEDED / HISTORICAL**（履歴資料）と表示された文書・レビューは、過去の設計・監査の記録である。実装・テスト・新しい設計の根拠として使わない。その中の規則・Blocking・OWNER判断事項を、現行の仕様として引用しない。
+- **公式データ忠実提示方式**（Design Principles 第3.1節・DP-11）に反する処理を実装・提案しない。具体的には、公表主体の信頼性の順位による自動選択、複数ソースからの代表値、ソース間の浸水深等の大小比較、独自の最大・代表の集約、独自の安全・危険判定、それらのための派生状態・比較の資格の規則である。廃止した機能の一覧の正本は Flood Official Data Presentation Contract 第3章である。
+- 履歴文書の監査判定・日時・観測結果は改変しない。訂正・補足は、追記とその旨の明示で行う。
+- 同じ規則を複数の文書に複製しない。1つの仕様に規範的な正本を1つ定め、他の文書は参照する。
+
