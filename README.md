@@ -89,6 +89,35 @@ curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.701882&lon=139.713178"
 - Coverage外の地点（例: 東京駅）は、`not_available`（`reason: "no_coverage"`）になります。
 - 標高APIを止めると `error`（`upstream_unreachable`）になり、ほかのセクションはそのまま返ります。
 
+### 住所の接続（Phase 3-C、国土交通省「位置参照情報」）
+
+`address` セクションを、国土交通省「大字・町丁目レベル位置参照情報」（東京都）に接続します。結果は、最寄りの代表点による推定住所です（`is_confirmed_address: false`）。
+
+1. データを取得する。[ダウンロードサービス](https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi)で、「都道府県単位」→「東京」→「大字・町丁目」の最新版（2025年版は `13000-19.0b.zip`）を選び、利用約款に同意してダウンロードする。
+2. ZIPは**リポジトリの外**（例 `~/hererisk-data/isj/`）に置く。展開しなくてよい。
+
+```sh
+# 住所のみ接続
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 \
+  --address-isj ~/hererisk-data/isj/13000-19.0b.zip
+
+# 標高API（上の手順で起動済み）と同時に接続
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 \
+  --address-isj ~/hererisk-data/isj/13000-19.0b.zip \
+  --elevation-api http://127.0.0.1:8000 --elevation-token-file "$TOKEN_FILE" --elevation-fixture
+
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.681236&lon=139.767125"
+# "address": {"status":"available","result":{"display_name":"東京都千代田区丸の内一丁目付近",
+#   "precision":"chome","method":"nearest_representative_point","is_confirmed_address":false,"distance_m":36.7,...}}
+
+# 実データでのテスト（データがある場合のみ実行される）
+HERERISK_ISJ_DATA=~/hererisk-data/isj/13000-19.0b.zip .venv/bin/python -m pytest -q tests/contract/test_location_address.py
+```
+
+- 代表点から遠すぎる地点（他県・海上・国外）では、住所を返しません（`not_available`、`reason: "out_of_coverage"`）。
+- ただし、都県境のすぐ外側では都内の住所を返すことがあります。許容距離と根拠は、契約の第8.2節にあります。
+- 出典の表示は「位置参照情報 国土交通省」です（利用約款による）。測量・各種証明には使えません。
+
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
 ## 開発方針

@@ -12,6 +12,9 @@
   ``--elevation-fixture`` declares that the Elevation API serves fixture data: the section is then
   marked ``synthetic: true`` (fixture values are not real elevations). Without it a fixture dataset
   is refused (``synthetic_not_allowed``)
+* ``--address-isj <ZIP or CSV>`` (Phase 3-C): the ``address`` section comes from MLIT
+  大字・町丁目レベル位置参照情報, read once at startup (nearest representative point, an estimate).
+  A missing or malformed file stops the start (exit 3). Can be combined with ``--elevation-api``
 * no request line, path, query or position is logged (the stdlib access log is disabled)
 * the request body is never read; the API only accepts GET
 """
@@ -26,6 +29,7 @@ from pathlib import Path
 from typing import Sequence
 from urllib.parse import urlsplit
 
+from hererisk.location.address_provider import AddressDataError, MlitAddressProvider
 from hererisk.location.api import LocationApi
 from hererisk.location.elevation_provider import ElevationProvider
 from hererisk.location.orchestrator import Orchestrator
@@ -65,17 +69,21 @@ def make_handler(api: LocationApi):
 
 
 def build_server(host: str, port: int, *, sample_data: bool = False, elevation_api: str | None = None,
-                 elevation_token_file: Path | None = None, elevation_fixture: bool = False) -> ThreadingHTTPServer:
+                 elevation_token_file: Path | None = None, elevation_fixture: bool = False,
+                 address_isj: Path | None = None) -> ThreadingHTTPServer:
     if not ipaddress.ip_address(host).is_loopback:
         raise ValueError("the Location API skeleton is only served on a loopback address")
-    if sample_data and elevation_api:
-        raise ValueError("--sample-data and --elevation-api are exclusive")
+    if sample_data and (elevation_api or address_isj):
+        raise ValueError("--sample-data cannot be combined with connected providers")
     if sample_data:
         orchestrator = Orchestrator(sample_providers(), mode="sample", allow_synthetic=True)
-    elif elevation_api:
+    elif elevation_api or address_isj:
         providers = default_providers()
-        providers["elevation"] = ElevationProvider(elevation_api, token_file=elevation_token_file,
-                                                   fixture=elevation_fixture)
+        if elevation_api:
+            providers["elevation"] = ElevationProvider(elevation_api, token_file=elevation_token_file,
+                                                       fixture=elevation_fixture)
+        if address_isj:
+            providers["address"] = MlitAddressProvider(address_isj)
         orchestrator = Orchestrator(providers, mode="local", allow_synthetic=elevation_fixture)
     else:
         orchestrator = Orchestrator(default_providers(), mode="mock", allow_synthetic=False)
@@ -96,6 +104,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="Bearer token file of that Elevation API (outside Git, 0600)")
     parser.add_argument("--elevation-fixture", action="store_true",
                         help="the Elevation API serves fixture data: mark the section synthetic")
+    parser.add_argument("--address-isj", type=Path, metavar="ZIP_OR_CSV",
+                        help="MLIT 大字・町丁目レベル位置参照情報 (official ZIP or its Shift-JIS CSV)")
     args = parser.parse_args(argv)
     if (args.elevation_token_file or args.elevation_fixture) and not args.elevation_api:
         sys.stderr.write("hererisk-location-api: --elevation-token-file / --elevation-fixture need --elevation-api\n")
@@ -103,13 +113,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         server = build_server(args.host, args.port, sample_data=args.sample_data, elevation_api=args.elevation_api,
                               elevation_token_file=args.elevation_token_file,
-                              elevation_fixture=args.elevation_fixture)
+                              elevation_fixture=args.elevation_fixture, address_isj=args.address_isj)
+    except AddressDataError as exc:
+        sys.stderr.write(f"hererisk-location-api: address data rejected ({exc}); not serving\n")
+        return 3
     except (ValueError, OSError) as exc:
         sys.stderr.write(f"hererisk-location-api: not serving ({type(exc).__name__})\n")
         return 3
     sys.stderr.write(f"hererisk-location-api: serving on http://{args.host}:{server.server_address[1]}"
                      f"{' (sample data: synthetic)' if args.sample_data else ''}"
-                     f"{' (elevation: connected)' if args.elevation_api else ''}\n")
+                     f"{' (elevation: connected)' if args.elevation_api else ''}"
+                     f"{' (address: connected)' if args.address_isj else ''}\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

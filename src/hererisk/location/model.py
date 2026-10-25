@@ -29,6 +29,8 @@ NOTICES = {
     ERROR: "情報を取得できませんでした。安全・危険のどちらも示しません。",
 }
 
+ADDRESS_ESTIMATE_NOTICE = "最寄りの代表点による推定です。正式な住所の確定ではありません。"
+
 # Public error messages; internal exception text is never copied into a response.
 ERROR_MESSAGES = {
     "provider_failed": "情報の取得処理に失敗しました。",
@@ -86,5 +88,6 @@ def check_section(kind: str, provider: str, section: Any, *, allow_synthetic: bo
     if section["synthetic"] and not allow_synthetic:
         return error_section(provider, "synthetic_not_allowed")
     out = dict(section)
-    out["notice"] = ("【合成データ】" if out["synthetic"] else "") + NOTICES[out["status"]]
+    notice = ADDRESS_ESTIMATE_NOTICE if kind == "address" and out["status"] == AVAILABLE else NOTICES[out["status"]]
+    out["notice"] = ("【合成データ】" if out["synthetic"] else "") + notice
     return out
