@@ -118,6 +118,35 @@ HERERISK_ISJ_DATA=~/hererisk-data/isj/13000-19.0b.zip .venv/bin/python -m pytest
 - ただし、都県境のすぐ外側では都内の住所を返すことがあります。許容距離と根拠は、契約の第8.2節にあります。
 - 出典の表示は「位置参照情報 国土交通省」です（利用約款による）。測量・各種証明には使えません。
 
+### 市区町村をN03のPolygonで判定する（Phase 3-D）
+
+国土数値情報 N03（行政区域データ）のPolygonで先に市区町村を決め、その市区町村の代表点だけから町丁目を推定します。隣の市区町村や他県の住所を返さなくなります。
+
+```sh
+# shapelyを入れる（初回のみ）
+.venv/bin/pip install -e '.[address]'
+
+# N03 2026年版 東京都のZIP（Phase 2-C.3で取得済み。リポジトリの外に置く）
+N03_ZIP=~/hererisk-research/phase2c3-hazard-downloads/zips/N03-20260101_13_GML.zip
+# 未取得なら https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html の「東京」からダウンロード
+
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 \
+  --address-isj ~/hererisk-data/isj/13000-19.0b.zip --address-n03 "$N03_ZIP" \
+  --elevation-api http://127.0.0.1:8000 --elevation-token-file "$TOKEN_FILE" --elevation-fixture
+
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.6347&lon=139.5786"
+# "address": {"status":"available","result":{"display_name":"東京都狛江市和泉本町一丁目付近",
+#   "municipality_code":"13219","method":"municipality_polygon_and_nearest_point",...}}
+
+# テスト（実データのテストは、パスを指定した場合だけ実行される）
+HERERISK_ISJ_DATA=~/hererisk-data/isj/13000-19.0b.zip HERERISK_N03_DATA="$N03_ZIP" \
+  .venv/bin/python -m pytest -q tests/contract/test_location_municipality.py
+```
+
+- 境界から10m以内の地点は `unknown` になります（候補の市区町村を列挙）。
+- 町丁目の代表点が遠い地点では、市区町村までを返します（`precision: "municipality"`）。
+- N03は、メタデータにある測量法の複製承認の記載の扱いが未確認です。そのため、ローカルでの検証に限ります（詳細は契約の第8.3節）。
+
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
 ## 開発方針

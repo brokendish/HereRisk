@@ -15,6 +15,9 @@
 * ``--address-isj <ZIP or CSV>`` (Phase 3-C): the ``address`` section comes from MLIT
   大字・町丁目レベル位置参照情報, read once at startup (nearest representative point, an estimate).
   A missing or malformed file stops the start (exit 3). Can be combined with ``--elevation-api``
+* ``--address-n03 <N03 ZIP>`` (Phase 3-D, with ``--address-isj``): decide the municipality with the
+  国土数値情報 N03 行政区域 polygons first, then search only that municipality's points.
+  Needs shapely (``pip install -e '.[address]'``)
 * no request line, path, query or position is logged (the stdlib access log is disabled)
 * the request body is never read; the API only accepts GET
 """
@@ -70,9 +73,11 @@ def make_handler(api: LocationApi):
 
 def build_server(host: str, port: int, *, sample_data: bool = False, elevation_api: str | None = None,
                  elevation_token_file: Path | None = None, elevation_fixture: bool = False,
-                 address_isj: Path | None = None) -> ThreadingHTTPServer:
+                 address_isj: Path | None = None, address_n03: Path | None = None) -> ThreadingHTTPServer:
     if not ipaddress.ip_address(host).is_loopback:
         raise ValueError("the Location API skeleton is only served on a loopback address")
+    if address_n03 and not address_isj:
+        raise ValueError("--address-n03 needs --address-isj")
     if sample_data and (elevation_api or address_isj):
         raise ValueError("--sample-data cannot be combined with connected providers")
     if sample_data:
@@ -83,7 +88,11 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
             providers["elevation"] = ElevationProvider(elevation_api, token_file=elevation_token_file,
                                                        fixture=elevation_fixture)
         if address_isj:
-            providers["address"] = MlitAddressProvider(address_isj)
+            municipalities = None
+            if address_n03:
+                from hererisk.location.n03_municipality import N03Municipalities   # needs shapely
+                municipalities = N03Municipalities(address_n03)
+            providers["address"] = MlitAddressProvider(address_isj, municipalities)
         orchestrator = Orchestrator(providers, mode="local", allow_synthetic=elevation_fixture)
     else:
         orchestrator = Orchestrator(default_providers(), mode="mock", allow_synthetic=False)
@@ -106,14 +115,23 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="the Elevation API serves fixture data: mark the section synthetic")
     parser.add_argument("--address-isj", type=Path, metavar="ZIP_OR_CSV",
                         help="MLIT 大字・町丁目レベル位置参照情報 (official ZIP or its Shift-JIS CSV)")
+    parser.add_argument("--address-n03", type=Path, metavar="N03_ZIP",
+                        help="国土数値情報 N03 行政区域 ZIP: municipality by polygon (needs --address-isj)")
     args = parser.parse_args(argv)
+    if args.address_n03 and not args.address_isj:
+        sys.stderr.write("hererisk-location-api: --address-n03 needs --address-isj\n")
+        return 2
     if (args.elevation_token_file or args.elevation_fixture) and not args.elevation_api:
         sys.stderr.write("hererisk-location-api: --elevation-token-file / --elevation-fixture need --elevation-api\n")
         return 2
     try:
         server = build_server(args.host, args.port, sample_data=args.sample_data, elevation_api=args.elevation_api,
                               elevation_token_file=args.elevation_token_file,
-                              elevation_fixture=args.elevation_fixture, address_isj=args.address_isj)
+                              elevation_fixture=args.elevation_fixture, address_isj=args.address_isj,
+                              address_n03=args.address_n03)
+    except ImportError:
+        sys.stderr.write("hererisk-location-api: --address-n03 needs shapely (pip install -e '.[address]')\n")
+        return 3
     except AddressDataError as exc:
         sys.stderr.write(f"hererisk-location-api: address data rejected ({exc}); not serving\n")
         return 3
@@ -123,7 +141,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     sys.stderr.write(f"hererisk-location-api: serving on http://{args.host}:{server.server_address[1]}"
                      f"{' (sample data: synthetic)' if args.sample_data else ''}"
                      f"{' (elevation: connected)' if args.elevation_api else ''}"
-                     f"{' (address: connected)' if args.address_isj else ''}\n")
+                     f"{' (address: connected)' if args.address_isj else ''}"
+                     f"{' (municipality: N03 polygons)' if args.address_n03 else ''}\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

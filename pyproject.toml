@@ -11,6 +11,7 @@ dependencies = ["jsonschema>=4.23,<5", "pypng==0.20220715.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+address = ["shapely>=2.0,<3"]
 
 [project.scripts]
 hererisk-pipeline = "hererisk.cli:main"

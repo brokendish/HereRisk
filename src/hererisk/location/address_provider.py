@@ -12,6 +12,13 @@ its nearest other representative point (sparse rural 大字 get a larger radius 
 address is returned. The limit reduces, but does not remove, wrong answers near the edge of the
 loaded data (e.g. just across a prefecture border); see docs/api/location-api-v0.1.md 8.2.
 
+With N03 polygons (``municipalities``, Phase 3-D) the municipality is decided first by
+point-in-polygon, and only that municipality's representative points are searched
+(``method: municipality_polygon_and_nearest_point``). If no point of that municipality lies within
+the limit, the municipality alone is returned (``precision: municipality``). Outside every loaded
+polygon -> ``out_of_coverage``; on / near a municipality boundary -> ``unknown`` with the candidate
+municipalities. There is no fallback to the plain distance search in that mode.
+
 Nothing about a request (position, address) is logged.
 """
 
@@ -27,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from hererisk.location.model import AVAILABLE, NOT_AVAILABLE
+from hererisk.location.model import AVAILABLE, NOT_AVAILABLE, UNKNOWN
 
 HEADER = ["都道府県コード", "都道府県名", "市区町村コード", "市区町村名", "大字町丁目コード", "大字町丁目名",
           "緯度", "経度", "原典資料コード", "大字・字・丁目区分コード"]
@@ -56,6 +63,7 @@ class Point:
     lat: float
     lon: float
     prefecture: str
+    municipality_code: str
     municipality: str
     area: str
     area_code: str
@@ -106,7 +114,7 @@ def load_points(path: Path) -> tuple[list[Point], dict[str, Any]]:
             raise AddressDataError(f"row {lineno}: latitude / longitude out of range")
         if not (pref and city and area) or area_type not in PRECISION:
             raise AddressDataError(f"row {lineno}: missing name or unknown area type")
-        points.append(Point(lat, lon, pref, city, area, area_code, area_type))
+        points.append(Point(lat, lon, pref, city_code, city, area, area_code, area_type))
     if not points:
         raise AddressDataError("no rows")
     m = _CSV_NAME.search(name)
@@ -115,33 +123,21 @@ def load_points(path: Path) -> tuple[list[Point], dict[str, Any]]:
     return points, meta
 
 
-class MlitAddressProvider:
-    id = "mlit_address"
+class PointSet:
+    def __init__(self, points: list[Point]) -> None:
+        self.points = sorted(points, key=lambda p: p.lat)
+        self._lats = [p.lat for p in self.points]
 
-    def __init__(self, path: Path) -> None:
-        points, self.meta = load_points(path)
-        self._points = sorted(points, key=lambda p: p.lat)
-        self._lats = [p.lat for p in self._points]
-        self._limit = [min(MAX_LIMIT_M, max(MIN_LIMIT_M, self._nearest(p.lat, p.lon, skip=i)[0]))
-                       for i, p in enumerate(self._points)]
-        year, edition = self.meta["year"], self.meta["edition"]
-        self._source = {"organization": "国土交通省", "title": "大字・町丁目レベル位置参照情報",
-                        "data_version": year,
-                        "page_url": "https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi",
-                        "attribution": {"text": f"位置参照情報 国土交通省（{year}年、{self.meta['file']}）"}}
-        if edition:
-            self._source["edition"] = edition
-
-    def _nearest(self, lat: float, lon: float, skip: int = -1) -> tuple[float, int]:
+    def nearest(self, lat: float, lon: float, skip: int = -1) -> tuple[float, int]:
         """Exact nearest point: scan outwards in latitude order; |dlat| * R bounds the distance."""
         best, best_i = math.inf, -1
         start = bisect.bisect_left(self._lats, lat)
         lo, hi = start - 1, start
-        n = len(self._points)
+        n = len(self.points)
         while lo >= 0 or hi < n:
             for i in (lo, hi):
                 if 0 <= i < n and i != skip:
-                    p = self._points[i]
+                    p = self.points[i]
                     d = haversine_m(lat, lon, p.lat, p.lon)
                     if d < best:
                         best, best_i = d, i
@@ -152,15 +148,81 @@ class MlitAddressProvider:
             lo, hi = lo - 1, hi + 1
         return best, best_i
 
+
+class MlitAddressProvider:
+    id = "mlit_address"
+
+    def __init__(self, path: Path, municipalities: Any = None) -> None:
+        """``municipalities``: an ``N03Municipalities`` (Phase 3-D) or None (distance only)."""
+        points, self.meta = load_points(path)
+        self._all = PointSet(points)
+        self._points = self._all.points
+        # the limit uses the spacing to the nearest other point of the whole file
+        self._limit = {id(p): min(MAX_LIMIT_M, max(MIN_LIMIT_M, self._all.nearest(p.lat, p.lon, skip=i)[0]))
+                       for i, p in enumerate(self._points)}
+        self._n03 = municipalities
+        self._by_code: dict[str, PointSet] = {}
+        if municipalities is not None:
+            groups: dict[str, list[Point]] = {}
+            for p in points:
+                groups.setdefault(p.municipality_code, []).append(p)
+            self._by_code = {code: PointSet(ps) for code, ps in groups.items()}
+            self.meta["codes_without_polygon"] = sorted(set(groups) - set(municipalities.names))
+        year, edition = self.meta["year"], self.meta["edition"]
+        self._source = {"organization": "国土交通省", "title": "大字・町丁目レベル位置参照情報",
+                        "data_version": year,
+                        "page_url": "https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi",
+                        "attribution": {"text": f"位置参照情報 国土交通省（{year}年、{self.meta['file']}）"}}
+        if edition:
+            self._source["edition"] = edition
+        if municipalities is not None:
+            n = municipalities.meta
+            self._boundary_source = {
+                "organization": "国土交通省", "title": "国土数値情報（行政区域データ）", "data_version": n["reference_date"],
+                "page_url": f"https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-{n['reference_date'][:4]}.html",
+                "attribution": {"text": f"「国土数値情報（行政区域データ）」（国土交通省）（{n['file']}）を加工して作成"}}
+
+    def _nearest(self, lat: float, lon: float, skip: int = -1) -> tuple[float, int]:
+        return self._all.nearest(lat, lon, skip)
+
+    def _chome(self, p: Point, distance: float, method: str) -> dict[str, Any]:
+        return {"display_name": f"{p.prefecture}{p.municipality}{p.area}付近",
+                "prefecture": p.prefecture, "municipality": p.municipality, "municipality_code": p.municipality_code,
+                "area": p.area, "area_code": p.area_code, "precision": PRECISION[p.area_type], "method": method,
+                "is_confirmed_address": False, "distance_m": round(distance, 1),
+                "max_distance_m": round(self._limit[id(p)], 1)}
+
     def lookup(self, lat: float, lon: float) -> dict[str, Any]:
-        distance, i = self._nearest(lat, lon)
         base = {"provider": self.id, "synthetic": False, "source": self._source}
-        if i < 0 or distance > self._limit[i]:
+        if self._n03 is not None:
+            return self._lookup_with_polygons(lat, lon, {**base, "boundary_source": self._boundary_source})
+        distance, i = self._nearest(lat, lon)
+        if i < 0 or distance > self._limit[id(self._points[i])]:
             return {**base, "status": NOT_AVAILABLE, "result": None, "reason": "out_of_coverage"}
-        p = self._points[i]
+        return {**base, "status": AVAILABLE, "result": self._chome(self._points[i], distance, "nearest_representative_point")}
+
+    def _lookup_with_polygons(self, lat: float, lon: float, base: dict[str, Any]) -> dict[str, Any]:
+        state, value = self._n03.locate(lat, lon)
+        if state == "outside":
+            return {**base, "status": NOT_AVAILABLE, "result": None, "reason": "out_of_coverage"}
+        if state == "ambiguous":
+            return {**base, "status": UNKNOWN, "result": None, "reason": "municipality_boundary_ambiguous",
+                    "candidates": [{"municipality_code": c, **self._n03.names[c]} for c in value]}
+        code = value
+        names = self._n03.names[code]
+        partial = {"prefecture": names["prefecture"], "municipality_code": code, "area": None,
+                   "method": "municipality_polygon", "is_confirmed_address": False}
+        if self._n03.is_unassigned(code):        # N03 所属未定地: the source does not assign a municipality
+            return {**base, "status": AVAILABLE, "result": {
+                **partial, "display_name": f"{names['prefecture']}（所属未定地）", "municipality": None,
+                "precision": "prefecture", "area_reason": "municipality_unassigned_in_source"}}
+        candidates = self._by_code.get(code)
+        if candidates is not None:
+            distance, i = candidates.nearest(lat, lon)
+            p = candidates.points[i]
+            if distance <= self._limit[id(p)]:
+                return {**base, "status": AVAILABLE,
+                        "result": self._chome(p, distance, "municipality_polygon_and_nearest_point")}
         return {**base, "status": AVAILABLE, "result": {
-            "display_name": f"{p.prefecture}{p.municipality}{p.area}付近",
-            "prefecture": p.prefecture, "municipality": p.municipality, "area": p.area, "area_code": p.area_code,
-            "precision": PRECISION[p.area_type], "method": "nearest_representative_point",
-            "is_confirmed_address": False,
-            "distance_m": round(distance, 1), "max_distance_m": round(self._limit[i], 1)}}
+            **partial, "display_name": f"{names['prefecture']}{names['municipality']}", "municipality": names["municipality"],
+            "precision": "municipality", "area_reason": "no_representative_point_within_limit"}}
