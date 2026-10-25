@@ -220,9 +220,11 @@ def test_no_later_stage_or_network_code_reachable(no_network) -> None:
     # Outbound: the GSI HTTPS client only. Inbound: the public API's HTTP server
     # adapter may import http.server (it never opens outbound connections).
     # Phase 3-A: the Location API HTTP server adapter is inbound only in the same way.
+    # Phase 3-B: the Location API ElevationProvider calls the Elevation API on 127.0.0.1 only.
     network_allowed = {src / "elevation" / "net" / "gsi_http.py",
                        src / "elevation" / "api" / "server.py",
-                       src / "location" / "server.py"}
+                       src / "location" / "server.py",
+                       src / "location" / "elevation_provider.py"}
     pipeline_dirs = ("/common/", "/elevation/download/", "/elevation/normalize/",
                      "/elevation/validate/", "/elevation/lookup/")
     for path in src.rglob("*.py"):

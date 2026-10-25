@@ -57,6 +57,38 @@ PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 --sample
 .venv/bin/python -m pytest -q tests/contract/test_location_api.py
 ```
 
+### 標高APIへの接続（Phase 3-B、ローカル確認）
+
+`elevation` セクションだけを、既存の標高API（Fixtureデータ）に接続します。ほかのProviderは未接続のままです。
+
+```sh
+# 1) Fixtureのデータrootを用意してPublishする（初回のみ。詳細は docs/development/phase1a1-download-fixture-usage.md 第3.7節）
+DATA_ROOT=$(mktemp -d)
+PYTHONPATH=src .venv/bin/python -m hererisk.cli init-fixture-root --data-root "$DATA_ROOT"
+PYTHONPATH=src .venv/bin/python -m hererisk.cli pipeline --api elevation --region 13 \
+  --source fixture-dem-png-tokyo --fixture tests/fixtures/elevation-fixture --data-root "$DATA_ROOT" --publish
+
+# 2) Bearer Tokenのファイルをリポジトリの外に0600で作る
+TOKEN_FILE=$HOME/.hererisk-local/api-token
+mkdir -p "$(dirname "$TOKEN_FILE")" && (umask 077; .venv/bin/python -c "import secrets;print(secrets.token_urlsafe(32))" > "$TOKEN_FILE")
+
+# 3) 標高API（Fixture、ループバック）を起動する
+PYTHONPATH=src .venv/bin/python -m hererisk.elevation.api.server \
+  --data-root "$DATA_ROOT" --host 127.0.0.1 --port 8000 --fixture-demo --auth-token-file "$TOKEN_FILE"
+
+# 4) 別のターミナルで、Location APIを標高API接続モードで起動する
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 \
+  --elevation-api http://127.0.0.1:8000 --elevation-token-file "$TOKEN_FILE" --elevation-fixture
+
+# 5) 問い合わせる（FixtureのCoverage内の地点）
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.701882&lon=139.713178"
+# "elevation": {"status":"available","result":{"elevation_m":81.44,"unit":"m"},"synthetic":true,...}
+```
+
+- Fixtureの値は実際の標高ではありません。そのため `--elevation-fixture` を付け、応答に `synthetic: true` が付きます。
+- Coverage外の地点（例: 東京駅）は、`not_available`（`reason: "no_coverage"`）になります。
+- 標高APIを止めると `error`（`upstream_unreachable`）になり、ほかのセクションはそのまま返ります。
+
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
 ## 開発方針

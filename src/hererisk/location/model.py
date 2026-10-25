@@ -35,6 +35,9 @@ ERROR_MESSAGES = {
     "timeout": "情報の取得が時間内に終わりませんでした。",
     "invalid_provider_result": "取得した情報の形式を確認できませんでした。",
     "synthetic_not_allowed": "この環境では合成データを返せません。",
+    "upstream_unreachable": "接続先のAPIに接続できませんでした。",
+    "upstream_rejected": "接続先のAPIが要求を受け付けませんでした。",
+    "upstream_retrieval_failed": "接続先のAPIがデータを取得できませんでした。",
 }
 
 

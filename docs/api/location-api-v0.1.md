@@ -1,6 +1,7 @@
 # Location API v0.1（Phase 3-A サービス骨格）
 
 - 作成: 2026-10-25（Claude。Phase 3-A）
+- 改訂: 2026-10-25 Phase 3-B — `elevation` を既存の標高APIに接続するProviderを追加（第8.1節）。`mode: "local"` を追加
 - 状態: **契約案（OWNERレビュー待ち）**。実装はローカルのサービス骨格のみ。公式データの製品利用・一般公開の承認ではない
 - 上位: [Design Principles](../architecture/design-principles-v1.0.md)、[共通API契約 v0.1](common-contract-v0.1.md)
 - 実装: `src/hererisk/location/`、テスト: `tests/contract/test_location_api.py`
@@ -44,6 +45,7 @@
 - `mode` は次のいずれか。
   - `mock`: 既定。全Providerが未接続
   - `sample`: 開発用の合成データ
+  - `local`: 一部のProviderをローカルのAPIに接続した検証用の構成（Phase 3-B: 標高）
   - `live`: 将来、実データのProviderを接続したとき
 - 一部のProviderが失敗しても、レスポンスはHTTP 200のままである。失敗はそのセクションの `error` で表す。
 
@@ -151,6 +153,59 @@ Providerは、`id`（文字列）と `lookup(lat, lon) -> dict`（第4・5章の
 | `tsunami` / `storm_surge` / `landslide` | 各ハザードの個別契約（未作成） | 個別契約・利用条件・認可が先に必要 |
 
 Phase 2-Cで残ったBlocking（利用条件、認可、派生形状、精度プロファイル等）は、実データProviderの接続の前提として維持する。
+
+### 8.1 ElevationProvider（Phase 3-B）
+
+`hererisk.location.elevation_provider.ElevationProvider` は、既存の標高APIの `POST /api/v1/elevation`（[標高API契約](elevation-contract-v0.1.md)）を呼び出す。
+
+**接続の条件**
+
+- 有効になるのは、起動時に `--elevation-api http://127.0.0.1:<port>` を指定した場合だけである。既定は未接続のまま。
+- 接続先は `127.0.0.1` だけに限る。`localhost`・他のアドレス・https・パス付きのURLは拒否する。
+- Bearer Tokenは、リポジトリの外にある0600のファイル（`--elevation-token-file`）から、起動時に1回だけ読む。
+  - Tokenはログ・エラー・応答に出さない。
+  - 権限が緩いファイルは拒否する。
+- タイムアウトは1.5秒。応答は64KiBまで読む。
+
+**状態の変換**
+
+| 標高APIの `status` | Location APIの `status` | 補足 |
+|---|---|---|
+| `success` | `available` | `result.elevation_m` をそのまま返す。0m・負の値も有効な値 |
+| `no_data` | `not_available` | `reason` に標高APIのエラーコードを入れる（`no_coverage`: 対象のデータの範囲外、`elevation_nodata`: NoData画素）。`no_match` にはしない |
+| `indeterminate` | `unknown` | `reason` に標高APIのエラーコードを入れる（例 `dataset_integrity_error`） |
+| `retrieval_failed` | `error` | `upstream_retrieval_failed` |
+| `invalid_request`（認証の不一致等） | `error` | `upstream_rejected` |
+| 接続できない / タイムアウト | `error` | `upstream_unreachable` / `timeout` |
+
+次の応答は `error`（`invalid_provider_result`）にする。標高の値は作らない。
+
+- 未知のstatus
+- 壊れたJSON
+- 数値でない、または欠けている標高の値
+- 要求した地点と異なる `location`
+- 出典の情報が不足している
+- `no_data` なのに値が入っている
+
+**出典（`source`）への写像**
+
+標高APIが公開する `dataset` の項目だけを写す。標高APIにない項目（`title` 等）は作らない。
+
+| `source` の項目 | 標高APIの `dataset` |
+|---|---|
+| `source_id` | `id` |
+| `organization` | `source.provider` |
+| `data_version` | `publication_version` |
+| `published_at` | `published_at` |
+| `attribution.text` / `license` / `url` | `attribution.text` / `license` / `url` |
+| `page_url` | `source.page_url`（値がある場合のみ） |
+| `data_reference_date` | `data_reference_date`（値がある場合のみ） |
+
+**Fixtureのデータ**
+
+- Fixtureの値は実際の標高ではない。
+- 起動時に `--elevation-fixture` を指定した場合だけ、`synthetic: true`（`notice` の先頭に「【合成データ】」）として返す。
+- 指定しないままFixtureのデータ（`source_id` が `fixture` で始まる）が返った場合は、`error`（`synthetic_not_allowed`）にする。
 
 ## 9. 未決定事項（OWNER判断）
 
