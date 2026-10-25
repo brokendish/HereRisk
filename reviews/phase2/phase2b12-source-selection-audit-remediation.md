@@ -135,6 +135,7 @@
 
 - ソース間の比較の承認（`deeper_in_other_sources` の資格）と版の同等性の承認（SS-U15。CQ-1・CQ-3の確認後）。未承認の間は全ケースが `null`（`cross_source_comparison_unapproved`）になる。
   - ［Phase 2-B.14で訂正（B13-02）］「全ケースが `null`」は誤り。承認が結果に影響するのは、比較の対象の区域がある場合だけである。他ソース0件・他ソースに確認済み区域0件では、承認の有無にかかわらず `false`。[Phase 2-B.14 再監査対応表](phase2b14-codex-reaudit-remediation.md)
+  - ［Phase 2-B.16で補足（B15-01）］上の訂正注記は、選択側の条件の前提を省略していた。Selection契約 第7章の順1・順2を最優先する。選択中のソースに確認済みの該当がない場合は `null`・`selected_has_no_confirmed_match`、集約の `depth` を作れない場合は `null`・`selected_depth_unavailable` で、いずれも3つの件数はすべて `null`。他ソースの件数・比較の承認の有無で選択側の理由を上書きしない。「他ソース0件・他ソースに確認済み区域0件では `false`」と「未承認なら `null`・`cross_source_comparison_unapproved`」は、**選択中のソースに基準の `depth` がある場合に限る**。正本はSelection契約 第7章であり、規則は追加・変更していない。この補足に対するCodexの再監査は未実施。
 - 他ソースがunknownのみの場合に `false` とする規則（監査は、定義すれば即座に否定しないとしている）。
 
 **残るBlocking**: 実装前に、CQ-1〜CQ-8の確認と比較の承認。公開前に、説明文言（`false` を「深い浸水の可能性なし」と誤読させない。FA-U4）。
