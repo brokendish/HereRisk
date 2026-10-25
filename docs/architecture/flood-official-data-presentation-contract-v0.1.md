@@ -36,7 +36,8 @@
 | 最上位の原則 | [Design Principles](design-principles-v1.0.md) |
 | 原典の保持・妥当性の評価 | [Flood Normalize Contract](flood-normalize-contract-v0.1.md) |
 | 統合成果物・判定用の形状・unknownの範囲・Publication Readiness | [Flood Integration Contract](flood-integration-contract-v0.1.md) |
-| データソースのモデル・目録・所属の完全性・ソースごとの地点検索・結果の区別・提示の規則・公開世代の構成 | **本書** |
+| データソースのモデル・目録・所属の完全性（CV-1〜CV-9）・ソースごとの地点検索・結果の区別・提示の規則・公開世代の構成 | **本書** |
+| Source Catalogの項目の型・必須性・検証、識別子（`source_id`・`zone_ref`・`product_ref`・`lineage_ref`）の生成・維持・対応、ID-1〜ID-6 | [Flood Source Catalog / Identity Contract（案）](flood-source-catalog-identity-contract-v0.1.md)（Phase 2-C.1） |
 | APIの入出力・エラー・世代の追跡 | [Flood API MVP Contract](../api/flood-api-mvp-contract-v0.1.md) |
 
 ## 3. 廃止した機能（再導入禁止）［確定］
@@ -69,7 +70,7 @@
 | `zone_ref` | 地点に関係した区域（構成Polygon）の公開用の不透明な識別子。**区域を識別するだけで、来歴は表さない** |
 | `product_ref`［契約案。B18-01］ | 区域が属する成果品の、公開用の不透明な参照。そのソースの `lineage_ref`（第4.3節）が指す公開用の来歴の要約の中で、成果品の項目に解決できる。同じソースの複数の成果品から複数の区域を返す場合も、区域ごとに来歴を追跡するために使う |
 
-- `source_id`・`zone_ref`・`product_ref` は不透明な識別子とする。内部のファイル名・ZIPメンバー名・ローカルパス・`record_key`・`product_id` を公開しない（共通API契約 §5）。公開世代の中で安定し、内部の原典へ戻せること。生成規則は［未決定: PD-U2］。
+- `source_id`・`zone_ref`・`product_ref` は不透明な識別子とする。内部のファイル名・ZIPメンバー名・ローカルパス・`record_key`・`product_id` を公開しない（共通API契約 §5）。公開世代の中で安定し、内部の原典へ戻せること。生成規則は［未決定: PD-U2］。具体案は [Flood Source Catalog / Identity Contract](flood-source-catalog-identity-contract-v0.1.md) 第4章（OWNER承認前）。
 - **来歴の追跡の責務**: 区域の識別は `zone_ref`、成果品は `product_ref`、ソースの来歴の要約は `lineage_ref` が担う。区域 → `product_ref` → `lineage_ref` の要約の成果品の項目 → （内部で）Lineage Manifest・原典ZIPのSHA-256・Acquisition Record、の順にたどる。`zone_ref` から内部の原典（`record_key`・`polygon_index`）への対応は内部だけで持ち、公開しない。
 - `source_id` の粒度（提供主体×シナリオ×配布単位の系列か、成果品ごとか）は［未決定: PD-U1］。粒度は、一覧の単位と所属集合（第5章）を決める。比較・集約を行わないため、粒度によって安全上の判定が変わることはない。
 - 河川別・提供主体別・個別ソース別の探索は、データに付与された属性（`source_category`・河川の情報・`source_id`）で行う。**分類の目的で原典を重複して登録しない**（第5章 CV-2）。
@@ -88,7 +89,7 @@
 
 ### 4.3 Source Catalog（ソースの目録）
 
-公開世代ごとに、提示するソースの目録を固定する。
+公開世代ごとに、提示するソースの目録を固定する。各項目の型・必須性・null・公開／内部の区分とSchema案は [Flood Source Catalog / Identity Contract](flood-source-catalog-identity-contract-v0.1.md) 第5章。
 
 | 項目 | 内容 |
 |---|---|
@@ -234,7 +235,7 @@ A31aの浸水ランクコード［実測: 製品仕様書・コードリスト�
 | unknownポリシーの改版 | **再生成する** | Integration契約に従い、新しいManifestから再統合・再検証 |
 | 区分の割当記録の変更 | 再利用してよい | CV-1〜CV-9が成立。`source_id` の所属集合を変えない |
 | 目録の表示項目の変更（所属集合は不変） | 再利用してよい | CV-1〜CV-9が成立し、`membership_digest` が旧世代と同じ |
-| 目録の所属集合の変更（成果品の移動・ソースの分割・統合） | 再利用してよい | CV-1〜CV-9が成立。**所属が変わったソースに旧世代の `source_id` を再利用しない** |
+| 目録の所属集合の変更（成果品の移動・ソースの分割・統合） | 再利用してよい | CV-1〜CV-9が成立。**所属が変わったソースに旧世代の `source_id` を再利用しない**（ここでの「所属の変更」は構造的な変更を指す。同じ系列のデータの更新は含まない。[Catalog / Identity契約](flood-source-catalog-identity-contract-v0.1.md) 第4.1節） |
 | 公開対象集合の変更（成果品の追加・削除・除外、原典の更新、地域定義・N03の変更） | **再生成する** | 新しいManifestから再統合（Integration契約 第11.2節） |
 
 - 異なるunknownポリシーのDBと公開設定を結び付けない。公開世代のunknownポリシーは、DBの `metadata`・Integrated Validate Record・Publication Readiness Recordの値と一致しなければならない。
@@ -274,8 +275,8 @@ A31aの浸水ランクコード［実測: 製品仕様書・コードリスト�
 
 | No | 事項 | 本書の提案 |
 |---|---|---|
-| PD-U1 | `source_id` の粒度 | 提供主体×シナリオ×配布単位の系列（東京都・関東地方整備局の2つ）を候補 |
-| PD-U2 | `source_id`・`zone_ref` の生成規則・世代間の継続性 | 公開世代の中で安定した不透明な識別子。所属が変わったソースに旧IDを再利用しない |
+| PD-U1 | `source_id` の粒度 | 提供主体×シナリオ×配布単位の系列（東京都・関東地方整備局の2つ）を候補。比較は [Catalog / Identity契約](flood-source-catalog-identity-contract-v0.1.md) 第3章（CI-U1） |
+| PD-U2 | `source_id`・`zone_ref` の生成規則・世代間の継続性 | 公開世代の中で安定した不透明な識別子。所属が変わったソースに旧IDを再利用しない。具体案は [Catalog / Identity契約](flood-source-catalog-identity-contract-v0.1.md) 第4章（CI-U2・CI-U3） |
 | PD-U3 | ソースを選ぶ入力（サーバ側の絞り込み）をAPIに設けるか | MVPでは設けない。絞り込み・主表示の切替えはUIで行う。将来設ける場合も、他のソースの存在を返し、検索結果を変えない |
 | PD-U4 | 原典の浸水深区分の表現の確認事項（第7.2節の(1)〜(4)） | 実データの確認の後に確定 |
 | PD-U5 | `title`・`not_included_notice`・説明の文言 | 「安全」「浸水なし」「おすすめ」「信頼度順」と誤読されない文言。OWNERが確定 |
@@ -283,6 +284,6 @@ A31aの浸水ランクコード［実測: 製品仕様書・コードリスト�
 | PD-U7 | `other` に含められるデータの資格 | 初期は該当なし |
 | PD-U8 | 同一Featureの複数 `source_id` への所属（別名・別視点） | 初期MVPでは禁止。分類の目的では属性を使う |
 | PD-U9 | 意図的な除外の承認、意図的な空の公開世代 | 除外はManifestで承認付き。空の世代は認めない |
-| PD-U10 | 公開用の来歴の要約（`lineage_ref` が指すもの）に含める項目・形式と、`product_ref` の採否（B18-01） | `product_ref` は契約案。要約には成果品ごとに、公開してよい項目（河川の情報、管理者、公表データの版、原典ZIPのSHA-256等）だけを含める案。原典の配布ファイル名・ZIPメンバー名を公開するかは、共通API契約 §5（ファイル名を公開しない）との関係で未決定。正式Schema（API契約 FA-U1）と同時に確定する |
+| PD-U10 | 公開用の来歴の要約（`lineage_ref` が指すもの）に含める項目・形式と、`product_ref` の採否（B18-01） | `product_ref` は契約案。要約には成果品ごとに、公開してよい項目（河川の情報、管理者、公表データの版、原典ZIPのSHA-256等）だけを含める案。原典の配布ファイル名・ZIPメンバー名を公開するかは、共通API契約 §5（ファイル名を公開しない）との関係で未決定。正式Schema（API契約 FA-U1）と同時に確定する。具体案は [Catalog / Identity契約](flood-source-catalog-identity-contract-v0.1.md) 第4.4節・Public Lineage SummaryのSchema案（CI-U4） |
 
 本書の採用は、製品実装・実データの処理・公開の承認ではない。

@@ -1,0 +1,142 @@
+{
+  "schema": "hererisk-flood-source-catalog-v0.1",
+  "catalog_id": "example-flood-catalog",
+  "version": "example-1",
+  "based_on": {
+    "integration_manifest_content_sha256": "760d4952a78c3f043d9d43d5c67564c28582d5ec364421eb4bc23ad42823a31c",
+    "integrated_db_logical_sha256": "b7b64b6f52237888d9eb04e67c78d9c82c6bf5b977b001f6bc46d8048d3af04a",
+    "category_assignment": {
+      "id": "example-category-assignment",
+      "version": "example-1",
+      "content_sha256": "f6d80e43a878e90115076b0ec4670cbba501e88c82948e859da1a8564ce638f9"
+    },
+    "identity_ledger": {
+      "version": "example-2",
+      "content_sha256": "e68443bf424f3f865be8a95e8da9e9f38d23fe32e78e0f3975be3c9c4942aacc"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "fl-src-0000000001",
+      "source_revision": 1,
+      "series_key": {
+        "dataset": "ksj-a31a",
+        "publisher_code": "13",
+        "scenario": "maximum",
+        "distribution_series": "13"
+      },
+      "source_category": "local_government",
+      "source_organization": "東京都",
+      "title": "国土数値情報 洪水浸水想定区域データ（想定最大規模・東京都管理河川）［例示］",
+      "rivers": [
+        {
+          "river_code": "0000000001",
+          "river_name_in_source": "例示河川A",
+          "product_refs": [
+            "fl-prd-aa20b2e778c89764"
+          ]
+        },
+        {
+          "river_code": "0000000002",
+          "river_name_in_source": "例示河川B",
+          "product_refs": [
+            "fl-prd-c88740672ef0a084"
+          ]
+        }
+      ],
+      "scenario": "maximum",
+      "data_version": {
+        "reference_year": "2025",
+        "data_reference_date": null
+      },
+      "attribution": {
+        "text": "<出典・加工の表示（文言未決定）>",
+        "license": null,
+        "url": null
+      },
+      "lineage_ref": "fl-lin-6ba205f14f7844e2f323cc73a9d97c705bcdd897a038ce6017c15037cfaa14bd",
+      "service_region": {
+        "region_rule_content_sha256": "4258c34723278b4bf7da3e1b406e3b3f10c113d7cc497beb6128cfc82c664f23"
+      },
+      "assessed_extent": {
+        "kind": "unknown"
+      },
+      "depth_class_scheme": {
+        "scheme_id": "ksj-a31a-water-depth-rank",
+        "scheme_version": "<コードリストの版>",
+        "classes": [
+          {
+            "class_code": "1",
+            "label": "0～0.5m未満",
+            "lower_m": 0,
+            "upper_m": 0.5,
+            "bounds_inclusion": "unspecified"
+          },
+          {
+            "class_code": "2",
+            "label": "0.5～3.0m未満",
+            "lower_m": 0.5,
+            "upper_m": 3.0,
+            "bounds_inclusion": "unspecified"
+          },
+          {
+            "class_code": "3",
+            "label": "3.0～5.0m未満",
+            "lower_m": 3.0,
+            "upper_m": 5.0,
+            "bounds_inclusion": "unspecified"
+          },
+          {
+            "class_code": "4",
+            "label": "5.0～10.0m未満",
+            "lower_m": 5.0,
+            "upper_m": 10.0,
+            "bounds_inclusion": "unspecified"
+          },
+          {
+            "class_code": "5",
+            "label": "10.0～20.0m未満",
+            "lower_m": 10.0,
+            "upper_m": 20.0,
+            "bounds_inclusion": "unspecified"
+          },
+          {
+            "class_code": "6",
+            "label": "20.0m以上",
+            "lower_m": 20.0,
+            "upper_m": null,
+            "bounds_inclusion": "unspecified"
+          }
+        ]
+      },
+      "products": [
+        {
+          "product_ref": "fl-prd-aa20b2e778c89764",
+          "zip_sha256": "e5f73e9d4c094d3548f1f78c5b8b06340b023bf2114b66141bd1452416e2bea5",
+          "product_id": "EXAMPLE-A31a-20-25_13_0000000001_10",
+          "scenario_folder": "20_想定最大規模",
+          "normalize_content_sha256": "1d8fb3d6037b0ec9039532b966a3a68d9bd605f8f2897cdd913983bfcea5917f",
+          "manager_code": "13",
+          "manager_name": "東京都",
+          "river_code": "0000000001",
+          "river_name_in_source": "例示河川A"
+        },
+        {
+          "product_ref": "fl-prd-c88740672ef0a084",
+          "zip_sha256": "173839b9ebb81b400adc5937b291d3f9c1fbe4a3ee7a4bf09d81e60f30a1f178",
+          "product_id": "EXAMPLE-A31a-20-25_13_0000000002_20",
+          "scenario_folder": "20_想定最大規模",
+          "normalize_content_sha256": "dceada5a1ccdcf780a60ae3abbb661a97fd8ecf1cf640c953d00180d9b5c5684",
+          "manager_code": "13",
+          "manager_name": "東京都",
+          "river_code": "0000000002",
+          "river_name_in_source": "例示河川B"
+        }
+      ],
+      "membership_digest": {
+        "feature_count": 6,
+        "feature_key_set_sha256": "4dfbe48ae25de2907873aa810a2240097f5aed4a8f86944edd3bdd871b392e4e"
+      }
+    }
+  ]
+}

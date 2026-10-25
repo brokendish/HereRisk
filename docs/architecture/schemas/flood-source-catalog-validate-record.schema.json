@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "flood-source-catalog-validate-record.schema.json",
+  "description": "PROVISIONAL Source Catalog Validate Record: results of CV-1..CV-9 (Flood Official Data Presentation Contract section 5) and ID-1..ID-6 (Flood Source Catalog / Identity Contract section 7). Not a formal schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "status",
+    "target",
+    "validator",
+    "results",
+    "record_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": "hererisk-flood-source-catalog-validate-record-v0.1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAILED"
+      ]
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "catalog",
+        "integrated_db_logical_sha256",
+        "integration_record_sha256",
+        "identity_ledger_sha256",
+        "category_assignment_sha256",
+        "lineage_summaries"
+      ],
+      "properties": {
+        "catalog": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "version",
+            "content_sha256"
+          ],
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "version": {
+              "type": "string",
+              "minLength": 1
+            },
+            "content_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        },
+        "integrated_db_logical_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "integration_record_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "identity_ledger_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "category_assignment_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "lineage_summaries": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source_id",
+              "lineage_ref"
+            ],
+            "properties": {
+              "source_id": {
+                "type": "string",
+                "pattern": "^fl-src-[0-9a-z]{10}$"
+              },
+              "lineage_ref": {
+                "type": "string",
+                "pattern": "^fl-lin-[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "validator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "results": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "CV-1",
+        "CV-2",
+        "CV-3",
+        "CV-4",
+        "CV-5",
+        "CV-6",
+        "CV-7",
+        "CV-8",
+        "CV-9",
+        "ID-1",
+        "ID-2",
+        "ID-3",
+        "ID-4",
+        "ID-5",
+        "ID-6"
+      ],
+      "patternProperties": {
+        "^(CV-[1-9]|ID-[1-6])$": {
+          "$ref": "#/$defs/result"
+        }
+      }
+    },
+    "record_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "passed",
+        "checked_count",
+        "failures"
+      ],
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "checked_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failures": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_id": {
+                "type": "string",
+                "pattern": "^fl-src-[0-9a-z]{10}$"
+              },
+              "product_ref": {
+                "type": "string",
+                "pattern": "^fl-prd-[0-9a-f]{16}$"
+              },
+              "zone_ref": {
+                "type": "string",
+                "pattern": "^fl-zn-[0-9a-f]{20}$"
+              }
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "passed": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "failures": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

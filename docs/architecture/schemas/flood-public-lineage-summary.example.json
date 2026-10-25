@@ -1,0 +1,43 @@
+{
+  "schema": "hererisk-flood-public-lineage-summary-v0.1",
+  "source_id": "fl-src-0000000001",
+  "source_revision": 1,
+  "dataset_title": "国土数値情報 洪水浸水想定区域データ（想定最大規模）［例示］",
+  "publisher": "東京都",
+  "data_version": {
+    "reference_year": "2025",
+    "data_reference_date": null
+  },
+  "processing": {
+    "normalize": {
+      "processing_id": "<未採番>",
+      "version": "<未採番>"
+    },
+    "integration": {
+      "processing_id": "<未採番>",
+      "version": "<未採番>"
+    }
+  },
+  "products": [
+    {
+      "product_ref": "fl-prd-aa20b2e778c89764",
+      "river_code": "0000000001",
+      "river_name_in_source": "例示河川A",
+      "manager_code": "13",
+      "manager_name": "東京都",
+      "scenario": "maximum",
+      "source_zip_sha256": "e5f73e9d4c094d3548f1f78c5b8b06340b023bf2114b66141bd1452416e2bea5",
+      "acquired_on": "2026-10-01"
+    },
+    {
+      "product_ref": "fl-prd-c88740672ef0a084",
+      "river_code": "0000000002",
+      "river_name_in_source": "例示河川B",
+      "manager_code": "13",
+      "manager_name": "東京都",
+      "scenario": "maximum",
+      "source_zip_sha256": "173839b9ebb81b400adc5937b291d3f9c1fbe4a3ee7a4bf09d81e60f30a1f178",
+      "acquired_on": "2026-10-01"
+    }
+  ]
+}

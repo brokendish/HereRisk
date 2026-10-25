@@ -124,6 +124,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 - 各配列の並び順は `zone_ref` の昇順（決定的）。
 - `zone_ref` は区域を識別する公開用の不透明な識別子であり、来歴は表さない。内部の `record_key`（原典のZIPメンバー名を含む）を公開しない。
 - `product_ref` は、区域が属する成果品の公開用の不透明な参照で、同じソースの `lineage_ref` の要約の中の成果品の項目に解決できる。同じソースの複数の成果品から複数の区域を返す場合も、区域ごとに来歴を追跡できる。`product_ref` の採否と、要約に含める項目は未決定（提示契約 PD-U10。正式Schema FA-U1と同時に確定）。
+- `source_id`・`zone_ref`・`product_ref`・`lineage_ref` の形式・生成規則の具体案は [Flood Source Catalog / Identity Contract](../architecture/flood-source-catalog-identity-contract-v0.1.md) 第4章（OWNER承認前）。
 - unknownの区域の原典のランクを返すかは未決定（FA-U5）。MVPの案では返さない。
 
 ### 5.4 全件の返却

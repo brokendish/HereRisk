@@ -1,0 +1,51 @@
+{
+  "schema": "hererisk-flood-source-identity-ledger-v0.1",
+  "version": "example-2",
+  "previous_version_sha256": "96777cb96f4ebd5e0335094e1a60c8c760ac9381a4b88c379ba4e3a0e51e0878",
+  "entries": [
+    {
+      "source_id": "fl-src-0000000001",
+      "status": "active",
+      "series_key": {
+        "dataset": "ksj-a31a",
+        "publisher_code": "13",
+        "scenario": "maximum",
+        "distribution_series": "13"
+      },
+      "assigned_at": "2026-10-25T00:00:00Z",
+      "retired_at": null,
+      "successors": [],
+      "approval_ref": "<承認記録の参照（Schema未決定）>"
+    },
+    {
+      "source_id": "fl-src-0000000002",
+      "status": "active",
+      "series_key": {
+        "dataset": "ksj-a31a",
+        "publisher_code": "83",
+        "scenario": "maximum",
+        "distribution_series": "83"
+      },
+      "assigned_at": "2026-10-25T00:00:00Z",
+      "retired_at": null,
+      "successors": [],
+      "approval_ref": "<承認記録の参照（Schema未決定）>"
+    },
+    {
+      "source_id": "fl-src-0000000009",
+      "status": "retired",
+      "series_key": {
+        "dataset": "ksj-a31a",
+        "publisher_code": "13",
+        "scenario": "maximum",
+        "distribution_series": "13"
+      },
+      "assigned_at": "2026-10-20T00:00:00Z",
+      "retired_at": "2026-10-25T00:00:00Z",
+      "successors": [
+        "fl-src-0000000001"
+      ],
+      "approval_ref": "<承認記録の参照（Schema未決定）>"
+    }
+  ]
+}
