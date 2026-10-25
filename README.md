@@ -35,6 +35,30 @@ HereRiskは、現在地の災害リスクを調べ、
   - 履歴資料（**現行仕様ではない。実装根拠として使用禁止**）: [Flood Source Priority Contract](docs/architecture/flood-source-priority-contract-v0.1.md)、[Flood Source Selection Contract](docs/architecture/flood-source-selection-contract-v0.1.md)、Phase 2-B.9〜B.16のレビュー（`reviews/phase2/phase2b9`〜`phase2b14`）
 - Phase 2-C 公式データ取得元台帳（5つのAPIの取得可否・利用条件の確認状況。**取得・公開の承認ではない**）: [台帳の設計（案）](docs/architecture/official-source-ledger-v0.1.md)、[台帳JSON](docs/data-sources/official-source-ledger.json)、[調査報告](reviews/phase2/phase2c-official-source-availability-survey.md)、[入力形式・座標精度の方針（案）](docs/architecture/hazard-source-format-precision-policy-v0.1.md)
 
+## Location API v0.1（Phase 3-A サービス骨格）
+
+緯度・経度から、住所・標高・洪水・津波・高潮・土砂災害を1つのJSONで返すAPIの骨格です。契約は [Location API v0.1](docs/api/location-api-v0.1.md) にあります。
+
+- 現状では、すべてのProviderが**未接続**で `not_available` を返します。
+- 公式データ・外部APIには接続しません。
+- 起動できるのはループバックのアドレスだけです。
+
+```sh
+# 起動（既定: 全Provider未接続）
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001
+
+# 確認
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.681236&lon=139.767125"
+
+# 画面確認用の合成データ（mode: "sample"、全セクションに synthetic: true）
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 --sample-data
+
+# テスト
+.venv/bin/python -m pytest -q tests/contract/test_location_api.py
+```
+
+実データのProviderへの切替え方は、契約の第8章に書いています。
+
 ## 開発方針
 
 - UNIX哲学

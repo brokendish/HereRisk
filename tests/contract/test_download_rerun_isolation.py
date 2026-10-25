@@ -219,8 +219,10 @@ def test_no_later_stage_or_network_code_reachable(no_network) -> None:
     # Phase 1-D.1: the GSI PoC's single HTTPS module is the only network code.
     # Outbound: the GSI HTTPS client only. Inbound: the public API's HTTP server
     # adapter may import http.server (it never opens outbound connections).
+    # Phase 3-A: the Location API HTTP server adapter is inbound only in the same way.
     network_allowed = {src / "elevation" / "net" / "gsi_http.py",
-                       src / "elevation" / "api" / "server.py"}
+                       src / "elevation" / "api" / "server.py",
+                       src / "location" / "server.py"}
     pipeline_dirs = ("/common/", "/elevation/download/", "/elevation/normalize/",
                      "/elevation/validate/", "/elevation/lookup/")
     for path in src.rglob("*.py"):
