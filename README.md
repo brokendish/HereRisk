@@ -10,6 +10,7 @@ HereRiskは、現在地の災害リスクを調べ、
 
 - [プロジェクト定義書](docs/project-charter.md)
 - [Design Principles v1.0](docs/architecture/design-principles-v1.0.md)（共通設計の最上位原則。共通API契約・各ハザードの個別契約はこれと整合させる）
+- [ADR: 複数の公式防災情報を独立して提示する理由（2026-10-25）](docs/decisions/2026-10-25-multiple-official-hazard-results.md)（公式データ間の差異を隠さず、独自の唯一の答えを作らない設計判断）
 - [AI共通作業規約](docs/development/ai-development-policy.md)
 - [公開検証サマリー](reviews/README.md)
 - [Dataset Registry設計書 v0.1](docs/architecture/dataset-registry-v0.1.md)
