@@ -4,6 +4,7 @@
 - 作成: 2026-10-25（Claude）
 - 状態: **Floodの公式データ提示の現行の正本**（契約案。正式採用はOWNERのレビュー待ち）。第1章の方針は**OWNERが決定した正式仕様**［確定］。その他の契約の文言は［提案］。本書は実装・実データの処理・公開の承認ではない
 - 基準コミット: `bb7c438d6aa04a741f8d3ee867a0df4002512a48`
+- 改訂: 2026-10-25 Phase 2-B.19 — Phase 2-B.18 Codex監査のLOW指摘への文書訂正。B18-01: 区域の来歴の参照（`zone_ref`・`lineage_ref`・`product_ref` の責務の区別。`product_ref` は契約案。第4.1節・第4.3節・第7.1節・PD-U10）。B18-02: 第9章のPD-U3の章番号の訂正。機能・方式は変更していない
 - 上位: [Design Principles](design-principles-v1.0.md)
 - 前提: [Flood Normalize Contract（案）](flood-normalize-contract-v0.1.md)、[Flood Integration Contract（案）](flood-integration-contract-v0.1.md)
 - API: [Flood API MVP Contract（案）](../api/flood-api-mvp-contract-v0.1.md)
@@ -65,9 +66,11 @@
 | `source_id` | 公表データの単位（例: 東京都管理河川の想定最大規模、関東地方整備局管理河川の想定最大規模）の公開用の不透明な識別子 |
 | `source_category` | 提供主体の区分（`local_government`・`national_government`・`other`）。**分類・表示・絞り込みの属性であり、順位を持たない** |
 | `product_id` | 原典の成果品ID（ZIPメンバーの幹）。内部の識別子 |
-| `zone_ref` | 地点に関係した区域（構成Polygon）の公開用の不透明な識別子 |
+| `zone_ref` | 地点に関係した区域（構成Polygon）の公開用の不透明な識別子。**区域を識別するだけで、来歴は表さない** |
+| `product_ref`［契約案。B18-01］ | 区域が属する成果品の、公開用の不透明な参照。そのソースの `lineage_ref`（第4.3節）が指す公開用の来歴の要約の中で、成果品の項目に解決できる。同じソースの複数の成果品から複数の区域を返す場合も、区域ごとに来歴を追跡するために使う |
 
-- `source_id`・`zone_ref` は不透明な識別子とする。内部のファイル名・ZIPメンバー名・ローカルパス・`record_key` を公開しない（共通API契約 §5）。公開世代の中で安定し、内部の原典へ戻せること。生成規則は［未決定: PD-U2］。
+- `source_id`・`zone_ref`・`product_ref` は不透明な識別子とする。内部のファイル名・ZIPメンバー名・ローカルパス・`record_key`・`product_id` を公開しない（共通API契約 §5）。公開世代の中で安定し、内部の原典へ戻せること。生成規則は［未決定: PD-U2］。
+- **来歴の追跡の責務**: 区域の識別は `zone_ref`、成果品は `product_ref`、ソースの来歴の要約は `lineage_ref` が担う。区域 → `product_ref` → `lineage_ref` の要約の成果品の項目 → （内部で）Lineage Manifest・原典ZIPのSHA-256・Acquisition Record、の順にたどる。`zone_ref` から内部の原典（`record_key`・`polygon_index`）への対応は内部だけで持ち、公開しない。
 - `source_id` の粒度（提供主体×シナリオ×配布単位の系列か、成果品ごとか）は［未決定: PD-U1］。粒度は、一覧の単位と所属集合（第5章）を決める。比較・集約を行わないため、粒度によって安全上の判定が変わることはない。
 - 河川別・提供主体別・個別ソース別の探索は、データに付与された属性（`source_category`・河川の情報・`source_id`）で行う。**分類の目的で原典を重複して登録しない**（第5章 CV-2）。
 
@@ -96,7 +99,7 @@
 | `scenario` | 想定の条件（`maximum`＝想定最大規模） |
 | `data_version` | 公表データの版・時点 |
 | `attribution` | 出典・加工の表示（文言は［未決定: Integration契約 OI-10］） |
-| `lineage_ref` | 来歴への公開用の参照（内部パスを含めない） |
+| `lineage_ref` | ソースの来歴の、**公開用の要約**への参照（内部パスを含めない）。要約は、そのソースの成果品ごとの項目（`product_ref` で参照される）を持つ。Integration契約 第9.3節のLineage Manifest（非公開の証跡）そのものではない。要約に含める項目と形式は［未決定: PD-U10］ |
 | `service_region` | サービス対象地域の参照（初期は統合の対象地域で全ソース共通） |
 | `assessed_extent` | 評価済み範囲の表現。**A31aは `unknown`**（評価済み範囲を持たない［実測: Phase 2-A.1］） |
 | `depth_class_scheme` | 原典の浸水深区分の体系のID・版（第7.2節）。原典のコードを、原典の定義の文言・区間に対応付けるために使う |
@@ -156,9 +159,9 @@
 
 | 出力（ソースごと） | 内容 |
 |---|---|
-| `zones[]` | 地点を内部に含む判定用の構成Polygon（確認済みの該当）の**全件**。各要素は `zone_ref`・成果品の河川の情報・原典の浸水深区分（第7.2節）・来歴の参照 |
-| `unknowns[]` | 地点がunknownの範囲（L1）に入る全件。各要素は `zone_ref`・河川の情報・理由（`invalid_geometry`・`feature_invalid_component`）・`unknown_level`（`L1`） |
-| `boundary_contacts[]` | 地点が判定用の構成Polygonの境界上にある全件（確認済みの該当ではない） |
+| `zones[]` | 地点を内部に含む判定用の構成Polygon（確認済みの該当）の**全件**。各要素は `zone_ref`・`product_ref`（来歴の参照。第4.1節）・成果品の河川の情報・原典の浸水深区分（第7.2節） |
+| `unknowns[]` | 地点がunknownの範囲（L1）に入る全件。各要素は `zone_ref`・`product_ref`・河川の情報・理由（`invalid_geometry`・`feature_invalid_component`）・`unknown_level`（`L1`） |
+| `boundary_contacts[]` | 地点が判定用の構成Polygonの境界上にある全件（確認済みの該当ではない）。各要素は `zones[]` と同じ項目 |
 | `service_region_relation` | `inside`・`boundary` |
 | `assessed_extent_relation` | A31aでは `unknown` |
 
@@ -214,7 +217,7 @@ A31aの浸水ランクコード［実測: 製品仕様書・コードリスト�
 ## 9. 提示と絞り込み［提案］
 
 - **APIは常に、列挙した全ソースの検索結果を返す**（`overview`。初期表示の基本。Design Principles DP-04）。
-- 河川別・提供主体別・個別ソース別の表示・絞り込み・主表示の切替えは、**UI（クライアント）が応答の属性を使って行う**。MVPのAPIは、ソースを選ぶ入力を持たない（第12章 PD-U3）。
+- 河川別・提供主体別・個別ソース別の表示・絞り込み・主表示の切替えは、**UI（クライアント）が応答の属性を使って行う**。MVPのAPIは、ソースを選ぶ入力を持たない（第13章 PD-U3）。
 - UIで絞り込み・切替えをしても、他のソースの結果が存在すること（件数・一覧への導線）と、他のソースのunknownを参照できるようにする（Design Principles DP-08）。
 - 絞り込み・主表示の切替えは、正誤・信頼性の判定ではない。「おすすめ」「信頼度順」と表現しない。
 - 一覧の並び順は、公開世代のSource Display Settings（表示順・グルーピング。版付き・内容ハッシュで固定）で決める。設定がない場合の既定は `source_id` の昇順。**並び順は信頼性の順位ではなく、検索結果を変えない。** リクエストで並び順を指定させない。
@@ -280,5 +283,6 @@ A31aの浸水ランクコード［実測: 製品仕様書・コードリスト�
 | PD-U7 | `other` に含められるデータの資格 | 初期は該当なし |
 | PD-U8 | 同一Featureの複数 `source_id` への所属（別名・別視点） | 初期MVPでは禁止。分類の目的では属性を使う |
 | PD-U9 | 意図的な除外の承認、意図的な空の公開世代 | 除外はManifestで承認付き。空の世代は認めない |
+| PD-U10 | 公開用の来歴の要約（`lineage_ref` が指すもの）に含める項目・形式と、`product_ref` の採否（B18-01） | `product_ref` は契約案。要約には成果品ごとに、公開してよい項目（河川の情報、管理者、公表データの版、原典ZIPのSHA-256等）だけを含める案。原典の配布ファイル名・ZIPメンバー名を公開するかは、共通API契約 §5（ファイル名を公開しない）との関係で未決定。正式Schema（API契約 FA-U1）と同時に確定する |
 
 本書の採用は、製品実装・実データの処理・公開の承認ではない。

@@ -3,6 +3,7 @@
 - 作成: 2026-10-24（Claude。Phase 2-B.9）
 - 改訂: 2026-10-25 Design Contract Realignment（Phase 2-B.17）— **公式データ忠実提示方式への全面移行**。OWNERの仕様変更により、ソース間の比較・代表値・状態の要約・ソースの選択の入力を廃止し、全面的に書き直した。基準コミット `bb7c438d6aa04a741f8d3ee867a0df4002512a48`。廃止した項目は第12章。経緯は [Phase 2-B.17 レビュー](../../reviews/phase2/phase2b17-official-data-presentation-realignment.md)
   - Phase 2-B.9〜B.16の版（`representative`・`deeper_in_other_sources`・`deeper_comparison`・`assessment_status`・`overall_status`・`source_id` の入力 等）は**廃止した設計**であり、実装根拠として使用禁止。旧版の内容はgitの履歴と各レビュー記録（履歴資料）にある
+- 改訂: 2026-10-25 Phase 2-B.19 — Phase 2-B.18 Codex監査のLOW指摘B18-01への文書訂正。`sources[].lineage_ref` と区域ごとの `product_ref`（契約案）を追加し、区域から来歴をたどる対応を明記した（第5.2節・第5.3節・第7章・FA-11）。機能・方式は変更していない
 - 状態: **契約案（OWNERレビュー待ち。正式採用されていない）**。本書は製品実装・正式なレスポンスSchema・実データの公開の承認ではない
 - 上位: [Design Principles](../architecture/design-principles-v1.0.md)、[共通API契約 v0.1](common-contract-v0.1.md)
 - 意味の正本: [Flood Official Data Presentation Contract v0.1（案）](../architecture/flood-official-data-presentation-contract-v0.1.md)（以下「提示契約」）。本書は入出力の形・エラー・世代の追跡だけを定め、データの意味・区別・提示の規則は提示契約を参照する
@@ -68,17 +69,17 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
     "sources": [
       {"source_id": "example-source-a", "source_category": "local_government", "source_organization": "東京都",
        "title": "<データの正式名称>", "scenario": "maximum", "data_version": "2025",
-       "attribution": {"text": "<出典・加工の表示>"},
+       "attribution": {"text": "<出典・加工の表示>"}, "lineage_ref": "<公開用の来歴の要約への参照>",
        "service_region_relation": "inside", "assessed_extent_relation": "unknown",
        "zones": [],
-       "unknowns": [{"zone_ref": "z-a1", "river_name_in_source": "<代表河川名>", "reason": "invalid_geometry", "unknown_level": "L1"}],
+       "unknowns": [{"zone_ref": "z-a1", "product_ref": "p-a1", "river_name_in_source": "<代表河川名>", "reason": "invalid_geometry", "unknown_level": "L1"}],
        "boundary_contacts": []},
       {"source_id": "example-source-b", "source_category": "national_government", "source_organization": "国土交通省 関東地方整備局",
        "title": "<データの正式名称>", "scenario": "maximum", "data_version": "2025",
-       "attribution": {"text": "<出典・加工の表示>"},
+       "attribution": {"text": "<出典・加工の表示>"}, "lineage_ref": "<公開用の来歴の要約への参照>",
        "service_region_relation": "inside", "assessed_extent_relation": "unknown",
        "zones": [
-         {"zone_ref": "z-b1", "river_code": "<A31a_201>", "river_name_in_source": "荒川",
+         {"zone_ref": "z-b1", "product_ref": "p-b1", "river_code": "<A31a_201>", "river_name_in_source": "荒川",
           "depth_class": {"scheme_id": "ksj-a31a-water-depth-rank", "scheme_version": "<版>", "class_code": "3",
                           "label": "3.0～5.0m未満", "lower_m": 3.0, "upper_m": 5.0, "bounds_inclusion": "unspecified"}}],
        "unknowns": [], "boundary_contacts": []}
@@ -104,6 +105,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 |---|---|
 | `source_id`・`source_category`・`source_organization` | 提示契約 第4章。`source_category` は分類の属性で、順位を持たない |
 | `title`・`scenario`・`data_version`・`attribution` | 提示契約 第4.3節 |
+| `lineage_ref` | ソースの公開用の来歴の要約への参照（提示契約 第4.3節）。内部パス・Lineage Manifestそのものを指さない |
 | `service_region_relation`・`assessed_extent_relation` | 提示契約 第7.1節 |
 | `zones[]`・`unknowns[]`・`boundary_contacts[]` | 第5.3節 |
 
@@ -114,13 +116,14 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 
 | 配列 | 各要素の項目 |
 |---|---|
-| `zones[]`（確認済みの該当） | `zone_ref`、`river_code`・`river_name_in_source`（成果品の代表河川。個別の区域の原因河川ではない［実測］）、`depth_class`（第5.5節） |
-| `unknowns[]`（判定保留） | `zone_ref`、`river_code`・`river_name_in_source`、`reason`（`invalid_geometry`・`feature_invalid_component`）、`unknown_level`（`L1`） |
-| `boundary_contacts[]`（境界上） | `zone_ref`、`river_code`・`river_name_in_source`、`depth_class` |
+| `zones[]`（確認済みの該当） | `zone_ref`、`product_ref`［契約案］、`river_code`・`river_name_in_source`（成果品の代表河川。個別の区域の原因河川ではない［実測］）、`depth_class`（第5.5節） |
+| `unknowns[]`（判定保留） | `zone_ref`、`product_ref`［契約案］、`river_code`・`river_name_in_source`、`reason`（`invalid_geometry`・`feature_invalid_component`）、`unknown_level`（`L1`） |
+| `boundary_contacts[]`（境界上） | `zone_ref`、`product_ref`［契約案］、`river_code`・`river_name_in_source`、`depth_class` |
 
 - **同じソースに複数の区域が該当した場合は、それぞれを要素として返す。** 集約した浸水深の項目は持たない。
 - 各配列の並び順は `zone_ref` の昇順（決定的）。
-- `zone_ref` は公開用の不透明な識別子。内部の `record_key`（原典のZIPメンバー名を含む）を公開しない。
+- `zone_ref` は区域を識別する公開用の不透明な識別子であり、来歴は表さない。内部の `record_key`（原典のZIPメンバー名を含む）を公開しない。
+- `product_ref` は、区域が属する成果品の公開用の不透明な参照で、同じソースの `lineage_ref` の要約の中の成果品の項目に解決できる。同じソースの複数の成果品から複数の区域を返す場合も、区域ごとに来歴を追跡できる。`product_ref` の採否と、要約に含める項目は未決定（提示契約 PD-U10。正式Schema FA-U1と同時に確定）。
 - unknownの区域の原典のランクを返すかは未決定（FA-U5）。MVPの案では返さない。
 
 ### 5.4 全件の返却
@@ -176,6 +179,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 |---|---|
 | `dataset.id`・`dataset.publication_version`・`dataset.published_at` | 公開Registryの識別・版（共通API契約 §5） |
 | `sources[].attribution` | 利用条件が求める出典・加工の表示（ソースごと） |
+| `sources[].lineage_ref`・区域ごとの `product_ref` | 区域 → `product_ref` → `lineage_ref` の要約の成果品の項目、の順に来歴をたどる（提示契約 第4.1節）。公開世代の中で安定し、内部パス・`record_key`・`product_id` を含めない |
 | `settings.source_catalog`・`settings.source_category_assignment`・`settings.source_display` | 目録・区分の割当記録・表示設定のID・版・内容ハッシュ |
 | `settings.unknown_region` | unknownポリシーのID・版・内容ハッシュ。公開世代の統合成果物の `metadata` のunknownポリシーと一致する（提示契約 第10章） |
 | `evaluated_at` | 評価時刻（データの基準日・公開日とは別） |
@@ -224,6 +228,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 | FA-08 | 正常・異常時のログ | 位置情報を含まない |
 | FA-09 | 応答の大きさが上限を超える地点（合成データ） | 部分結果を返さず `flood_response_limit_exceeded` |
 | FA-10 | 同じ地点・同じ世代で繰り返し | 結果と並び順が同一 |
+| FA-11 | 同じソースの異なる成果品の2区域が地点に該当（合成データ） | 区域ごとに異なる `product_ref` が返り、それぞれが同じソースの `lineage_ref` の要約の中の成果品の項目に解決できる。`zone_ref`・`product_ref`・`lineage_ref` に内部パス・`record_key`・ZIPメンバー名が現れない |
 
 ## 12. 廃止した項目（Phase 2-B.9〜B.16の版から）
 
@@ -242,7 +247,7 @@ URLは仮案であり、既存のルーティング契約を変更しない。AP
 
 | No | 事項 | 本書の提案 |
 |---|---|---|
-| FA-U1 | 正式なレスポンスSchema（型・必須性・null・省略） | 本書の構成を叩き台とする |
+| FA-U1 | 正式なレスポンスSchema（型・必須性・null・省略） | 本書の構成を叩き台とする。`product_ref`・`lineage_ref` の要約の形式（提示契約 PD-U10）を含む |
 | FA-U4 | 説明文言（評価範囲不明・判定保留・他ソースの存在） | 「安全」「浸水なし」「おすすめ」「信頼度順」と誤読されない文言。OWNERが確定 |
 | FA-U5 | unknownの区域の原典ランクを返すか | MVPでは返さない |
 | FA-U7 | 応答の大きさの上限の値 | 全件返却。超過は明示的なエラー。値は性能検証の後 |
