@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "official-source-ledger.schema.json",
-  "description": "PROVISIONAL Official Source Ledger (survey of official data distribution, availability and usage-terms review state across HereRisk APIs). availability.status and usage_terms.status are independent. usage_terms.status=approved requires an OWNER approval reference; surveyors must not set it. Not a formal schema.",
+  "description": "PROVISIONAL Official Source Ledger (survey of official data distribution, availability and usage-terms review state across HereRisk APIs). availability.status and usage_terms.status are independent. usage_terms.status=approved requires an OWNER approval reference; surveyors must not set it. Not a formal schema. Evidence distinguishes date-only (time_precision=date, observed_at=null) from exact datetime observations.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -42,7 +42,9 @@
       "required": [
         "kind",
         "url",
+        "observed_on",
         "observed_at",
+        "time_precision",
         "observed_by"
       ],
       "properties": {
@@ -56,7 +58,8 @@
             "download_record",
             "external_answer_record",
             "repository_record",
-            "web_search_hint"
+            "web_search_hint",
+            "local_file_inspection"
           ]
         },
         "url": {
@@ -71,8 +74,12 @@
           "minLength": 1
         },
         "observed_at": {
-          "type": "string",
-          "format": "date-time"
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time",
+          "description": "Exact time of the observation, or null when only the date is known. Never fill in a fictitious time."
         },
         "observed_by": {
           "type": "string",
@@ -81,8 +88,45 @@
         "summary": {
           "type": "string",
           "minLength": 1
+        },
+        "observed_on": {
+          "type": "string",
+          "format": "date",
+          "description": "Date of the observation (UTC unless stated). Always present."
+        },
+        "time_precision": {
+          "type": "string",
+          "enum": [
+            "datetime",
+            "date"
+          ]
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "time_precision": {
+                "const": "date"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "observed_at": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "observed_at": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
     },
     "entry": {
       "type": "object",
@@ -373,8 +417,30 @@
                 "type": "string",
                 "minLength": 1
               }
+            },
+            "download_verification": {
+              "$ref": "#/$defs/download_verification"
             }
-          }
+          },
+          "allOf": [
+            {
+              "if": {
+                "required": [
+                  "download_verification"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "download_verified",
+                      "automation_verified"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
         },
         "usage_terms": {
           "type": "object",
@@ -584,6 +650,245 @@
         "checked_by": {
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "download_verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Result of a single manual download verification. Not an automation result.",
+      "required": [
+        "retrieved_at",
+        "request_url",
+        "effective_url",
+        "redirect_count",
+        "http_status",
+        "size_bytes",
+        "sha256",
+        "zip_check",
+        "formats_found",
+        "metadata",
+        "issues"
+      ],
+      "properties": {
+        "retrieved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "request_url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "effective_url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "redirect_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "http_status": {
+          "type": "integer"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "zip_check": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "readable",
+            "crc_ok",
+            "member_count",
+            "uncompressed_bytes",
+            "unsafe_paths",
+            "symlinks",
+            "encrypted",
+            "path_separator"
+          ],
+          "properties": {
+            "readable": {
+              "type": "boolean"
+            },
+            "crc_ok": {
+              "type": "boolean"
+            },
+            "member_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "uncompressed_bytes": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unsafe_paths": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "symlinks": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "encrypted": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "path_separator": {
+              "type": "string",
+              "enum": [
+                "slash",
+                "backslash",
+                "none"
+              ]
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "size_bytes"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "size_bytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "formats_found": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "GML",
+              "GeoJSON",
+              "Shapefile",
+              "metadata_xml",
+              "text_notes"
+            ]
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "encoding",
+            "title",
+            "date",
+            "organisation",
+            "use_limitation",
+            "lineage_statements"
+          ],
+          "properties": {
+            "file": {
+              "type": "string",
+              "minLength": 1
+            },
+            "encoding": {
+              "type": "string",
+              "minLength": 1
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1
+            },
+            "date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "organisation": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "use_limitation": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "lineage_statements": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "sample": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "member",
+            "feature_count",
+            "geometry_types",
+            "attribute_keys",
+            "class_values"
+          ],
+          "properties": {
+            "member": {
+              "type": "string",
+              "minLength": 1
+            },
+            "feature_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "geometry_types": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer"
+              }
+            },
+            "attribute_keys": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "class_values": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }

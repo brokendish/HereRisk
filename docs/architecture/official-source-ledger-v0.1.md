@@ -4,6 +4,7 @@
 - 作成: 2026-10-25（Claude）
 - 状態: **設計案（OWNERレビュー待ち。正式採用されていない）**。本書と台帳は、実データの取得・製品実装・公開の承認ではない
 - 基準コミット: `a4d8b39973ef33cba99aa55f92ede2f9c3cc6228`
+- 改訂: 2026-10-25 Phase 2-C.3 — 根拠の日付と日時の区別（`observed_on`・`observed_at`・`time_precision`）と、手動の単発取得の結果（`availability.download_verification`）をSchemaに追加した（第3.1節・第4章）。記録: [Phase 2-C.3 取得試験](../../reviews/phase2/phase2c3-official-download-verification.md)
 - 上位: [ADR-001](../decisions/2026-10-25-multiple-official-hazard-results.md)、[Design Principles](design-principles-v1.0.md)
 - 台帳: [docs/data-sources/official-source-ledger.json](../data-sources/official-source-ledger.json)
 - Schema案: [official-source-ledger.schema.json](schemas/official-source-ledger.schema.json)
@@ -46,7 +47,8 @@ HereRiskの5つのAPI（標高・洪水・津波・高潮・土砂災害）が�
 
 - 配布ページを閲覧しただけで `download_verified` にしない。
 - 認証が必要な配布元は、`login_required = yes` を記録する。認証の自動化・回避はしない。認証情報は台帳に記録しない。
-- 状態は**調査・取得方式の区分**であり、利用条件の承認とは独立である。
+- 状態は**調査・取得方式の区分**であり、利用条件の承認とは独立である。取得に成功しても、`usage_terms.status` は変えない。
+- `download_verified` には、手動の単発取得の結果 `download_verification`（取得日時・要求URL・最終URL・リダイレクト数・HTTPステータス・実サイズ・SHA-256・ZIPの検証・格納形式・メタデータ・問題点）を付けられる。`download_verification` があるエントリの状態は `download_verified` または `automation_verified` に限る。**手動の単発取得の成功は `automation_verified` ではない**（自動取得の継続運用の評価は別）。
 
 ### 3.2 利用条件の状態（`usage_terms.status`）
 
@@ -62,7 +64,7 @@ HereRiskの5つのAPI（標高・洪水・津波・高潮・土砂災害）が�
 ## 4. 運用の規則［提案］
 
 1. 台帳は、調査のたびに版（`ledger_version`）を更新する。過去の版はgitの履歴で保持する。
-2. 各事実に、根拠（公式ページ・HEADの応答・取得記録・外部機関の回答記録）・確認日時・確認者を付ける。検索エンジンの要約は `web_search_hint` として記録し、事実の根拠にしない。
+2. 各事実に、根拠（公式ページ・HEADの応答・取得記録・外部機関の回答記録・手元のファイルの確認）・確認日時・確認者を付ける。確認の時刻が分からない記録は、日付（`observed_on`）だけを記録し、`observed_at = null`・`time_precision = date` とする。**架空の時刻を補完しない。**検索エンジンの要約は `web_search_hint` として記録し、事実の根拠にしない。
 3. 更新の確認は、HEADの `Last-Modified`・`ETag`・`Content-Length` と、データページの版の表記の比較で行う（本文の取得をしない）。変化を検出しても、自動で取得・公開しない。
 4. 実データの取得（`download_verified` にする試験を含む）は、対象ファイル・容量・方法・利用条件を示してOWNERの承認を得てから行う。
 5. 台帳の `approved` は、OWNERの承認記録を参照する場合だけ。承認記録のSchemaは未決定（Integration契約 OI-27）。

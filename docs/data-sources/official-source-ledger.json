@@ -1,8 +1,8 @@
 {
   "schema": "hererisk-official-source-ledger-v0.1",
-  "ledger_version": "2026-10-25-phase2c",
-  "surveyed_at": "2026-10-25T05:40:00Z",
-  "surveyed_by": "Claude（Phase 2-C 調査）",
+  "ledger_version": "2026-10-25-phase2c3",
+  "surveyed_at": "2026-10-25T05:48:44Z",
+  "surveyed_by": "Claude（Phase 2-C・2-C.3）",
   "entries": [
     {
       "entry_id": "gsi-dem10b-dem-png-z14",
@@ -60,17 +60,21 @@
           {
             "kind": "http_head",
             "url": "https://cyberjapandata.gsi.go.jp/xyz/dem_png/14/14552/6451.png",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:34:14Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "HEAD（本文なし）: HTTP/2 200、image/png、Content-Length 50651"
           },
           {
             "kind": "repository_record",
             "url": null,
+            "repository_ref": "api/elevation/conf/sources.json, reviews/phase1/phase1d1-gsi-dem10b-acquisition-poc.md",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Source Definition gsi-dem10b-candidate のURLテンプレート（2026-10-16確認）。Phase 1-D.1の取得PoCのコードあり。OWNERによる実取得の結果（日時・SHA-256）はリポジトリに記録がないため download_verified としない",
-            "repository_ref": "api/elevation/conf/sources.json, reviews/phase1/phase1d1-gsi-dem10b-acquisition-poc.md"
+            "summary": "Source Definition gsi-dem10b-candidate のURLテンプレート（2026-10-16確認）。Phase 1-D.1の取得PoCのコードあり。OWNERによる実取得の結果（日時・SHA-256）はリポジトリに記録がないため download_verified としない"
           }
         ],
         "notes": [
@@ -100,18 +104,22 @@
           {
             "kind": "external_answer_record",
             "url": null,
+            "repository_ref": "reviews/phase1/phase1-dem10b-gsi-usage-confirmation.md",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "国土地理院の回答（問合せ番号92497）: 照会した利用形態（事前取得・サーバー保存・画素値からの変換・指定1地点の値を返すWeb API）では測量法第29条・第30条の承認申請は不要。規約・備考欄の遵守と出典の明示が条件。留保あり",
-            "repository_ref": "reviews/phase1/phase1-dem10b-gsi-usage-confirmation.md"
+            "summary": "国土地理院の回答（問合せ番号92497）: 照会した利用形態（事前取得・サーバー保存・画素値からの変換・指定1地点の値を返すWeb API）では測量法第29条・第30条の承認申請は不要。規約・備考欄の遵守と出典の明示が条件。留保あり"
           },
           {
             "kind": "repository_record",
             "url": null,
+            "repository_ref": "docs/operations/gsi-dem10b-usage-checklist-v0.1.md",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "DEM10B利用条件チェックリスト（公開資格はBLOCKED）",
-            "repository_ref": "docs/operations/gsi-dem10b-usage-checklist-v0.1.md"
+            "summary": "DEM10B利用条件チェックリスト（公開資格はBLOCKED）"
           }
         ],
         "open_issues": [
@@ -186,14 +194,18 @@
           {
             "kind": "official_page",
             "url": "https://service.gsi.go.jp/kiban/app/help/",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "ヘルプ: 「基盤地図情報ダウンロードサービスは、利用者登録制です」「ダウンロード実行の際には、IDとパスワードの入力が必要です」。形式は JPGIS（GML）形式"
           },
           {
             "kind": "web_search_hint",
             "url": "https://service.gsi.go.jp/kiban/contents/screen/basismap/documents/help_dem.pdf",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "検索結果の要約に、ログインIDの有効期間（1年間）等の記載があったが、本調査では一次資料を確認していない（根拠にしない）"
           }
@@ -285,15 +297,19 @@
           {
             "kind": "download_record",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A31a/A31a-25/A31a-25_13_10_GEOJSON.zip",
-            "observed_at": "2026-10-18T00:00:00Z",
+            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md",
+            "observed_on": "2026-10-18",
+            "observed_at": null,
+            "time_precision": "date",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.1で取得（12,009,145 B、SHA-256 ecef23e95ac75554bfd42e6156800291b7af27bca49198002eab6f0394fe9f93、公式表記と一致）。記録は取得日（JST）だけで時刻は不明のため、observed_at の時刻は00:00Zとした（実際の時刻ではない）",
-            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md"
+            "summary": "Phase 2-A.1で取得（12,009,145 B、SHA-256 ecef23e95ac75554bfd42e6156800291b7af27bca49198002eab6f0394fe9f93、公式表記と一致）（記録は取得日だけで、時刻は不明）"
           },
           {
             "kind": "http_head",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A31a/A31a-25/A31a-25_13_10_GEOJSON.zip",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:33:13Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "HEAD: HTTP/2 200、Content-Length 12009145（Phase 2-A.1の取得サイズと同じ）"
           }
@@ -322,17 +338,21 @@
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           },
           {
             "kind": "repository_record",
             "url": null,
+            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.1のライセンスの整理",
-            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md"
+            "summary": "Phase 2-A.1のライセンスの整理"
           }
         ],
         "open_issues": [
@@ -412,10 +432,12 @@
           {
             "kind": "download_record",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A31a/A31a-25/A31a-25_13_20_GEOJSON.zip",
-            "observed_at": "2026-10-18T00:00:00Z",
+            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md",
+            "observed_on": "2026-10-18",
+            "observed_at": null,
+            "time_precision": "date",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.1で取得（20,496,987 B、SHA-256 3101bac42ebb9693f7c9f92d994b7eb60a2cfe2bf2659a21dfb2a0886885e0b4）。記録は取得日（JST）だけで時刻は不明のため、observed_at の時刻は00:00Zとした（実際の時刻ではない）",
-            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md"
+            "summary": "Phase 2-A.1で取得（20,496,987 B、SHA-256 3101bac42ebb9693f7c9f92d994b7eb60a2cfe2bf2659a21dfb2a0886885e0b4）（記録は取得日だけで、時刻は不明）"
           }
         ],
         "notes": [
@@ -442,17 +464,21 @@
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           },
           {
             "kind": "repository_record",
             "url": null,
+            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.1のライセンスの整理",
-            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md"
+            "summary": "Phase 2-A.1のライセンスの整理"
           }
         ],
         "open_issues": [
@@ -532,10 +558,12 @@
           {
             "kind": "download_record",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A31a/A31a-25/A31a-25_83_10_GEOJSON.zip",
+            "repository_ref": "reviews/phase2/phase2a3-kanto-a31a-data-verification.md",
+            "observed_on": "2026-10-21",
             "observed_at": "2026-10-21T09:53:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.3で取得（532,040,825 B、SHA-256 e66542cecda1c2ed9e7cf74d3333512a65bdb334557410389e521e7c259bca35）",
-            "repository_ref": "reviews/phase2/phase2a3-kanto-a31a-data-verification.md"
+            "summary": "Phase 2-A.3で取得（532,040,825 B、SHA-256 e66542cecda1c2ed9e7cf74d3333512a65bdb334557410389e521e7c259bca35）（元の記録の時刻は「09:53Z頃」の概数）"
           }
         ],
         "notes": [
@@ -562,17 +590,21 @@
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           },
           {
             "kind": "repository_record",
             "url": null,
+            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.1のライセンスの整理",
-            "repository_ref": "reviews/phase2/phase2a1-a31a-source-investigation.md"
+            "summary": "Phase 2-A.1のライセンスの整理"
           }
         ],
         "open_issues": [
@@ -640,7 +672,7 @@
         "checked_at": "2026-10-25T05:33:13Z"
       },
       "availability": {
-        "status": "download_url_confirmed",
+        "status": "download_verified",
         "login_required": "no",
         "automation": "not_tested",
         "url_persistence": "versioned_path",
@@ -648,22 +680,130 @@
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:31:09Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "東京・2026年（令和8年）・12.54MB・N03-20260101_13_GML.zip"
           },
           {
             "kind": "http_head",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2026/N03-20260101_13_GML.zip",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:33:13Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "HEAD: HTTP/2 200、Content-Length 13153227"
+          },
+          {
+            "kind": "download_record",
+            "url": "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2026/N03-20260101_13_GML.zip",
+            "repository_ref": "reviews/phase2/phase2c3-official-download-verification.md",
+            "observed_on": "2026-10-25",
+            "observed_at": "2026-10-25T05:48:44Z",
+            "time_precision": "datetime",
+            "observed_by": "Claude（Phase 2-C.3 取得試験）",
+            "summary": "HTTPS GET 1回（attempts=1）: HTTP 200、リダイレクト0、13153227 B、SHA-256 94f10b26256566db970dd74b09d614f059c1e8a432f9244ac9c4add76c32ff16。ZIPの検証・メタデータの確認は reviews/phase2/phase2c3-official-download-verification.md"
           }
         ],
         "notes": [
-          "Phase 2-A.4・B.3で使ったのは2025年版。2026年版は未取得",
-          "N03の更新はFlood Integration契約 第4.5節（N03の入力資格）の対象"
-        ]
+          "N03の更新はFlood Integration契約 第4.5節（N03の入力資格）の対象",
+          "2026-10-25の手動の単発取得の成功（調査用。リポジトリ外に保存）。自動取得の試験ではない（automation は not_tested のまま）",
+          "Phase 2-A.4・B.3で使ったのは2025年版"
+        ],
+        "download_verification": {
+          "retrieved_at": "2026-10-25T05:48:44Z",
+          "request_url": "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2026/N03-20260101_13_GML.zip",
+          "effective_url": "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2026/N03-20260101_13_GML.zip",
+          "redirect_count": 0,
+          "http_status": 200,
+          "attempts": 1,
+          "size_bytes": 13153227,
+          "sha256": "94f10b26256566db970dd74b09d614f059c1e8a432f9244ac9c4add76c32ff16",
+          "zip_check": {
+            "readable": true,
+            "crc_ok": true,
+            "member_count": 8,
+            "uncompressed_bytes": 48273251,
+            "unsafe_paths": 0,
+            "symlinks": 0,
+            "encrypted": 0,
+            "path_separator": "none"
+          },
+          "members": [
+            {
+              "name": "KS-META-N03-20260101_13.xml",
+              "size_bytes": 15053
+            },
+            {
+              "name": "N03-20260101_13.cpg",
+              "size_bytes": 5
+            },
+            {
+              "name": "N03-20260101_13.dbf",
+              "size_bytes": 1284370
+            },
+            {
+              "name": "N03-20260101_13.geojson",
+              "size_bytes": 18307575
+            },
+            {
+              "name": "N03-20260101_13.prj",
+              "size_bytes": 145
+            },
+            {
+              "name": "N03-20260101_13.shp",
+              "size_bytes": 8140448
+            },
+            {
+              "name": "N03-20260101_13.shx",
+              "size_bytes": 55332
+            },
+            {
+              "name": "N03-20260101_13.xml",
+              "size_bytes": 20470323
+            }
+          ],
+          "formats_found": [
+            "GML",
+            "GeoJSON",
+            "Shapefile",
+            "metadata_xml"
+          ],
+          "metadata": {
+            "file": "KS-META-N03-20260101_13.xml",
+            "encoding": "shift_jis",
+            "title": "国土数値情報（行政区域）（令和8年1月1日時点）　東京都",
+            "date": "2026-03-06",
+            "organisation": "国土交通省　政策統括官付　地理空間情報課",
+            "use_limitation": [
+              "利用に当たっての制限は、国土情報利用約款を参照してください。"
+            ],
+            "lineage_statements": [
+              "「測量法に基づく国土地理院長承認（複製）R 7JHf 351」「本製品を複製する場合には、国土地理院の長の承認を得なければならない。」"
+            ]
+          },
+          "sample": {
+            "member": "N03-20260101_13.geojson",
+            "feature_count": 6904,
+            "geometry_types": {
+              "MultiPolygon": 6904
+            },
+            "attribute_keys": [
+              "N03_001",
+              "N03_002",
+              "N03_003",
+              "N03_004",
+              "N03_005",
+              "N03_007"
+            ],
+            "class_values": {}
+          },
+          "issues": [
+            "メタデータの系譜（lineage）に「本製品を複製する場合には、国土地理院の長の承認を得なければならない」との記載がある（測量法）。HereRiskでの保存・加工・公開に適用されるかは未確認。2025年版にも同趣旨の記載（R 6JHf 503）がある",
+            "メタデータの利用制限は「国土情報利用約款」を参照しており、現行の利用規約と表現が一致しない"
+          ]
+        }
       },
       "usage_terms": {
         "status": "review_required",
@@ -678,19 +818,23 @@
         "attribution_required": "yes",
         "modification_notice_required": "yes",
         "restrictions": [
-          "都道府県毎に定められた利用条件を遵守する（データページ）"
+          "都道府県毎に定められた利用条件を遵守する（データページ）",
+          "ZIP内メタデータ: 「測量法に基づく国土地理院長承認（複製）R 7JHf 351」「本製品を複製する場合には、国土地理院の長の承認を得なければならない。」"
         ],
         "approval_ref": null,
         "evidence": [
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           }
         ],
         "open_issues": [
+          "【重要】ZIP内メタデータの系譜に「本製品を複製する場合には、国土地理院の長の承認を得なければならない」との記載（測量法）。HereRiskでの保存・加工・API提供に承認が必要かは未確認（国土地理院の回答92497は標高タイルだけが対象で、N03には適用しない）",
           "データページのN03のライセンス表記を本調査では個別に確認していない",
           "API提供（第三者向けの地点検索API）について、利用規約は複製・公衆送信・翻案を認めるが、API提供を名指しした記載はない（not_stated）。公衆送信・翻案に含まれるかの判断はOWNER",
           "HereRiskでの出典・加工表示の文言は未確定"
@@ -698,10 +842,10 @@
       },
       "alternatives": [],
       "open_questions": [
-        "ZIP内のファイル形式の構成（GML・GeoJSON・Shapefileの同梱）は2025年版で確認済み、2026年版は未確認"
+        "2025年版との差分（Integration契約 第4.5節のN03の入力資格の対象）は未確認"
       ],
-      "last_checked_at": "2026-10-25T05:33:13Z",
-      "checked_by": "Claude（Phase 2-C 調査）"
+      "last_checked_at": "2026-10-25T05:48:44Z",
+      "checked_by": "Claude（Phase 2-C.3 取得試験）"
     },
     {
       "entry_id": "ksj-n03-2025-13",
@@ -756,10 +900,12 @@
           {
             "kind": "download_record",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/N03/N03-2025/N03-20250101_13_GML.zip",
-            "observed_at": "2026-10-21T00:00:00Z",
+            "repository_ref": "reviews/phase2/phase2a4-n03-tokyo-coverage-verification.md",
+            "observed_on": "2026-10-21",
+            "observed_at": null,
+            "time_precision": "date",
             "observed_by": "Claude（Phase 2-C 調査）",
-            "summary": "Phase 2-A.4で取得（11,595,541 B、SHA-256 e73a70ca903c5a37daba66158ee5de7c48bb7cd7d45f31f7fa4a178c9456702f）。記録は取得日（JST）だけで時刻は不明のため、observed_at の時刻は00:00Zとした（実際の時刻ではない）",
-            "repository_ref": "reviews/phase2/phase2a4-n03-tokyo-coverage-verification.md"
+            "summary": "Phase 2-A.4で取得（11,595,541 B、SHA-256 e73a70ca903c5a37daba66158ee5de7c48bb7cd7d45f31f7fa4a178c9456702f）（記録は取得日だけで、時刻は不明）"
           }
         ],
         "notes": [
@@ -779,19 +925,33 @@
         "attribution_required": "yes",
         "modification_notice_required": "yes",
         "restrictions": [
-          "都道府県毎に定められた利用条件を遵守する（データページ）"
+          "都道府県毎に定められた利用条件を遵守する（データページ）",
+          "ZIP内メタデータ: 「測量法に基づく国土地理院長承認（複製）R 6JHf 503」「本製品を複製する場合には、国土地理院の長の承認を得なければならない。」"
         ],
         "approval_ref": null,
         "evidence": [
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
+          },
+          {
+            "kind": "local_file_inspection",
+            "url": null,
+            "repository_ref": "reviews/phase2/phase2c3-official-download-verification.md",
+            "observed_on": "2026-10-25",
+            "observed_at": "2026-10-25T05:55:00Z",
+            "time_precision": "datetime",
+            "observed_by": "Claude（Phase 2-C.3 取得試験）",
+            "summary": "Phase 2-A.4で取得済みのリポジトリ外のZIP（SHA-256 e73a70ca…一致）のメタデータを読んだ（再取得なし）: useLimitation「国土情報利用約款を参照」、lineageに測量法の複製承認の記載、dateStamp 2050-03-26（明らかに誤った値）"
           }
         ],
         "open_issues": [
+          "【重要】ZIP内メタデータの系譜に「本製品を複製する場合には、国土地理院の長の承認を得なければならない」との記載（測量法）。HereRiskでの保存・加工・API提供に承認が必要かは未確認（国土地理院の回答92497は標高タイルだけが対象で、N03には適用しない）",
           "データページのN03のライセンス表記を本調査では個別に確認していない",
           "API提供（第三者向けの地点検索API）について、利用規約は複製・公衆送信・翻案を認めるが、API提供を名指しした記載はない（not_stated）。公衆送信・翻案に含まれるかの判断はOWNER",
           "HereRiskでの出典・加工表示の文言は未確定"
@@ -836,7 +996,9 @@
           "13"
         ],
         "formats": [
-          "GML"
+          "GML",
+          "GeoJSON",
+          "Shapefile"
         ],
         "file_name": "A40-23_13_GML.zip",
         "download_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A40/A40-23/A40-23_13_GML.zip",
@@ -847,7 +1009,7 @@
         "checked_at": "2026-10-25T05:33:13Z"
       },
       "availability": {
-        "status": "download_url_confirmed",
+        "status": "download_verified",
         "login_required": "no",
         "automation": "not_tested",
         "url_persistence": "versioned_path",
@@ -855,23 +1017,140 @@
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A40-2024.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:31:09Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "東京の行: A40-23_13_GML.zip（8.31MB）。リンク ../data/A40/A40-23/A40-23_13_GML.zip"
           },
           {
             "kind": "http_head",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A40/A40-23/A40-23_13_GML.zip",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:33:13Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "HEAD（本文なし）: HTTP/2 200、application/zip、Content-Length 8710803、Last-Modified Tue, 21 May 2024 00:07:42 GMT"
+          },
+          {
+            "kind": "download_record",
+            "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A40/A40-23/A40-23_13_GML.zip",
+            "repository_ref": "reviews/phase2/phase2c3-official-download-verification.md",
+            "observed_on": "2026-10-25",
+            "observed_at": "2026-10-25T05:48:42Z",
+            "time_precision": "datetime",
+            "observed_by": "Claude（Phase 2-C.3 取得試験）",
+            "summary": "HTTPS GET 1回（attempts=1）: HTTP 200、リダイレクト0、8710803 B、SHA-256 b8e24973e5f9b885d481c28211f107587d14597cb3d9674d26c1aa591dacdc5c。ZIPの検証・メタデータの確認は reviews/phase2/phase2c3-official-download-verification.md"
           }
         ],
         "notes": [
-          "HEADによるURLの存在確認だけであり、取得試験の成功ではない。ZIPの中身（メタデータの利用制限・属性・区分コード）は未確認",
           "東京都の行はGML形式だけ（2023年データ）。データページは形式としてGML・Shapefile・GeoJSONを挙げる",
-          "最新年度と過年度のデータが重複する箇所は最新年度を使うよう案内がある（2023年以降は最新年度に統合済みと記載）"
-        ]
+          "最新年度と過年度のデータが重複する箇所は最新年度を使うよう案内がある（2023年以降は最新年度に統合済みと記載）",
+          "2026-10-25の手動の単発取得の成功（調査用。リポジトリ外に保存）。自動取得の試験ではない（automation は not_tested のまま）"
+        ],
+        "download_verification": {
+          "retrieved_at": "2026-10-25T05:48:42Z",
+          "request_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A40/A40-23/A40-23_13_GML.zip",
+          "effective_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A40/A40-23/A40-23_13_GML.zip",
+          "redirect_count": 0,
+          "http_status": 200,
+          "attempts": 1,
+          "size_bytes": 8710803,
+          "sha256": "b8e24973e5f9b885d481c28211f107587d14597cb3d9674d26c1aa591dacdc5c",
+          "zip_check": {
+            "readable": true,
+            "crc_ok": true,
+            "member_count": 8,
+            "uncompressed_bytes": 59275859,
+            "unsafe_paths": 0,
+            "symlinks": 0,
+            "encrypted": 0,
+            "path_separator": "slash"
+          },
+          "members": [
+            {
+              "name": "A40-23_13_GML/",
+              "size_bytes": 0
+            },
+            {
+              "name": "A40-23_13_GML/A40-23_13.dbf",
+              "size_bytes": 1755702
+            },
+            {
+              "name": "A40-23_13_GML/A40-23_13.geojson",
+              "size_bytes": 17163161
+            },
+            {
+              "name": "A40-23_13_GML/A40-23_13.prj",
+              "size_bytes": 145
+            },
+            {
+              "name": "A40-23_13_GML/A40-23_13.shp",
+              "size_bytes": 6384332
+            },
+            {
+              "name": "A40-23_13_GML/A40-23_13.shx",
+              "size_bytes": 265092
+            },
+            {
+              "name": "A40-23_13_GML/A40-23_13.xml",
+              "size_bytes": 33688600
+            },
+            {
+              "name": "A40-23_13_GML/KS-META-A40-23_13.xml",
+              "size_bytes": 18827
+            }
+          ],
+          "formats_found": [
+            "GML",
+            "GeoJSON",
+            "Shapefile",
+            "metadata_xml"
+          ],
+          "metadata": {
+            "file": "A40-23_13_GML/KS-META-A40-23_13.xml",
+            "encoding": "shift_jis",
+            "title": "国土数値情報　津波浸水想定　東京都　A40-23_13",
+            "date": "2024-03-25",
+            "organisation": "国土交通省政策統括官付情報活用推進課",
+            "use_limitation": [
+              "国土数値情報（津波浸水想定）データの利用にあたっては、国土情報利用約款のほか、都道府県毎に定められた利用条件を必ず遵守すること。"
+            ],
+            "lineage_statements": []
+          },
+          "sample": {
+            "member": "A40-23_13_GML/A40-23_13.geojson",
+            "feature_count": 33124,
+            "geometry_types": {
+              "Polygon": 33124
+            },
+            "attribute_keys": [
+              "FID",
+              "A40_001",
+              "A40_002",
+              "A40_003"
+            ],
+            "class_values": {
+              "A40_003": {
+                "3m以上 ～ 5m未満": 8407,
+                "1m以上 ～ 3m未満": 8184,
+                "5m以上 ～ 10m未満": 6079,
+                "0.5m以上 ～ 1m未満": 3603,
+                "～0.3m未満": 3110,
+                "0.3m以上 ～ 0.5m未満": 1802,
+                "10m以上 ～ 20m未満": 1783,
+                "20m以上": 156
+              }
+            }
+          },
+          "issues": [
+            "配布ページの東京都の行の表記はGMLだが、ZIPにはGML（.xml）・GeoJSON・Shapefileが同梱されている",
+            "メタデータの利用制限は「国土情報利用約款」を参照しており、データページの「CC_BY_4.0（一部制限）」・現行の利用規約と表現が一致しない",
+            "GML本体のGML名前空間が http://schemas.opengis.net/gml/3.2.1 （一般的な http://www.opengis.net/gml/3.2 と異なる）",
+            "A40_003は文字列型で「各都道府県の報告書等に記載あるランク区分」（データページ）。東京都は8区分",
+            "メタデータの製品仕様書は第2.2版、GMLのschemaLocationは A40-v2_1.xsd"
+          ]
+        }
       },
       "usage_terms": {
         "status": "review_required",
@@ -894,20 +1173,24 @@
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           },
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A40-2024.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "データページの使用許諾条件: 「オープンデータ（CC_BY_4.0（一部制限））」。東京都は「オープンデータとして利用可（商用利用可・再配信可）」の区分"
           }
         ],
         "open_issues": [
-          "ZIP内メタデータの利用制限の記載は未確認（A31aでは表記の不一致があった）",
+          "ZIP内メタデータの利用制限は「国土情報利用約款のほか、都道府県毎に定められた利用条件」を参照（現行の利用規約・データページの表記と一致しない）",
           "API提供（第三者向けの地点検索API）について、利用規約は複製・公衆送信・翻案を認めるが、API提供を名指しした記載はない（not_stated）。公衆送信・翻案に含まれるかの判断はOWNER",
           "HereRiskでの出典・加工表示の文言は未確定"
         ]
@@ -921,11 +1204,11 @@
         }
       ],
       "open_questions": [
-        "浸水深の区分のコードリストと版",
-        "東京都の対象範囲（島しょ部を含むか）"
+        "東京都の対象範囲（島しょ部を含むか）。メタデータの範囲の記載は確認していない",
+        "8区分の文字列（各都道府県の報告書の区分）を原典のまま返す表現"
       ],
-      "last_checked_at": "2026-10-25T05:33:13Z",
-      "checked_by": "Claude（Phase 2-C 調査）"
+      "last_checked_at": "2026-10-25T05:48:42Z",
+      "checked_by": "Claude（Phase 2-C.3 取得試験）"
     },
     {
       "entry_id": "ksj-a49-2024-13",
@@ -959,7 +1242,9 @@
           "13"
         ],
         "formats": [
-          "GML"
+          "GML",
+          "GeoJSON",
+          "Shapefile"
         ],
         "file_name": "A49-20_13_GML.zip",
         "download_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A49/A49-20/A49-20_13_GML.zip",
@@ -970,7 +1255,7 @@
         "checked_at": "2026-10-25T05:33:13Z"
       },
       "availability": {
-        "status": "download_url_confirmed",
+        "status": "download_verified",
         "login_required": "no",
         "automation": "not_tested",
         "url_persistence": "versioned_path",
@@ -978,23 +1263,135 @@
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A49-2024.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:31:09Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "東京の行: A49-20_13_GML.zip（26.5MB）。リンク ../data/A49/A49-20/A49-20_13_GML.zip"
           },
           {
             "kind": "http_head",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A49/A49-20/A49-20_13_GML.zip",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:33:13Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "HEAD（本文なし）: HTTP/2 200、application/zip、Content-Length 31712745、Last-Modified Wed, 05 Jul 2023 05:40:43 GMT"
+          },
+          {
+            "kind": "download_record",
+            "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A49/A49-20/A49-20_13_GML.zip",
+            "repository_ref": "reviews/phase2/phase2c3-official-download-verification.md",
+            "observed_on": "2026-10-25",
+            "observed_at": "2026-10-25T05:48:42Z",
+            "time_precision": "datetime",
+            "observed_by": "Claude（Phase 2-C.3 取得試験）",
+            "summary": "HTTPS GET 1回（attempts=1）: HTTP 200、リダイレクト0、31712745 B、SHA-256 cec46df37c0d8cabc660fc85f8ec6f0cac78b6754a5387f7be21b7a599810390。ZIPの検証・メタデータの確認は reviews/phase2/phase2c3-official-download-verification.md"
           }
         ],
         "notes": [
-          "HEADによるURLの存在確認だけであり、取得試験の成功ではない。ZIPの中身（メタデータの利用制限・属性・区分コード）は未確認",
           "東京都の行はGML形式（2020年データ）。データページは形式としてGML・Shapefile・GeoJSONを挙げる",
-          "整備済みは15都府県（データページの一覧）"
-        ]
+          "整備済みは15都府県（データページの一覧）",
+          "2026-10-25の手動の単発取得の成功（調査用。リポジトリ外に保存）。自動取得の試験ではない（automation は not_tested のまま）"
+        ],
+        "download_verification": {
+          "retrieved_at": "2026-10-25T05:48:42Z",
+          "request_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A49/A49-20/A49-20_13_GML.zip",
+          "effective_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A49/A49-20/A49-20_13_GML.zip",
+          "redirect_count": 0,
+          "http_status": 200,
+          "attempts": 1,
+          "size_bytes": 31712745,
+          "sha256": "cec46df37c0d8cabc660fc85f8ec6f0cac78b6754a5387f7be21b7a599810390",
+          "zip_check": {
+            "readable": true,
+            "crc_ok": true,
+            "member_count": 7,
+            "uncompressed_bytes": 165232293,
+            "unsafe_paths": 0,
+            "symlinks": 0,
+            "encrypted": 0,
+            "path_separator": "none"
+          },
+          "members": [
+            {
+              "name": "A49-20_13.dbf",
+              "size_bytes": 3129197
+            },
+            {
+              "name": "A49-20_13.geojson",
+              "size_bytes": 58447909
+            },
+            {
+              "name": "A49-20_13.prj",
+              "size_bytes": 221
+            },
+            {
+              "name": "A49-20_13.shp",
+              "size_bytes": 20649360
+            },
+            {
+              "name": "A49-20_13.shx",
+              "size_bytes": 472412
+            },
+            {
+              "name": "A49-20_13.xml",
+              "size_bytes": 82521708
+            },
+            {
+              "name": "KS-META-A49-20_13.xml",
+              "size_bytes": 11486
+            }
+          ],
+          "formats_found": [
+            "GML",
+            "GeoJSON",
+            "Shapefile",
+            "metadata_xml"
+          ],
+          "metadata": {
+            "file": "KS-META-A49-20_13.xml",
+            "encoding": "shift_jis",
+            "title": "国土数値情報　高潮浸水想定区域　東京都　A49-20_13",
+            "date": "2021-03-26",
+            "organisation": "国土交通省　不動産・建設経済局　情報活用推進課",
+            "use_limitation": [
+              "国土数値情報（高潮浸水想定区域）データの利用にあたっては、国土情報利用約款のほか、都道府県毎に定められた利用条件を必ず遵守すること。",
+              "利用にあたり、県のHPにて公開されている「高潮浸水想定区域図について 説明資料」を確認すること。"
+            ],
+            "lineage_statements": []
+          },
+          "sample": {
+            "member": "A49-20_13.geojson",
+            "feature_count": 59039,
+            "geometry_types": {
+              "Polygon": 59039
+            },
+            "attribute_keys": [
+              "A49_001",
+              "A49_002",
+              "A49_003"
+            ],
+            "class_values": {
+              "A49_003": {
+                "0.3m以上0.5m未満": 18027,
+                "0.3m未満": 13469,
+                "0.5m以上1m未満": 12665,
+                "1m以上3m未満": 10180,
+                "3m以上5m未満": 3277,
+                "5m以上10m未満": 1418,
+                "10m以上20m未満": 3
+              }
+            }
+          },
+          "issues": [
+            "配布ページの東京都の行の表記はGMLだが、ZIPにはGML（.xml）・GeoJSON・Shapefileが同梱されている",
+            "メタデータの利用制限は「国土情報利用約款」を参照しており、現行の利用規約と表現が一致しない",
+            "東京都のデータのメタデータに「県のHPにて公開されている『高潮浸水想定区域図について 説明資料』を確認すること」とある（データページでは千葉県の条件として記載されている文言に近い。東京都に適用されるかは未確認）",
+            "メタデータの製品仕様書は第1.0版、データページは第1.2版（KS-PS-A49-v1_2.pdf）",
+            "A49_003は文字列型「浸水深のランク区分」。東京都は7区分。データページは区分が都道府県の公表図と異なる場合があると注記"
+          ]
+        }
       },
       "usage_terms": {
         "status": "review_required",
@@ -1018,20 +1415,25 @@
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           },
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A49-2024.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "データページの使用許諾条件: 「オープンデータ（CC_BY_4.0（一部制限））」。東京都は「オープンデータとして利用可（商用利用可・再配信可）」の区分"
           }
         ],
         "open_issues": [
-          "ZIP内メタデータの利用制限の記載は未確認",
+          "ZIP内メタデータの利用制限は「国土情報利用約款」を参照（現行の利用規約と一致しない）",
+          "メタデータの「県のHPにて公開されている『高潮浸水想定区域図について 説明資料』を確認すること」が東京都に適用されるか（適用される場合は東京都の資料の確認が必要）",
           "API提供（第三者向けの地点検索API）について、利用規約は複製・公衆送信・翻案を認めるが、API提供を名指しした記載はない（not_stated）。公衆送信・翻案に含まれるかの判断はOWNER",
           "HereRiskでの出典・加工表示の文言は未確定"
         ]
@@ -1045,10 +1447,11 @@
         }
       ],
       "open_questions": [
-        "浸水深の区分のコードリストと版、都の公表図との区分の違いの扱い"
+        "都の公表図との区分の違いの提示方法",
+        "メタデータとデータページの製品仕様書の版の違い（1.0版・1.2版）"
       ],
-      "last_checked_at": "2026-10-25T05:33:13Z",
-      "checked_by": "Claude（Phase 2-C 調査）"
+      "last_checked_at": "2026-10-25T05:48:42Z",
+      "checked_by": "Claude（Phase 2-C.3 取得試験）"
     },
     {
       "entry_id": "ksj-a33-2025-13",
@@ -1082,9 +1485,7 @@
           "13"
         ],
         "formats": [
-          "GeoJSON",
-          "GML",
-          "Shapefile"
+          "GeoJSON"
         ],
         "file_name": "A33-25_13_GEOJSON.zip",
         "download_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A33/A33-25/A33-25_13_GEOJSON.zip",
@@ -1095,7 +1496,7 @@
         "checked_at": "2026-10-25T05:33:13Z"
       },
       "availability": {
-        "status": "download_url_confirmed",
+        "status": "download_verified",
         "login_required": "no",
         "automation": "not_tested",
         "url_persistence": "versioned_path",
@@ -1103,23 +1504,127 @@
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A33-2025.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:31:09Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "東京の行: A33-25_13_GEOJSON.zip（6.69MB）。リンク ../data/A33/A33-25/A33-25_13_GEOJSON.zip"
           },
           {
             "kind": "http_head",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A33/A33-25/A33-25_13_GEOJSON.zip",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:33:13Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "HEAD（本文なし）: HTTP/2 200、application/zip、Content-Length 7011838、Last-Modified Tue, 21 Apr 2026 05:37:19 GMT"
+          },
+          {
+            "kind": "download_record",
+            "url": "https://nlftp.mlit.go.jp/ksj/gml/data/A33/A33-25/A33-25_13_GEOJSON.zip",
+            "repository_ref": "reviews/phase2/phase2c3-official-download-verification.md",
+            "observed_on": "2026-10-25",
+            "observed_at": "2026-10-25T05:48:43Z",
+            "time_precision": "datetime",
+            "observed_by": "Claude（Phase 2-C.3 取得試験）",
+            "summary": "HTTPS GET 1回（attempts=1）: HTTP 200、リダイレクト0、7011838 B、SHA-256 4107d815b48fd3a4e9d5394ff4c8504f9f54924293bb021c5f51b6ea3f2ee847。ZIPの検証・メタデータの確認は reviews/phase2/phase2c3-official-download-verification.md"
           }
         ],
         "notes": [
-          "HEADによるURLの存在確認だけであり、取得試験の成功ではない。ZIPの中身（メタデータの利用制限・属性・区分コード）は未確認",
           "東京都は2025年版でGML（7.26MB）・Shapefile（9.54MB）・GeoJSON（6.69MB）。GeoJSONを確認対象にした",
-          "ポリゴン（区域）とライン（区域の境界線）がある"
-        ]
+          "ポリゴン（区域）とライン（区域の境界線）がある",
+          "2026-10-25の手動の単発取得の成功（調査用。リポジトリ外に保存）。自動取得の試験ではない（automation は not_tested のまま）"
+        ],
+        "download_verification": {
+          "retrieved_at": "2026-10-25T05:48:43Z",
+          "request_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A33/A33-25/A33-25_13_GEOJSON.zip",
+          "effective_url": "https://nlftp.mlit.go.jp/ksj/gml/data/A33/A33-25/A33-25_13_GEOJSON.zip",
+          "redirect_count": 0,
+          "http_status": 200,
+          "attempts": 1,
+          "size_bytes": 7011838,
+          "sha256": "4107d815b48fd3a4e9d5394ff4c8504f9f54924293bb021c5f51b6ea3f2ee847",
+          "zip_check": {
+            "readable": true,
+            "crc_ok": true,
+            "member_count": 3,
+            "uncompressed_bytes": 32986522,
+            "unsafe_paths": 0,
+            "symlinks": 0,
+            "encrypted": 0,
+            "path_separator": "backslash"
+          },
+          "members": [
+            {
+              "name": "データ利用時の注意事項\\13_東京都_データ利用時の注意事項.txt",
+              "size_bytes": 1962
+            },
+            {
+              "name": "メタデータ\\KS-META-A33-25_13.xml",
+              "size_bytes": 15453
+            },
+            {
+              "name": "A33-25_13Polygon.geojson",
+              "size_bytes": 32969107
+            }
+          ],
+          "formats_found": [
+            "GeoJSON",
+            "metadata_xml",
+            "text_notes"
+          ],
+          "metadata": {
+            "file": "メタデータ\\KS-META-A33-25_13.xml",
+            "encoding": "UTF-8",
+            "title": "国土数値情報（土砂災害警戒区域）A33-25",
+            "date": "2026-03-06",
+            "organisation": "国土交通省 政策統括官付 地理空間情報課",
+            "use_limitation": [
+              "利用に当たっての制限は、国土数値情報ダウンロードサイトコンテンツ利用規約を参照してください。"
+            ],
+            "lineage_statements": [
+              "・各都道府県から提供された資料を基にデータを作成しています。原典の有するデータ欠損、誤り等はそのまま反映されます。"
+            ]
+          },
+          "sample": {
+            "member": "A33-25_13Polygon.geojson",
+            "feature_count": 30043,
+            "geometry_types": {
+              "Polygon": 30043
+            },
+            "attribute_keys": [
+              "A33_001",
+              "A33_002",
+              "A33_003",
+              "A33_004",
+              "A33_005",
+              "A33_006",
+              "A33_007",
+              "A33_008"
+            ],
+            "class_values": {
+              "A33_001": {
+                "1": 26211,
+                "2": 3762,
+                "3": 70
+              },
+              "A33_002": {
+                "1": 15772,
+                "2": 14271
+              },
+              "A33_008": {
+                "0": 30043
+              }
+            }
+          },
+          "issues": [
+            "ZIPのメンバー名はバックスラッシュ区切り・日本語名（Normalizeの安全な展開でバックスラッシュを区切りとして扱う必要がある）",
+            "注意事項のテキストはShift_JIS（cp932）、メタデータはUTF-8",
+            "注意事項は「本データは2025年7月30日時点の整備」と記載。データページの「データ基準年月日 2025年（令和7年）8月1日時点」と一致しない",
+            "GeoJSONのZIPにラインのデータ（区域の境界線）は含まれていない（ポリゴンだけ）",
+            "コードの意味（公式コードリスト）: A33_001 現象種別 1=急傾斜地の崩壊・2=土石流・3=地滑り、A33_002 区域 1=土砂災害警戒区域(指定済)・2=土砂災害特別警戒区域(指定済)・3/4=指定前、A33_008 0=特別警戒区域指定済み・1=未指定"
+          ]
+        }
       },
       "usage_terms": {
         "status": "review_required",
@@ -1138,28 +1643,33 @@
           "「縮尺1/25,000～1/50,000相当の精度で作成されており、概略的な位置を示すもの」「法的図書ではありません」（データページ）",
           "「宅地建物取引業法に基づく重要事項説明等の根拠への利用ならびに申請資料や根拠を示す必要がある資料への利用はできません」（データページ）",
           "「都道府県内のすべての土砂災害警戒区域等を網羅しているわけではありません」（データページ）",
-          "指定・解除が国土数値情報に直ちに反映されない（データページ）。より正確な情報は所管機関へ問い合わせるよう案内"
+          "指定・解除が国土数値情報に直ちに反映されない（データページ）。より正確な情報は所管機関へ問い合わせるよう案内",
+          "「データ欠損、誤り等を発見した場合は、断り無く修正することがあります」（ZIP内の注意事項）"
         ],
         "approval_ref": null,
         "evidence": [
           {
             "kind": "official_terms",
             "url": "https://nlftp.mlit.go.jp/ksj/other/agreement_01.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "国土数値情報ダウンロードサイトコンテンツ利用規約（政府標準利用規約準拠版、制定 令和2年4月1日）: 複製・公衆送信・翻案等を自由に利用可、商用利用可。出典の記載と、編集・加工した旨の記載が必要。国が作成したかのような態様で公表・利用しない。CC BY 4.0と互換。第三者の権利・別の利用ルールの記載があるものは除く。自動取得・大量取得の制限の記載なし"
           },
           {
             "kind": "official_page",
             "url": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A33-2025.html",
+            "observed_on": "2026-10-25",
             "observed_at": "2026-10-25T05:40:00Z",
+            "time_precision": "datetime",
             "observed_by": "Claude（Phase 2-C 調査）",
             "summary": "データページの使用許諾条件: 「オープンデータ（CC_BY_4.0（一部制限））」。東京都は「オープンデータとして利用可（商用利用可・再配信可）」の区分"
           }
         ],
         "open_issues": [
+          "ZIP内メタデータの利用制限は現行の「国土数値情報ダウンロードサイトコンテンツ利用規約」を参照（データページ・利用規約と整合）。ZIP内の注意事項にも、データページと同じ利用の制限（法定図書ではない等）がある",
           "上記の利用の制限を、地点検索APIの応答・説明文言でどう伝えるか",
-          "ZIP内メタデータの利用制限の記載は未確認",
           "API提供（第三者向けの地点検索API）について、利用規約は複製・公衆送信・翻案を認めるが、API提供を名指しした記載はない（not_stated）。公衆送信・翻案に含まれるかの判断はOWNER",
           "HereRiskでの出典・加工表示の文言は未確定"
         ]
@@ -1173,11 +1683,12 @@
         }
       ],
       "open_questions": [
-        "区域種別（警戒区域・特別警戒区域、自然現象の種類）のコードリスト",
-        "データが網羅的でないことの、Coverage（評価済み範囲）の扱い"
+        "データ基準日の表記の不一致（データページ 2025-08-01、注意事項 2025-07-30）の扱い",
+        "データが網羅的でないことの、Coverage（評価済み範囲）の扱い",
+        "ライン（区域の境界線）のデータの要否（GeoJSONのZIPには含まれない）"
       ],
-      "last_checked_at": "2026-10-25T05:33:13Z",
-      "checked_by": "Claude（Phase 2-C 調査）"
+      "last_checked_at": "2026-10-25T05:48:43Z",
+      "checked_by": "Claude（Phase 2-C.3 取得試験）"
     }
   ]
 }
