@@ -1,0 +1,591 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "official-source-ledger.schema.json",
+  "description": "PROVISIONAL Official Source Ledger (survey of official data distribution, availability and usage-terms review state across HereRisk APIs). availability.status and usage_terms.status are independent. usage_terms.status=approved requires an OWNER approval reference; surveyors must not set it. Not a formal schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "ledger_version",
+    "surveyed_at",
+    "surveyed_by",
+    "entries"
+  ],
+  "properties": {
+    "schema": {
+      "const": "hererisk-official-source-ledger-v0.1"
+    },
+    "ledger_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surveyed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "surveyed_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    }
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "url",
+        "observed_at",
+        "observed_by"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "official_page",
+            "official_terms",
+            "product_spec",
+            "http_head",
+            "download_record",
+            "external_answer_record",
+            "repository_record",
+            "web_search_hint"
+          ]
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "repository_ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "observed_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "api",
+        "role",
+        "dataset",
+        "official_pages",
+        "distribution",
+        "availability",
+        "usage_terms",
+        "alternatives",
+        "open_questions",
+        "last_checked_at",
+        "checked_by"
+      ],
+      "properties": {
+        "entry_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{2,80}$"
+        },
+        "api": {
+          "type": "string",
+          "enum": [
+            "elevation",
+            "flood",
+            "tsunami",
+            "storm_surge",
+            "landslide"
+          ]
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "primary_hazard_data",
+            "auxiliary_region_boundary",
+            "alternative_candidate"
+          ]
+        },
+        "dataset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "dataset_name",
+            "dataset_code",
+            "edition",
+            "data_year",
+            "data_reference_date"
+          ],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dataset_name": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dataset_code": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "edition": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "data_year": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^[0-9]{4}$"
+            },
+            "data_reference_date": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date"
+            }
+          }
+        },
+        "official_pages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "url"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "data_page",
+                  "terms",
+                  "product_spec",
+                  "code_list",
+                  "tile_list",
+                  "service_help",
+                  "faq",
+                  "other"
+                ]
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "note": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "distribution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "unit",
+            "region_codes",
+            "formats",
+            "file_name",
+            "download_url",
+            "url_template",
+            "official_size_label",
+            "content_length",
+            "last_modified",
+            "checked_at"
+          ],
+          "properties": {
+            "unit": {
+              "type": "string",
+              "enum": [
+                "prefecture",
+                "regional_bureau",
+                "national",
+                "tile",
+                "service"
+              ]
+            },
+            "region_codes": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9]{2}$"
+              }
+            },
+            "formats": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "GML",
+                  "GeoJSON",
+                  "Shapefile",
+                  "PNG",
+                  "JPGIS_GML",
+                  "unknown"
+                ]
+              }
+            },
+            "file_name": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "download_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^https://"
+            },
+            "url_template": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^https://"
+            },
+            "official_size_label": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "content_length": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "last_modified": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "checked_at": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
+        },
+        "availability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "login_required",
+            "automation",
+            "url_persistence",
+            "evidence",
+            "notes"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "discovered",
+                "download_url_confirmed",
+                "download_verified",
+                "automation_verified",
+                "manual_only",
+                "access_blocked",
+                "unknown"
+              ]
+            },
+            "login_required": {
+              "type": "string",
+              "enum": [
+                "no",
+                "yes",
+                "unknown"
+              ]
+            },
+            "automation": {
+              "type": "string",
+              "enum": [
+                "not_tested",
+                "verified",
+                "not_possible",
+                "not_permitted",
+                "unknown"
+              ]
+            },
+            "url_persistence": {
+              "type": "string",
+              "enum": [
+                "versioned_path",
+                "template",
+                "unknown"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/evidence"
+              }
+            },
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "usage_terms": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "license_stated",
+            "terms_urls",
+            "commercial_use",
+            "modification",
+            "redistribution",
+            "api_provision",
+            "attribution_required",
+            "modification_notice_required",
+            "restrictions",
+            "approval_ref",
+            "evidence",
+            "open_issues"
+          ],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "unverified",
+                "review_required",
+                "approved",
+                "prohibited"
+              ]
+            },
+            "license_stated": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "terms_urls": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^https://"
+              }
+            },
+            "commercial_use": {
+              "type": "string",
+              "enum": [
+                "allowed",
+                "conditional",
+                "prohibited",
+                "not_stated",
+                "unknown"
+              ]
+            },
+            "modification": {
+              "type": "string",
+              "enum": [
+                "allowed",
+                "conditional",
+                "prohibited",
+                "not_stated",
+                "unknown"
+              ]
+            },
+            "redistribution": {
+              "type": "string",
+              "enum": [
+                "allowed",
+                "conditional",
+                "prohibited",
+                "not_stated",
+                "unknown"
+              ]
+            },
+            "api_provision": {
+              "type": "string",
+              "enum": [
+                "allowed",
+                "conditional",
+                "prohibited",
+                "not_stated",
+                "unknown"
+              ]
+            },
+            "attribution_required": {
+              "type": "string",
+              "enum": [
+                "yes",
+                "no",
+                "unknown"
+              ]
+            },
+            "modification_notice_required": {
+              "type": "string",
+              "enum": [
+                "yes",
+                "no",
+                "unknown"
+              ]
+            },
+            "restrictions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "approval_ref": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/evidence"
+              }
+            },
+            "open_issues": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "status": {
+                    "const": "approved"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "approval_ref": {
+                    "type": "string"
+                  }
+                }
+              },
+              "else": {
+                "properties": {
+                  "approval_ref": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "provider",
+              "description",
+              "url",
+              "status"
+            ],
+            "properties": {
+              "provider": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^https://"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "discovered",
+                  "download_url_confirmed",
+                  "download_verified",
+                  "automation_verified",
+                  "manual_only",
+                  "access_blocked",
+                  "unknown"
+                ]
+              }
+            }
+          }
+        },
+        "open_questions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "last_checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "checked_by": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
