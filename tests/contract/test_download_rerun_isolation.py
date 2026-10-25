@@ -224,7 +224,8 @@ def test_no_later_stage_or_network_code_reachable(no_network) -> None:
     network_allowed = {src / "elevation" / "net" / "gsi_http.py",
                        src / "elevation" / "api" / "server.py",
                        src / "location" / "server.py",
-                       src / "location" / "elevation_provider.py"}
+                       src / "location" / "elevation_provider.py",
+                       src / "data_inventory" / "web.py"}   # Phase 3-F: read-only page, inbound on 127.0.0.1
     pipeline_dirs = ("/common/", "/elevation/download/", "/elevation/normalize/",
                      "/elevation/validate/", "/elevation/lookup/")
     for path in src.rglob("*.py"):

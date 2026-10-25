@@ -182,6 +182,43 @@ HERERISK_ADDRESS_REGIONS=~/hererisk-data/regions.json .venv/bin/python -m pytest
 - コードの不一致（ファイル名・ファイルの中身と `prefecture_code` の不一致）、重複、データの不正があれば、起動しません（終了コード3。理由を表示）。
 - 地域ファイルには、ローカルのパスが入ります。Gitに入れないでください。
 
+## Data Inventory（Phase 3-F、データ管理の見える化・読み取り専用）
+
+登録済みのデータを、地域・種類・年度・ファイルの状態・出典・利用条件・公開承認の別に一覧表示します。
+
+情報は、それぞれの正本から読むだけです。
+
+| 情報 | 読む先 |
+|---|---|
+| 地域とファイル | 地域ファイル |
+| 取得元・利用条件・取得記録のSHA-256 | [取得元台帳](docs/data-sources/official-source-ledger.json) |
+| ファイルの有無・サイズ | その場で実測 |
+
+Inventory独自の「状態」は持ちません。
+
+```sh
+# 一覧（表）。地域ファイルに県を追加すれば、一覧にも自動で増えます
+PYTHONPATH=src .venv/bin/python -m hererisk.data_inventory --regions ~/hererisk-data/regions.json
+
+# JSON
+PYTHONPATH=src .venv/bin/python -m hererisk.data_inventory --regions ~/hererisk-data/regions.json --format json
+
+# SHA-256の実測（ファイル全体を読むため、明示した場合だけ）
+PYTHONPATH=src .venv/bin/python -m hererisk.data_inventory --regions ~/hererisk-data/regions.json --hash
+
+# ブラウザで見る（127.0.0.1のみ・読み取り専用）→ http://127.0.0.1:8090/  （JSONは /inventory.json）
+PYTHONPATH=src .venv/bin/python -m hererisk.data_inventory --regions ~/hererisk-data/regions.json --serve --port 8090
+```
+
+**表示の意味**
+
+- **SHA-256（記録）**: 取得元台帳の取得記録の値です。**SHA-256（実測）**: `--hash` を指定したときに計算した値です。両者は区別して表示します。
+- **利用条件**: 取得元台帳の状態です（承認済み／要確認／禁止／未確認）。台帳に記載がないデータは「未確認（台帳に記載なし）」です。
+- **公開承認**: 台帳が「承認済み」で、かつOWNERの承認記録（`approval_ref`）を参照している場合だけ「承認済み」になります。それ以外はすべて「未確認」です。
+- **API接続**: 地域ファイルに登録されていれば「設定あり」です。実行中のAPIが読み込んでいるかは分からないため、「実行中かは不明」と表示します。
+- **公開状態**: 住所データはDataset Registryで公開していないため、「Registry未参照」と表示します。
+- 画面から、データの取得・更新・削除・公開はできません。画面から任意のファイルを読む機能もありません。
+
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
 ## 開発方針
