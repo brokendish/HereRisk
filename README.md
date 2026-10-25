@@ -33,7 +33,7 @@ HereRiskは、現在地の災害リスクを調べ、
   - 現行の正本: [Flood Official Data Presentation Contract（案）](docs/architecture/flood-official-data-presentation-contract-v0.1.md)、[Flood Source Catalog / Identity Contract（案）](docs/architecture/flood-source-catalog-identity-contract-v0.1.md)（[検討記録](reviews/phase2/phase2c1-source-catalog-identity-contract.md)）、[Flood API MVP Contract（案）](docs/api/flood-api-mvp-contract-v0.1.md)、[Flood Normalize Contract（案）](docs/architecture/flood-normalize-contract-v0.1.md)、[Flood Integration Contract（案）](docs/architecture/flood-integration-contract-v0.1.md)
   - 方式移行の記録: [Phase 2-B.17 設計の全面整合レビュー](reviews/phase2/phase2b17-official-data-presentation-realignment.md)
   - 履歴資料（**現行仕様ではない。実装根拠として使用禁止**）: [Flood Source Priority Contract](docs/architecture/flood-source-priority-contract-v0.1.md)、[Flood Source Selection Contract](docs/architecture/flood-source-selection-contract-v0.1.md)、Phase 2-B.9〜B.16のレビュー（`reviews/phase2/phase2b9`〜`phase2b14`）
-- Phase 2-C 公式データ取得元台帳（5つのAPIの取得可否・利用条件の確認状況。**取得・公開の承認ではない**）: [台帳の設計（案）](docs/architecture/official-source-ledger-v0.1.md)、[台帳JSON](docs/data-sources/official-source-ledger.json)、[調査報告](reviews/phase2/phase2c-official-source-availability-survey.md)
+- Phase 2-C 公式データ取得元台帳（5つのAPIの取得可否・利用条件の確認状況。**取得・公開の承認ではない**）: [台帳の設計（案）](docs/architecture/official-source-ledger-v0.1.md)、[台帳JSON](docs/data-sources/official-source-ledger.json)、[調査報告](reviews/phase2/phase2c-official-source-availability-survey.md)、[入力形式・座標精度の方針（案）](docs/architecture/hazard-source-format-precision-policy-v0.1.md)
 
 ## 開発方針
 
