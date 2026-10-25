@@ -29,52 +29,80 @@ from typing import Any
 import shapely
 from shapely.geometry import shape
 
+from hererisk.location.address_provider import AddressDataError
+
 BOUNDARY_TOLERANCE_M = 10.0
 UNASSIGNED_CODE_SUFFIX = "000"   # N03_007 "13000" = 所属未定地
 _GEOJSON = re.compile(r"(?:^|/)N03-(\d{8})_(\d{2})\.geojson\Z")
 
 
-class MunicipalityDataError(ValueError):
+class MunicipalityDataError(AddressDataError):
     """The N03 file is missing or malformed. Fixed messages only."""
 
 
+def _read_file(path: Path, expected_prefecture: str | None) -> tuple[dict[str, Any], list[tuple[str, Any, dict[str, str]]]]:
+    """One N03 ZIP -> (meta, [(code, geometry, names)]). The prefecture code comes from the file
+    name and must match every N03_007 and, if given, the registered prefecture code."""
+    try:
+        with zipfile.ZipFile(Path(path)) as z:
+            members = [n for n in z.namelist() if _GEOJSON.search(n)]
+            if len(members) != 1:
+                raise MunicipalityDataError("the ZIP must contain exactly one N03-<date>_<pref>.geojson")
+            raw = z.read(members[0])
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise MunicipalityDataError("N03 file unavailable or not a ZIP") from exc
+    m = _GEOJSON.search(members[0])
+    pref = m.group(2)
+    if expected_prefecture is not None and pref != expected_prefecture:
+        raise MunicipalityDataError(f"N03 file is for prefecture {pref}, registered as {expected_prefecture}")
+    try:
+        features = json.loads(raw)["features"]
+    except (ValueError, KeyError, TypeError) as exc:
+        raise MunicipalityDataError("N03 GeoJSON unreadable") from exc
+    meta = {"file": members[0].rsplit("/", 1)[-1], "prefecture_code": pref, "features": len(features),
+            "reference_date": f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}"}
+    out = []
+    for f in features:
+        try:
+            p, g = f["properties"], f["geometry"]
+            code = p["N03_007"]
+            if g["type"] not in ("Polygon", "MultiPolygon") or not (isinstance(code, str) and len(code) == 5):
+                raise MunicipalityDataError("N03 feature without a polygon or a 5-digit N03_007")
+            geom = shape(g)
+        except (KeyError, TypeError, ValueError, shapely.errors.GEOSException) as exc:
+            raise MunicipalityDataError("N03 feature unreadable") from exc
+        if not code.startswith(pref):
+            raise MunicipalityDataError(f"N03 code {code} is not in prefecture {pref}")
+        # 郡・政令市名 + 市区町村名 + 政令市の区名 (e.g. 西多摩郡奥多摩町, 川崎市川崎区)
+        name = "".join(p.get(k) or "" for k in ("N03_003", "N03_004", "N03_005"))
+        out.append((code, geom, {"prefecture": p["N03_001"], "prefecture_code": pref, "municipality": name}))
+    if not out:
+        raise MunicipalityDataError("N03 has no features")
+    return meta, out
+
+
 class N03Municipalities:
-    def __init__(self, path: Path) -> None:
-        try:
-            with zipfile.ZipFile(Path(path)) as z:
-                names = [n for n in z.namelist() if _GEOJSON.search(n)]
-                if len(names) != 1:
-                    raise MunicipalityDataError("the ZIP must contain exactly one N03-<date>_<pref>.geojson")
-                raw = z.read(names[0])
-        except (OSError, zipfile.BadZipFile) as exc:
-            raise MunicipalityDataError("N03 file unavailable or not a ZIP") from exc
-        try:
-            doc = json.loads(raw)
-            features = doc["features"]
-        except (ValueError, KeyError, TypeError) as exc:
-            raise MunicipalityDataError("N03 GeoJSON unreadable") from exc
-        m = _GEOJSON.search(names[0])
-        self.meta = {"file": names[0].rsplit("/", 1)[-1], "reference_date": f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}",
-                     "prefecture_code": m.group(2), "features": len(features)}
-        geoms, codes, self.names = [], [], {}
-        for f in features:
-            try:
-                p, g = f["properties"], f["geometry"]
-                code = p["N03_007"]
-                if g["type"] not in ("Polygon", "MultiPolygon") or not (isinstance(code, str) and len(code) == 5):
-                    raise MunicipalityDataError("N03 feature without a polygon or a 5-digit N03_007")
-                geom = shape(g)
-            except (KeyError, TypeError, ValueError, shapely.errors.GEOSException) as exc:
-                raise MunicipalityDataError("N03 feature unreadable") from exc
-            geoms.append(geom)
-            codes.append(code)
-            self.names[code] = {"prefecture": p["N03_001"],
-                                "municipality": (p.get("N03_003") or "") + (p.get("N03_004") or "")}
-        if not geoms:
-            raise MunicipalityDataError("N03 has no features")
+    """Polygons of one or more prefectures, searched together.
+
+    ``files``: one N03 ZIP path, or a list of ``(registered prefecture code or None, path)``.
+    A municipality code may come from one file only.
+    """
+
+    def __init__(self, files: Any) -> None:
+        if isinstance(files, (str, Path)):
+            files = [(None, files)]
+        self.files: dict[str, dict[str, Any]] = {}
         by_code: dict[str, list[Any]] = {}
-        for code, geom in zip(codes, geoms):
-            by_code.setdefault(code, []).append(geom)
+        self.names: dict[str, dict[str, str]] = {}
+        for expected, path in files:
+            meta, items = _read_file(Path(path), expected)
+            if meta["prefecture_code"] in self.files:
+                raise MunicipalityDataError(f"prefecture {meta['prefecture_code']} registered twice")
+            self.files[meta["prefecture_code"]] = meta
+            for code, geom, names in items:
+                by_code.setdefault(code, []).append(geom)
+                self.names[code] = names
+        self.meta = next(iter(self.files.values())) if len(self.files) == 1 else {"files": list(self.files.values())}
         self._codes = sorted(by_code)
         self._geoms = [shapely.union_all(by_code[c]) for c in self._codes]
         self._edges = [g.boundary for g in self._geoms]

@@ -147,6 +147,41 @@ HERERISK_ISJ_DATA=~/hererisk-data/isj/13000-19.0b.zip HERERISK_N03_DATA="$N03_ZI
 - 町丁目の代表点が遠い地点では、市区町村までを返します（`precision: "municipality"`）。
 - N03は、メタデータにある測量法の複製承認の記載の扱いが未確認です。そのため、ローカルでの検証に限ります（詳細は契約の第8.3節）。
 
+### 複数の都道府県を登録する（Phase 3-E）
+
+都道府県ごとのデータを、地域ファイル（JSON、**リポジトリの外**）に登録します。東京都と神奈川県で確認済みです。
+
+```sh
+# ~/hererisk-data/regions.json（相対パスはこのファイルの場所が基準）
+cat > ~/hererisk-data/regions.json <<'JSON'
+{"regions": [
+  {"prefecture_code": "13", "address_isj": "isj/13000-19.0b.zip", "address_n03": "n03/N03-20260101_13_GML.zip"},
+  {"prefecture_code": "14", "address_isj": "isj/14000-19.0b.zip", "address_n03": "n03/N03-20260101_14_GML.zip"}
+]}
+JSON
+
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 \
+  --address-regions ~/hererisk-data/regions.json \
+  --elevation-api http://127.0.0.1:8000 --elevation-token-file "$TOKEN_FILE" --elevation-fixture
+
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.4658&lon=139.6223"   # 横浜駅
+# "address": {"status":"available","result":{"display_name":"神奈川県横浜市西区南幸一丁目付近","municipality_code":"14103",...}}
+
+# 実データでのテスト（地域ファイルがある場合のみ実行される）
+HERERISK_ADDRESS_REGIONS=~/hererisk-data/regions.json .venv/bin/python -m pytest -q tests/contract/test_location_regions.py
+```
+
+**地域の追加手順（3県目以降。コードの変更は不要）**
+
+1. 位置参照情報を取得する。[ダウンロードサービス](https://nlftp.mlit.go.jp/cgi-bin/isj/dls/_choose_method.cgi)で「都道府県単位」→ 対象の県 →「大字・町丁目」の最新版を選び、利用約款に同意してダウンロードする（例: 埼玉県は `11000-19.0b.zip`）。
+2. N03を取得する。[N03のページ](https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-N03-2026.html)から、対象の県のZIPをダウンロードする（例: `N03-20260101_11_GML.zip`）。
+3. 2つのZIPを、リポジトリの外（例 `~/hererisk-data/isj/`・`~/hererisk-data/n03/`）に置く。展開しなくてよい。
+4. 地域ファイルに1件追加する: `{"prefecture_code": "11", "address_isj": "isj/11000-19.0b.zip", "address_n03": "n03/N03-20260101_11_GML.zip"}`
+5. Location APIを再起動する。
+
+- コードの不一致（ファイル名・ファイルの中身と `prefecture_code` の不一致）、重複、データの不正があれば、起動しません（終了コード3。理由を表示）。
+- 地域ファイルには、ローカルのパスが入ります。Gitに入れないでください。
+
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
 ## 開発方針
