@@ -3,6 +3,7 @@
 * ``--format table`` (default) / ``json``: print the inventory
 * ``--hash``: also measure SHA-256 of every present file (reads the whole files)
 * ``--serve [--port 8090]``: read-only HTML page on 127.0.0.1 (hererisk.data_inventory.web)
+* ``--serve --container``: inside a container, bind 0.0.0.0 (expose only via a 127.0.0.1 port mapping)
 """
 
 from __future__ import annotations
@@ -46,10 +47,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--hash", action="store_true", help="measure SHA-256 of present files (slow for large files)")
     parser.add_argument("--serve", action="store_true", help="serve a read-only HTML page on 127.0.0.1")
     parser.add_argument("--port", type=int, default=8090)
+    parser.add_argument("--container", action="store_true",
+                        help="with --serve, inside a container: bind 0.0.0.0 (expose only via a 127.0.0.1 port mapping)")
     args = parser.parse_args(argv)
+    if args.container and not args.serve:
+        sys.stderr.write("data_inventory: --container needs --serve\n")
+        return 2
     if args.serve:
         from hererisk.data_inventory.web import serve
-        return serve(args.regions, args.ledger, args.port)
+        return serve(args.regions, args.ledger, args.port, container=args.container)
     try:
         inv = build_inventory(args.regions, args.ledger, measure_hashes=args.hash)
     except AddressDataError as exc:

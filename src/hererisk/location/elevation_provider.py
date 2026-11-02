@@ -1,6 +1,7 @@
 """ElevationProvider: the Location API ``elevation`` section from the existing Elevation API.
 
-Calls ``POST /api/v1/elevation`` (docs/api/elevation-contract-v0.1.md) on 127.0.0.1 only, with
+Calls ``POST /api/v1/elevation`` (docs/api/elevation-contract-v0.1.md) on 127.0.0.1 only (or, with
+``container=True``, on the Compose service ``elevation-api``; Phase 3-G), with
 ``{"lat": .., "lon": ..}`` and, if configured, a Bearer token read once from a 0600 file outside
 Git. The token is never logged, echoed or put into a section.
 
@@ -32,6 +33,7 @@ from hererisk.location.model import AVAILABLE, NOT_AVAILABLE, UNKNOWN, error_sec
 
 ELEVATION_PATH = "/api/v1/elevation"
 ALLOWED_HOST = "127.0.0.1"
+CONTAINER_HOST = "elevation-api"   # Compose service name (Phase 3-G, compose.yaml)
 MAX_RESPONSE_BYTES = 64 * 1024
 DEFAULT_TIMEOUT_S = 1.5
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -49,11 +51,14 @@ class ElevationProvider:
     id = "elevation-api"
 
     def __init__(self, base_url: str, *, token_file: Path | None = None, fixture: bool = False,
-                 timeout_s: float = DEFAULT_TIMEOUT_S) -> None:
+                 timeout_s: float = DEFAULT_TIMEOUT_S, container: bool = False) -> None:
         parts = urlsplit(base_url)
-        if parts.scheme != "http" or parts.hostname != ALLOWED_HOST or parts.port is None \
+        hosts = (ALLOWED_HOST, CONTAINER_HOST) if container else (ALLOWED_HOST,)
+        if parts.scheme != "http" or parts.hostname not in hosts or parts.port is None \
                 or parts.path not in ("", "/") or parts.query or parts.username or parts.password:
-            raise ElevationConfigError("the Elevation API must be http://127.0.0.1:<port>")
+            raise ElevationConfigError("the Elevation API must be http://127.0.0.1:<port>"
+                                       + (" or http://elevation-api:<port>" if container else ""))
+        self._host = parts.hostname
         self._port = parts.port
         self._timeout_s = timeout_s
         self._fixture = fixture
@@ -80,7 +85,7 @@ class ElevationProvider:
         headers = {"Content-Type": "application/json", "Content-Length": str(len(body))}
         if self._auth:
             headers["Authorization"] = self._auth
-        conn = http.client.HTTPConnection(ALLOWED_HOST, self._port, timeout=self._timeout_s)
+        conn = http.client.HTTPConnection(self._host, self._port, timeout=self._timeout_s)
         try:
             conn.request("POST", ELEVATION_PATH, body=body, headers=headers)
             resp = conn.getresponse()

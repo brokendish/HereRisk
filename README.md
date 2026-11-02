@@ -221,6 +221,60 @@ PYTHONPATH=src .venv/bin/python -m hererisk.data_inventory --regions ~/hererisk-
 
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
+## Docker Compose（Phase 3-G、開発・実行環境）
+
+Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
+
+| サービス | Compose名 | ホスト側 | 備考 |
+|---|---|---|---|
+| Location API | `location-api` | `127.0.0.1:8001` | 標高APIへは `http://elevation-api:8000`（Composeネットワーク内） |
+| 標高API | `elevation-api` | `127.0.0.1:8000` | Fixtureデータのみ（応答は `synthetic: true`）。Bearer Token必須 |
+| Data Inventory | `data-inventory` | `127.0.0.1:8090` | 管理用。`--profile admin` のときだけ起動。別ネットワーク |
+
+**データ・秘密情報の置き場所（どちらもGit・イメージの外）**
+
+| 内容 | ホスト側（既定） | コンテナ内 |
+|---|---|---|
+| 地域ファイルと住所データ（`regions.json`・`isj/`・`n03/`） | `~/hererisk-data`（`HERERISK_DATA_DIR` で変更） | `/data`（Read Only） |
+| Bearer Token（`api-token`） | `~/.hererisk-local/secrets`（`HERERISK_SECRET_DIR` で変更） | `/run/secrets/api_token`（Read Only） |
+| 標高のFixture公開データ | Dockerボリューム `hererisk-elevation-data` | `/var/lib/hererisk`（APIからはRead Only） |
+
+`regions.json` の相対パスは、ファイルの場所が基準です。`isj/13000-19.0b.zip` は、コンテナ内では `/data/isj/13000-19.0b.zip` になります。データを複製・改名する必要はありません（[上の Phase 3-E](#複数の都道府県を登録するphase-3-e) の `regions.json` をそのまま使います）。
+
+イメージに入るのは、アプリのコード・設定・[取得元台帳](docs/data-sources/official-source-ledger.json)・標高のFixtureだけです（[許可リスト](deploy/app/Dockerfile.dockerignore)）。コンテナは非root（uid 10001）・読み取り専用のファイルシステムで動きます。
+
+```sh
+# 初回のみ: Bearer Tokenを作る（既にファイルがあれば作らない）
+mkdir -p ~/.hererisk-local/secrets && chmod 700 ~/.hererisk-local ~/.hererisk-local/secrets
+docker compose --profile init run --rm token
+
+# 初回のみ: 標高のFixtureを公開データとしてボリュームに入れる（2回目以降は「変更なし」）
+docker compose build
+docker compose --profile init run --rm elevation-init
+
+# 起動・状態・ログ・停止
+docker compose up -d --build
+docker compose ps
+docker compose logs -f
+docker compose down          # ボリュームと ~/hererisk-data は消えない（-v は付けない）
+
+# 管理画面も起動する → http://127.0.0.1:8090/
+docker compose --profile admin up -d --build
+docker compose --profile admin down
+
+# 確認
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.4658&lon=139.6223"     # 横浜駅: 住所
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.701882&lon=139.713178" # Fixture範囲: elevation 81.44, synthetic: true
+docker compose --profile admin exec data-inventory python -m hererisk.data_inventory --regions /data/regions.json   # 管理画面と同じ一覧（CLI）
+```
+
+- ソースコードを変えたら、`docker compose up -d --build`（管理画面も使うなら `--profile admin` を付ける）で作り直します。地域ファイルやデータを変えたときは、`docker compose restart location-api` で読み直します。
+- `docker compose ps` で `healthy` になるまで、Location APIは数十秒かかります（N03の読み込み）。ヘルスチェックは、既存のエンドポイント（`POST /api/v1/elevation`・`GET /api/v1/location`・`GET /inventory.json`）を使います。
+- 標高APIは、Fixtureが未投入なら起動しません（未検証のデータでは応答しない）。先に `elevation-init` を実行してください。
+- Linux（VPS）では、Tokenのファイルは実行ユーザー（uid 10001）の所有で0600である必要があります。`token` サービスで作れば、そうなります。
+- VPSでも同じ `compose.yaml` を使います。`--profile admin` は付けず、管理画面は一般公開しません。使うときは、VPS上で一時的に起動し、SSHのポート転送（`ssh -L 8090:127.0.0.1:8090 <VPS>`）で見ます。一般向けの公開経路（リバースプロキシ）には、Location APIだけをつなぎます。
+- Dockerを使わない起動方法（上の各節）も、そのまま使えます。
+
 ## 開発方針
 
 - UNIX哲学

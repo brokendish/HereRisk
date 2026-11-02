@@ -1,5 +1,8 @@
 """Read-only Data Inventory page on 127.0.0.1 (Phase 3-F).
 
+Inside a container (Phase 3-G, ``--container``) it binds 0.0.0.0 so the published port
+``127.0.0.1:8090`` can reach it; host exposure is decided by that port mapping only.
+
 GET /                -> HTML table (built from the same build_inventory() as the CLI)
 GET /inventory.json  -> the same inventory as JSON
 Anything else -> 404; any method other than GET -> 405. There is no parameter: the page cannot
@@ -86,20 +89,21 @@ def make_handler(regions: Path, ledger: Path):
     return Handler
 
 
-def build_server(regions: Path, ledger: Path, port: int) -> ThreadingHTTPServer:
+def build_server(regions: Path, ledger: Path, port: int, *, container: bool = False) -> ThreadingHTTPServer:
     build_inventory(regions, ledger)              # fail at start on a bad regions file
-    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(regions, ledger))   # loopback only, fixed
+    host = "0.0.0.0" if container else "127.0.0.1"   # loopback only, except inside a container
+    server = ThreadingHTTPServer((host, port), make_handler(regions, ledger))
     server.daemon_threads = True
     return server
 
 
-def serve(regions: Path, ledger: Path, port: int) -> int:
+def serve(regions: Path, ledger: Path, port: int, *, container: bool = False) -> int:
     try:
-        server = build_server(regions, ledger, port)
+        server = build_server(regions, ledger, port, container=container)
     except (ValueError, OSError) as exc:
         sys.stderr.write(f"data_inventory: not serving ({type(exc).__name__})\n")
         return 3
-    sys.stderr.write(f"data_inventory: read-only page on http://127.0.0.1:{server.server_address[1]}/\n")
+    sys.stderr.write(f"data_inventory: read-only page on http://{server.server_address[0]}:{server.server_address[1]}/\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

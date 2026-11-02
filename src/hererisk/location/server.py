@@ -3,6 +3,10 @@
     python -m hererisk.location.server [--host 127.0.0.1] [--port 8001] [--sample-data]
 
 * loopback addresses only (Phase 3-A is a local service skeleton, not a public deployment)
+* ``--container`` (Phase 3-G, compose.yaml): inside a container the API must bind a non-loopback
+  address to be reachable through the published port, so ``--container`` allows that; host exposure
+  is decided by the port mapping (``127.0.0.1:8001``). It also allows ``--elevation-api
+  http://elevation-api:<port>`` (the Compose service name)
 * default: every provider is not connected and answers ``not_available``
 * ``--sample-data``: synthetic sample providers for screen checks; every section is marked
   ``synthetic: true`` and the response ``mode`` is ``sample``
@@ -77,8 +81,8 @@ def make_handler(api: LocationApi):
 def build_server(host: str, port: int, *, sample_data: bool = False, elevation_api: str | None = None,
                  elevation_token_file: Path | None = None, elevation_fixture: bool = False,
                  address_isj: Path | None = None, address_n03: Path | None = None,
-                 address_regions: Path | None = None) -> ThreadingHTTPServer:
-    if not ipaddress.ip_address(host).is_loopback:
+                 address_regions: Path | None = None, container: bool = False) -> ThreadingHTTPServer:
+    if not container and not ipaddress.ip_address(host).is_loopback:
         raise ValueError("the Location API skeleton is only served on a loopback address")
     if address_n03 and not address_isj:
         raise ValueError("--address-n03 needs --address-isj")
@@ -93,7 +97,7 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
         providers = default_providers()
         if elevation_api:
             providers["elevation"] = ElevationProvider(elevation_api, token_file=elevation_token_file,
-                                                       fixture=elevation_fixture)
+                                                       fixture=elevation_fixture, container=container)
         if address_regions:
             from hererisk.location.n03_municipality import N03Municipalities   # needs shapely
             regions = load_regions(address_regions)
@@ -132,6 +136,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="国土数値情報 N03 行政区域 ZIP: municipality by polygon (needs --address-isj)")
     parser.add_argument("--address-regions", type=Path, metavar="JSON",
                         help="regions file: 位置参照情報 and N03 per prefecture (outside Git)")
+    parser.add_argument("--container", action="store_true",
+                        help="inside a container: allow a non-loopback bind and http://elevation-api:<port> "
+                             "(expose only via a 127.0.0.1 port mapping)")
     args = parser.parse_args(argv)
     if args.address_n03 and not args.address_isj:
         sys.stderr.write("hererisk-location-api: --address-n03 needs --address-isj\n")
@@ -143,7 +150,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         server = build_server(args.host, args.port, sample_data=args.sample_data, elevation_api=args.elevation_api,
                               elevation_token_file=args.elevation_token_file,
                               elevation_fixture=args.elevation_fixture, address_isj=args.address_isj,
-                              address_n03=args.address_n03, address_regions=args.address_regions)
+                              address_n03=args.address_n03, address_regions=args.address_regions,
+                              container=args.container)
     except ImportError:
         sys.stderr.write("hererisk-location-api: --address-n03 needs shapely (pip install -e '.[address]')\n")
         return 3

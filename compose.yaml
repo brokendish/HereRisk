@@ -1,0 +1,135 @@
+# HereRisk services in containers (Phase 3-G). Same file on Mac and on a Linux VPS.
+#
+#   docker compose up -d --build              # location-api + elevation-api
+#   docker compose --profile admin up -d      # + data-inventory (management page)
+#   docker compose --profile init run --rm token          # once: Bearer token file
+#   docker compose --profile init run --rm elevation-init # once: fixture elevation data
+#
+# Host exposure is 127.0.0.1 only. Official data, the regions file and the token stay outside Git
+# and outside the image; they are mounted read only. See README "Docker Compose".
+#   HERERISK_DATA_DIR    address data + regions.json (default ~/hererisk-data)  -> /data (ro)
+#   HERERISK_SECRET_DIR  directory holding api-token (default ~/.hererisk-local/secrets)
+name: hererisk
+
+x-hardening: &hardening
+  image: hererisk-app:local
+  user: "10001:10001"
+  read_only: true
+  tmpfs:
+    - /tmp:size=16m,mode=1777
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  pids_limit: 64
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  elevation-api:
+    <<: *hardening
+    build:
+      context: .
+      dockerfile: deploy/app/Dockerfile
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ["python", "-m", "hererisk.elevation.api.server",
+              "--data-root", "/var/lib/hererisk/fixture", "--host", "0.0.0.0", "--port", "8000",
+              "--fixture-demo", "--container", "--auth-token-file", "/run/secrets/api_token"]
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - elevation-data:/var/lib/hererisk:ro
+    secrets:
+      - api_token
+    networks:
+      - public
+    healthcheck:   # the real endpoint: POST /api/v1/elevation (fixture coverage point) -> 200
+      test: ["CMD", "python", "-c", "import http.client,json;t=open('/run/secrets/api_token').readline().strip();c=http.client.HTTPConnection('127.0.0.1',8000,timeout=3);c.request('POST','/api/v1/elevation',json.dumps({'lat':35.701882,'lon':139.713178}),{'Content-Type':'application/json','Authorization':'Bearer '+t});exit(0 if c.getresponse().status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  location-api:
+    <<: *hardening
+    restart: unless-stopped
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.location.server", "--host", "0.0.0.0", "--port", "8001", "--container",
+              "--address-regions", "/data/regions.json",
+              "--elevation-api", "http://elevation-api:8000", "--elevation-token-file", "/run/secrets/api_token",
+              "--elevation-fixture"]
+    ports:
+      - "127.0.0.1:8001:8001"
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+    secrets:
+      - api_token
+    networks:
+      - public
+    depends_on:
+      elevation-api:
+        condition: service_healthy
+    healthcheck:   # the real endpoint: GET /api/v1/location -> 200
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8001/api/v1/location?lat=35.681236&lon=139.767125',timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # Management page: only with --profile admin, own network (no route to / from the public APIs),
+  # host 127.0.0.1 only. Never give it a public port; on a VPS reach it through an SSH tunnel.
+  data-inventory:
+    <<: *hardening
+    profiles: ["admin"]
+    restart: unless-stopped
+    mem_limit: 256m
+    command: ["python", "-m", "hererisk.data_inventory", "--regions", "/data/regions.json",
+              "--serve", "--container", "--port", "8090"]
+    ports:
+      - "127.0.0.1:8090:8090"
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+    networks:
+      - admin
+    healthcheck:   # the real endpoint: GET /inventory.json -> 200
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/inventory.json',timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # One-time setup (--profile init), no network at all.
+  elevation-init:   # publishes the fixture into the elevation-data volume; never deletes
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 256m
+    command: ["/bin/sh", "/app/bin/init-fixture.sh"]
+    volumes:
+      - elevation-data:/var/lib/hererisk
+
+  token:   # creates ${HERERISK_SECRET_DIR}/api-token (0600); refuses to overwrite
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    command: ["python", "-m", "hererisk.cli", "api-token-generate", "--output", "/secrets/api-token"]
+    volumes:
+      - ${HERERISK_SECRET_DIR:-${HOME}/.hererisk-local/secrets}:/secrets
+
+networks:
+  public:
+  admin:
+
+volumes:
+  elevation-data:
+    name: hererisk-elevation-data
+
+secrets:
+  api_token:
+    file: ${HERERISK_SECRET_DIR:-${HOME}/.hererisk-local/secrets}/api-token

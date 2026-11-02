@@ -1,0 +1,10 @@
+*
+!src/hererisk
+!api/elevation/conf
+!docs/data-sources/official-source-ledger.json
+!tests/fixtures/elevation-fixture
+!deploy/app/requirements.txt
+!deploy/fixture-vps/init-fixture.sh
+**/__pycache__
+**/*.pyc
+**/.DS_Store
