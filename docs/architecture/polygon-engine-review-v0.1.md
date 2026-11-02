@@ -3,6 +3,7 @@
 - 状態: **設計レビュー（提案。OWNERレビュー待ち）**。本書は実装・データ再構築・既存の契約の変更の承認ではない。
 - 作成: 2026-11-02（Claude）
 - 基準コミット: `c8845dabde601c41eede00355518802cc3ebf3f2`（Phase 4-G）
+- 改訂: 2026-11-03 Phase 4-H.1（基準 `cd97905d2eb0c34cbceaba406be467950fa358e2`）— 原典の形状状態と、HereRiskの探索・解析状態を分ける第13章を追加した。あわせて 4.2節・第5章（R-11・R-12）・第12章（U-9〜U-12）を更新した。コード・索引・API・理由コードのカタログは変更していない
 - 関連: [契約案](../api/polygon-engine-contract-draft-v0.1.md)、[移行計画](polygon-engine-migration-plan-v0.1.md)、[ADR-002案](../decisions/2026-11-02-polygon-engine-responsibility-draft.md)、[Design Principles](design-principles-v1.0.md)、[ADR-001](../decisions/2026-10-25-multiple-official-hazard-results.md)、[Dataset Registry](dataset-registry-v0.1.md)、[Data Publish](data-publish-v0.1.md)、[共通API契約](../api/common-contract-v0.1.md)、[座標精度方針（案）](hazard-source-format-precision-policy-v0.1.md)、[Polygon判定理由の共通仕様](../api/polygon-reason-catalog-v0.1.md)
 
 ## 0. 結論（要約）
@@ -12,6 +13,7 @@
 3. **洪水は最後に移行する。** 次のハザードが共通部品を使い、洪水の既存実装との差分テストに合格するまで、洪水のコード・索引・応答は変えない。既存の洪水APIを変えずに進められる。
 4. **次のハザードは津波（A40）を推奨する**（第8章）。必要な共通基盤は「形状の有効性の分類」と「正式な内外判定（使える形状だけ）＋判定保留の外接矩形」の2つで、参考解析は最初は不要（判定保留のまま返せば、安全側に倒れる）。
 5. **独立検証（`verify.py`）は共通化しない。** 検証される側と同じ部品を使うと、独立性がなくなる。
+6. **原典の形状状態と、HereRiskの探索・解析状態を分ける**（Phase 4-H.1、第13章）。`no_local_boundary`（最大半径100mの中に境界がない）は探索条件の結果で、原典の不備の証拠ではない。有効なPolygonでも起き、全体のリング構造では東京都の無効976組のうち966組が読める（採用はしない）。理由コードは変えず、原因の区分 `cause` を追加する案とする。
 
 ## 1. 範囲と方法
 
@@ -131,6 +133,7 @@ flood.local_analysis（メモリ上の局所輪郭法、PoC）── 診断索�
 - **Feature間の重なり**（A33で同じ形のFeatureが23組、区域区分が重なること自体は正当）: 共通Engineは重なりを解消・統合しない。各Featureを独立に返す。
 - 離島（小笠原など、北緯20〜27度）・北海道（北緯45度付近）: 距離の近似の誤差は小さい（4.3節）が、実データで未検証。
 - 日付変更線をまたぐ形状: 日本の範囲（東経122〜154度）では起きない前提。`check_coordinates` が経度180度を超える辺を拒否する。
+- **局所探索の上限（最大半径100m）は解析の条件であり、原典の品質の指標ではない**。有効なPolygonでも上限に達する（Phase 4-C の有効な対照1,104組のうち60組。第13章）。
 
 ### 4.3 座標・距離の前提
 
@@ -153,6 +156,8 @@ flood.local_analysis（メモリ上の局所輪郭法、PoC）── 診断索�
 | R-8 | 共通Engineが肥大化し、属性の解釈やAPIの形まで持つ | 依存関係の規則（第7章）をテストで強制する |
 | R-9 | 1つの巨大なサービスにまとめると、低メモリ環境で全ハザードが同時に落ちる | 初期はライブラリとして共有し、プロセスはAPIごと（第9章） |
 | R-10 | Feature間の重なり・同一形状（A33）を共通部品が除外・統合する | 除外・統合しない。各Featureを独立に返す（DP-02・DP-11） |
+| R-11 | 探索の上限・解析方式の限界による判定保留を、原典の不備として集計・説明する（データ提供元の問題に見せる） | 原典の形状状態と探索・解析状態を別の情報にし、理由コードに原因の区分（`cause`）を付ける（第13章） |
+| R-12 | 局所輪郭法の「問題箇所」に、正当な接触（穴と外周の1点接触など）が含まれうるのに、利用者向けに「不整合」と説明する | 問題箇所の種類と正当性を区別して記録し、文言を中立にする（13.4節） |
 
 ## 6. データパイプラインと索引
 
@@ -287,3 +292,150 @@ hererisk/location/<hazard>_provider.py      状態の対応・提示（B-3・B-4
 | U-6 | API入力（WGS84）とJGD2011の扱い（ON-11） |
 | U-7 | 共通の既定の採用方針を置くか（置く場合も、ハザードが明示的に選ぶ） |
 | U-8 | A40・A49の原典の自己接触を、洪水と同じく判定保留とするか（Phase 2-C.6 の未決定事項） |
+| U-9 | 理由コードに原因の区分 `cause` を追加するか（13.3節。既存の `category` は変えない） |
+| U-10 | 文言 v0.2 案（13.5節。探索半径を値として埋め込む）を採用するか |
+| U-11 | 無効Polygonで、全体の回転数による読み（局所に境界がない場合）を、追加の条件付きで参考解釈に使うか（13.6節。Stage 3案の未決定事項3と同じ） |
+| U-12 | 問題箇所のうち正当な接触（別の環どうしの1点接触）を、`defect_within_*` の対象から外すか（13.4節。分類が変わるため、洪水の回帰基準の改訂を伴う） |
+
+## 13. 原典の形状状態と探索・解析状態の分離（Phase 4-H.1）
+
+### 13.1 2つの軸
+
+| 軸 | 何についての情報か | 値（案） | 地点に依存するか |
+|---|---|---|---|
+| **A. 原典の形状状態**（`geometry_state`） | 原典の構成Polygonそのもの。データ提供元の作った形 | `valid` / `invalid_geometry`（自己交差・自己接触など） / `feature_invalid_component`（構成どうしの重なり・辺の共有） / `unverified`（検証器が判定できない・未実施） | しない（構成ごとに1つ） |
+| **B. 探索・解析状態**（`analysis_state`） | HereRiskが、ある地点で、ある方式・ある条件（半径など）で解析した結果 | 13.2節 | する（地点 × 構成 × 方式 × 条件） |
+
+- **AとBは排他的な分類にしない。** 1つの記録に両方を持つ。例: 原典は `invalid_geometry`（A）で、その地点では最大半径の中に輪郭がない（B: `search_limit`）。このとき判定保留の**直接の理由**はB、**背景**はAである。
+- Aは原典の事実で、地点の位置や探索半径を変えても変わらない。Bは解析の条件（半径・方式の版）を変えると変わりうる。
+- Bの「判定できない」を、Aの品質の評価として扱わない。
+
+### 13.2 探索・解析状態（B）の区分
+
+| 区分（`analysis_state.kind`） | 意味 | 現行の局所の結果 → 理由コード |
+|---|---|---|
+| `decided` | 指定範囲で必要な輪郭を確認し、局所と全体の読みが一致した | `inside` / `outside` |
+| `search_limit` | 最大探索半径まで調べたが、判定に必要な境界がなかった | `no_boundary_within_max_radius` → `no_local_boundary` |
+| `point_on_boundary` | 地点がデータの輪郭上にある（形の事実。測位の精度とは無関係） | `on_boundary` → `on_boundary` |
+| `defect_proximity` | 判定に使う範囲（または最大半径）の中に、輪郭が接する・交わる箇所がある | `defect_within_radius` → `defect_within_decision_radius`、決定後の確認 → `defect_within_max_radius` |
+| `ambiguous_candidates` | 最寄りの境界が複数あり、区別できない（側が食い違う） | `ambiguous_nearest` → `ambiguous_nearest` |
+| `reading_disagreement` | 局所の読みと全体の読み（回転数）、または回転数と偶奇が一致しない | `inconsistent_winding` → `local_far_disagree`、偶奇の不一致 → `even_odd_winding_disagree` |
+| `method_not_applicable` | 方式の適用条件を満たさない（構成どうしの不整合・面積0の環・問題箇所の位置不明） | `feature_level_invalidity_not_analyzed`・`orientation_unknown`・`defect_location_unknown` |
+| `resource_limit` | 件数・時間・同時実行の上限 | `diagnosis_limit_exceeded`・`diagnosis_timeout`・`diagnosis_busy` |
+| `system_failure` | 索引・処理系の失敗、世代の不一致 | `diagnosis_failed`・`diag_index_*`・`zone_ref_not_in_diag_index` |
+| `coverage` | 対象地域・登録範囲による | `outside_service_region`・`service_region_boundary` |
+
+### 13.3 `no_local_boundary` の意味と、理由コードの原因の区分
+
+**意味（確定案）**: 「設定した最大探索半径の範囲では、局所解析に必要な境界を確認できなかった」。探索条件に対する結果であり、原典Polygon全体の品質の評価ではない。
+
+根拠（Phase 4-C、東京都・洪水）:
+
+| 組 | 最大半径まで境界なし | そのうち全体の回転数で内外が読めた | 読みと参照の一致 |
+|---|---:|---:|---|
+| 有効な対照（1,104組） | 60 | 60 | GEOS `contains` と60組すべて一致 |
+| 無効（2,113組） | 976 | 966（外側876・内側90。残り10は `orientation_unknown`） | `make_valid` と966組すべて一致 |
+
+- 有効なPolygonでも起きる（対照の5%、無効の46%）。試験地点は無効な構成の外接矩形の中などから選んでおり（Phase 4-C）、割合の差の原因は分析していない。差があることは、不整合が原因であることを示さない。したがって `no_local_boundary` は原典の不整合の証拠にならない。
+- 製品の経路では、有効なPolygonは正式判定（GEOS）で判定し、局所探索を使わない。`no_local_boundary` が出るのは、判定保留の構成（Aが `invalid_geometry` など）の参考解析だけである。そのため利用者には「原典の不整合（A）」と「探索範囲（B）」が同時に関係するが、直接の理由はBである。
+
+**現行のカタログの属性のレビュー**（コードは互換性のため変えない）
+
+| コード | 現行の `category` / `concept` | 評価 | 提案する原因の区分 `cause`（追加の属性） |
+|---|---|---|---|
+| `no_local_boundary` | geometry / local_information_insufficient | `category: geometry` は原典の形の問題に見える。concept は妥当 | `search_scope` |
+| `ambiguous_nearest` | geometry / boundary_interpretation_uncertain | 有効なPolygonでも起きる（対照で10組）。解析方式の限界 | `analysis_method` |
+| `local_far_disagree` | geometry / boundary_interpretation_uncertain | 読み方の不一致。多くは無効な構造が背景だが、直接は方式の結果 | `analysis_method` |
+| `even_odd_winding_disagree` | geometry / boundary_interpretation_uncertain | 同上 | `analysis_method` |
+| `feature_level_invalidity_not_analyzed` | geometry / geometry_inconsistency | 背景は原典（A）、直接は方式の対象外 | `analysis_method`（背景: `source_geometry`） |
+| `defect_location_unknown` | geometry / geometry_inconsistency | 背景は原典、直接は方式が位置を特定できない | `analysis_method`（背景: `source_geometry`） |
+| `orientation_unknown` | geometry / boundary_interpretation_uncertain | 面積0の環は原典の事実 | `source_geometry` |
+| `defect_within_decision_radius`・`defect_within_max_radius` | geometry / geometry_inconsistency | 問題箇所は原典の事実だが、範囲は解析の条件。正当な接触も含みうる（13.4節） | `source_geometry`（条件: 探索半径） |
+| `pending_geometry_zone`・`invalid_geometry`・`feature_invalid_component` | geometry / geometry_inconsistency | 妥当 | `source_geometry` |
+| `on_boundary`・`zone_boundary_contact` | geometry / on_boundary | 原典の不備ではなく、地点と形の関係 | `point_position` |
+| `outside_service_region`・`service_region_boundary` | coverage | 妥当 | `coverage` |
+| `diag_index_*`・`zone_ref_not_in_diag_index` | data / data_inconsistency | HereRiskの索引の問題で、原典の問題ではない | `index_data` |
+| `zone_ref_not_in_provider_unknowns` | data | 診断の対象外 | `analysis_scope` |
+| `diagnosis_*` | processing | 妥当 | `processing` |
+| `all_conditions_met` | result | 妥当 | `result` |
+
+- **提案**: 既存の `category`・`concept` は変えず、各コードに `cause`（上表の値。将来のデータ品質レポートの集計軸）を追加する。必要なら `background_cause` も追加する。`category` を変えると、Phase 4-F の契約（カテゴリの意味）を変えることになるため、v0.1 の範囲では行わない。
+- `cause` の値（案）: `source_geometry` / `search_scope` / `analysis_method` / `point_position` / `coverage` / `index_data` / `analysis_scope` / `processing` / `result`。
+
+### 13.4 局所輪郭法の「問題箇所」と正当な接触
+
+- 局所輪郭法は、隣り合わない線分どうしの交点・接点をすべて「問題箇所」（`defects`）として記録する。原典の不整合（自己接触・自己交差）だけでなく、**有効なPolygonの正当な接触**（穴が外周に1点で接する、など）も含みうる。
+- Phase 4-C の有効な対照では、12組が `defect_within_radius` だった（有効なPolygonに問題箇所が記録された例）。
+- 製品の経路（無効な構成だけを診断）でも、地点の近くの問題箇所が、その構成の不整合の位置ではなく正当な接触である可能性がある。診断索引は問題箇所ごとに `kind` と `same_ring`（同じ環どうしか）を持つが、**正当かどうかは判定していない**。
+- 提案: (1) 文言を「輪郭が接する・交わる箇所」と中立にする（13.5節）、(2) 問題箇所の正当性（別の環どうしの1点接触か）を記録する項目を契約に置く、(3) 正当な接触を判定の対象から外すかはOWNER判断（U-12。分類が変わるため、洪水の回帰基準の改訂を伴う）。
+
+### 13.5 利用者向けの文言（改訂案。カタログは変更しない）
+
+- **原典の形状不整合が直接の理由の場合**（`cause: source_geometry`）: 現行どおり「元の区域データの境界に不整合があるため、正確に判定できません。」（`defect_within_max_radius`）など。
+- **探索範囲が直接の理由の場合**（`cause: search_scope`）: 探索半径を**値として差し込む**。
+
+| コード | 現行（v0.1） | 改訂案（v0.2） |
+|---|---|---|
+| `no_local_boundary`（共通） | 周辺の境界情報だけでは、区域内かどうかを確実に判定できません。 | 周辺{max_radius_m}mの範囲では判定に必要な区域の境界を確認できないため、判定を保留しています。 |
+| `no_local_boundary`（洪水） | 周辺の境界情報だけでは、浸水想定区域内かどうかを確実に判定できません。 | 周辺{max_radius_m}mの範囲では判定に必要な浸水想定区域の境界を確認できないため、判定を保留しています。 |
+| `no_local_boundary` の説明 | 調べる範囲の中に区域の境界がなく、… | 設定した探索範囲（半径{max_radius_m}m）の中に区域の境界がありませんでした。探索範囲による結果で、区域データの不整合を示すものではありません。 |
+| `defect_within_decision_radius` | 判定に必要な範囲で、区域データの形状に不整合が見つかりました。 | 判定に必要な範囲に、区域データの輪郭が接する・交わる箇所があるため、判定を保留しています。 |
+| `ambiguous_nearest` | 周辺の区域境界が複雑なため、判定結果を確定できません。 | 近くに複数の区域境界があり、どちらの側かを区別できないため、判定を保留しています。 |
+
+- `{max_radius_m}` は、その記録で実際に使った最大半径（`evidence.stopped_at_m`、または設定の `max_radius_m`）から入れる。**固定の文字列として埋め込まない。** 値がない場合は、数値を含まない文言に戻す（数値を推測しない）。
+- 仕組み（案）: `resolve_reason(code, hazard_type, locale, params={"max_radius_m": 100})`。テンプレートの差し込み項目は、定義側で宣言した名前だけを受け付ける（宣言のない項目・数値でない値は拒否して、数値なしの文言にする）。
+- **原因を並べて示す**（案）: 判定保留の構成について、利用者向けには「直接の理由（B）」の文言を代表とし、背景の原典の状態（A）を別の1文で添える（例:「この区域のデータには形状の不整合があります。」）。どちらか一方に寄せて、もう一方を隠さない。
+- 文言の版は `v0.2` とし、変更すると洪水の回帰基準 RG-11（代表メッセージの内訳）の期待値が変わる。移行計画 Step 1-4 で扱う。
+
+### 13.6 全体のリング構造を使った判定の検討（アルゴリズムは変更しない）
+
+| 方法 | 有効なPolygon | 無効なPolygon | 計算量（現行の索引） |
+|---|---|---|---|
+| 正式判定（GEOS `contains`） | 厳密。半径に依存しない。製品で使っている | 使わない（判定保留） | 構成のSTRtree＋1回の判定 |
+| 全リングの回転数（穴を含む正規化） | `contains` と一致（有効な単純リングでは定義上同じ。対照60組で一致） | 自己接触・反転した部分があると、0・1以外の値や、偶奇との不一致が起きる | 地点から外接矩形の外までの**1本の半直線**上の線分の塊だけを読む。半径に依存しない |
+| 偶奇（全リング） | `contains` と一致 | 向きを使わないため、反転した部分の解釈が回転数と異なる | 同じ半直線で同時に求まる |
+| 外周と穴の関係 | 穴の中は外側 | 穴が外周の外・入れ子・外周に2点以上で接する場合、解釈が定まらない | — |
+| 局所探索（半径を段階的に拡大） | 半径内に境界があれば読める。なければ `search_limit` | 近くに問題箇所がなければ、近くの輪郭が単純だという根拠になる | 半径の箱の中の塊を読む。半径の2乗に比例して増えうる |
+
+**半径を単純に広げる方法の評価**
+
+- 利点: 判定の根拠が局所の輪郭に限られ、遠方の不整合の解釈に依存しない。
+- 欠点: 広げるほど問題箇所に出会い、`search_limit` が `defect_proximity` に置き換わるだけになりやすい（Phase 4-C: 半径100mで `defect_within_radius` 636組。決定後に大きい半径で問題箇所が入る組は668組）。読む線分が増え、時間の上限（1秒）に近づく。細長い平行線の間のような形では、どこまで広げても閉じ方が分からない場合がある。
+
+**全体構造を使う方法の評価**
+
+- 利点: 半径に依存せず、1本の半直線で求まる。現行の `analyze` もすでに計算している（`local_plus_far`、記録の `winding`）。東京都では無効976組のうち966組で読めて、`make_valid` と全件一致した。
+- 欠点: 無効なPolygonの「全体の形」を、ある解釈（向きを考えた回転数）で読むことになる。これは**原典の不整合をどう解釈するかの選択**であり、派生形状の利用（Normalize契約 ON-15・ON-16）と同じ性質の判断である。`make_valid` との一致は、作成者の意図との一致を示さない。
+
+**全体判定が不確定になる条件**（無効なPolygon）
+
+- 地点が輪郭上にある（回転数・偶奇とも定義されない）
+- 面積0の環がある（向きが決まらない）
+- 回転数が0・1以外、または偶奇と一致しない
+- 辺どうしの交差（crossing）・同一直線上の重なり（overlap）がある（向きが途中で反転しうる。洪水の実データでは未観測）
+- 問題箇所の位置が特定できない
+- 構成どうしの重なり（`feature_invalid_component`。合併の意味が原典から分からない）
+- 穴が外周の外・入れ子・外周に複数点で接する
+
+**結論**
+
+- 有効なPolygonは、正式判定（GEOS）で全体の構造を使っており、局所探索は不要（現状どおり）。
+- 無効なPolygonの全体の読みは、根拠（`far_reading`: 回転数・交差数・偶奇・条件の成否）として**記録はするが、採用しない**（現行の `flood-diagnosis-adoption-v1` どおり）。採用するかは、条件（例: 問題箇所がすべて頂点の接触、回転数が0か1で偶奇と一致、面積0の環なし、構成どうしの不整合なし）を定めたうえでのOWNER判断（U-11）。
+- 半径の拡大は、`search_limit` を減らす効果より、`defect_proximity` と計算時間を増やす効果が大きいと見込まれる。拡大の前に、半径ごとの結果（Phase 4-C の `per_radius_outcomes`）を使って評価する。
+
+### 13.7 データ品質レポートとの関係
+
+集計の単位と区分を分ける。
+
+| 区分 | 集計の単位 | 例 | データ提供元の問題として扱うか |
+|---|---|---|---|
+| 原典の幾何の不整合（`source_geometry`） | 構成（`source_id`・`zone_ref`）。地点に依存しない | 無効な構成の数、問題箇所の種類の内訳 | 扱いうる（事実の記録。断定はしない） |
+| 探索範囲による未判定（`search_scope`） | 地点 × 構成 × 半径の設定 | `no_local_boundary` の組数（半径の設定ごと） | **扱わない** |
+| 解析方式による未判定（`analysis_method`） | 地点 × 構成 × 方式の版 | `ambiguous_nearest`・読みの不一致 | **扱わない** |
+| 地点の位置（`point_position`） | 地点 × 構成 | 境界上 | 扱わない |
+| 索引・処理系の失敗（`index_data`・`processing`） | 処理・世代 | 時間切れ・世代の不一致 | 扱わない（HereRiskの問題） |
+| 対象地域・登録範囲（`coverage`） | 地点 × ソース | 対象地域の外・境界付近 | 扱わない |
+
+- 同じ地点・同じ構成に複数の原因がある場合は、すべての理由コードと、A（構成の形状状態）を残す。1つの区分に押し込まない。
+- 原典の不整合の件数は構成の単位で数え、地点の数（試験地点の選び方で変わる）で重み付けしない。
+- 記録には、解析の条件（半径の列・方式の版・分類規則の版・索引の世代）を必ず付け、条件の違う集計を合算しない。

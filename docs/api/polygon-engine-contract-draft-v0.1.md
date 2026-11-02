@@ -2,6 +2,7 @@
 
 - 状態: **契約案（未承認・未実装）**。本書のJSONは設計例であり、確定したスキーマではない。既存の洪水の索引・Provider・`/api/v1/location`・`/api/v1/diagnostics/flood` の形は変えない。
 - 作成: 2026-11-02（Claude）。基準コミット `c8845dabde601c41eede00355518802cc3ebf3f2`
+- 改訂: 2026-11-03 Phase 4-H.1（基準 `cd97905d2eb0c34cbceaba406be467950fa358e2`）— 原典の形状状態（`geometry_state`）と探索・解析状態（`analysis_state`）を独立した情報にした（3.3〜3.5節）。理由コードの原因の区分 `cause`（3.6節）、試験項目 G-22〜G-31 を追加した。既存の洪水の実装・API・カタログは変更していない
 - 関連: [設計レビュー](../architecture/polygon-engine-review-v0.1.md)、[移行計画](../architecture/polygon-engine-migration-plan-v0.1.md)、[Polygon判定理由の共通仕様](polygon-reason-catalog-v0.1.md)、[洪水の参考解析API](flood-diagnostic-api-v0.1.md)、[共通API契約](common-contract-v0.1.md)
 
 ## 1. 位置付け
@@ -107,6 +108,81 @@
 - Engineは `candidate` / `undetermined` / `rejected` を返さない。分類はハザードの採用方針（洪水では `flood.adoption`、`flood-diagnosis-adoption-v1`）が `reading` を入力にして行う。
 - 理由コード（`hererisk.common.polygon_reasons`）への対応は、採用方針の層で付ける。Engineの `outcome` は理由コードではない（同じ名前を持つものはあるが、意味の正本はカタログ）。
 
+### 3.3 2つの独立した情報（Phase 4-H.1）
+
+参考の読みの記録は、次の2つを**別々のフィールド**に持つ。どちらか一方で他方を代用しない。排他的な分類にしない。
+
+```json
+{
+  "feature_ref": "loc-zn-…",
+  "geometry_state": {
+    "validity": "invalid_geometry",
+    "validator": "GEOS 3.13.1 is_valid",
+    "detail": "Ring Self-intersection",
+    "defects": {"count": 13, "kinds": {"touch": 13}, "located": true},
+    "zero_area_rings": 0
+  },
+  "analysis_state": {
+    "kind": "search_limit",
+    "outcome": "no_boundary_within_max_radius",
+    "method": "local-contour-winding-v1",
+    "limit": {"type": "search_radius", "radii_m": [5, 10, 25, 50, 100], "max_radius_m": 100,
+              "boundary_found_within_m": null},
+    "far_reading": {"winding": 1, "crossings": 3, "parity_inside": true, "zero_area_rings": false,
+                    "defects_unlocated": false, "reading": "inside", "adopted": false}
+  }
+}
+```
+
+| フィールド | 内容 | 地点に依存 |
+|---|---|---|
+| `geometry_state.validity` | `valid` / `invalid_geometry` / `feature_invalid_component` / `unverified` | しない |
+| `geometry_state.defects` | 問題箇所の数・種類（touch / touch_on_edge / overlap / crossing）・位置の特定の可否。**正当な接触を含みうる**（3.5節） | しない |
+| `analysis_state.kind` | 3.4節の区分 | する |
+| `analysis_state.outcome` | 3.2節の局所の結果 | する |
+| `analysis_state.limit` | 上限に達した場合、その種類と値（探索半径・件数・時間）。上限に達していなければ `null` | する |
+| `analysis_state.far_reading` | 全体のリング構造による読み（回転数・交差数・偶奇・不確定の条件）。**記録のみで、採用の判断はしない**（`adopted` は分類の層が決める） | する |
+
+### 3.4 探索・解析状態の区分（`analysis_state.kind`）
+
+| `kind` | 対応する `outcome` | 意味 |
+|---|---|---|
+| `decided` | `inside` / `outside` | 指定範囲で必要な輪郭を確認し、局所と全体の読みが一致した |
+| `search_limit` | `no_boundary_within_max_radius` | 最大探索半径まで調べたが、判定に必要な境界がなかった。**原典の品質の評価ではない** |
+| `point_on_boundary` | `on_boundary` | 地点が輪郭上 |
+| `defect_proximity` | `defect_within_radius`（および決定後の最大半径内の問題箇所） | 判定に使う範囲に、輪郭の接点・交点がある |
+| `ambiguous_candidates` | `ambiguous_nearest` | 最寄りの境界を区別できない |
+| `reading_disagreement` | `inconsistent_winding`（および偶奇の不一致） | 局所と全体、または回転数と偶奇の読みが一致しない |
+| `method_not_applicable` | `orientation_unknown` / `defect_location_unknown`（および構成どうしの不整合） | 方式の適用条件を満たさない |
+| `resource_limit` | — | 件数・時間・同時実行の上限（第4章） |
+
+- `resource_limit` と `system_failure`（第4章）は呼び出し全体の状態で、構成ごとの `analysis_state` とは分ける。
+- 有効なPolygon（`geometry_state.validity: valid`）は正式判定（3.1節）で判定し、`mode: diagnostic` の対象にしない。検証の目的で有効なPolygonに局所の方式を当てる場合は、結果を正式判定の代わりにしない。
+
+### 3.5 問題箇所と正当な接触
+
+- `defects` は「隣り合わない線分どうしの交点・接点」であり、原典の不整合と、有効な形の正当な接触（穴が外周に1点で接する等）の両方を含みうる。
+- 契約案: 問題箇所ごとに `same_ring`（同じ環どうしか）と `legality`（`unknown` / `legal_contact` / `invalidity`）を持つ。現行の診断索引は `same_ring` だけを持ち、`legality` は判定していない（`unknown`）。
+- `legality` を判定に使うか（正当な接触を `defect_proximity` から外すか）は未決定（設計レビュー U-12）。
+
+### 3.6 理由コードの原因の区分（`cause`、追加の属性）
+
+既存の理由コード・`category`・`concept` は変えない。各コードに `cause` を追加する案とする（値と対応は設計レビュー 13.3節）。
+
+| `cause` | 意味 | データ品質レポートで提供元の問題として数えるか |
+|---|---|---|
+| `source_geometry` | 原典の形の事実（無効・問題箇所・面積0の環） | 数えうる（構成の単位） |
+| `search_scope` | 探索半径などの探索条件 | 数えない |
+| `analysis_method` | 解析方式の限界・適用条件 | 数えない |
+| `point_position` | 地点と形の関係（境界上） | 数えない |
+| `coverage` | 対象地域・登録範囲 | 数えない |
+| `index_data` | HereRiskの索引・世代 | 数えない |
+| `analysis_scope` | 診断の対象外 | 数えない |
+| `processing` | 処理の上限・失敗 | 数えない |
+| `result` | 結果（条件の成立） | — |
+
+- 1つの記録に複数の理由がある場合、コードごとに `cause` を持つ。記録には `geometry_state`（背景）も残す。
+
 ## 4. 処理の状態とエラー
 
 構成の判定保留（幾何の事実）と、処理の失敗（Engineの状態）を分ける。
@@ -197,3 +273,24 @@
 | G-19 | 1地点に上限を超える構成 | `limit_exceeded`、一部を返さない |
 | G-20 | 非有限値・経度180度を超える辺・閉じていない環 | 索引を作らない（例外） |
 | G-21 | 同じ形の2つのFeature（A33型） | 2件とも独立に返す（統合しない） |
+
+### 10.1 形状状態と探索状態を分ける試験項目（Phase 4-H.1）
+
+有効なPolygonの正式判定（GEOS）と、無効なPolygonの参考解析を混同しないため、各項目に「正式」と「参考（無効の場合）」の期待を分けて書く。半径の列は現行の 5・10・25・50・100m とする。
+
+| No | 形状・地点 | 正式判定（有効の場合） | 参考解析（無効の場合、または検証のための当て込み） | 期待する理由コードと `cause` |
+|---|---|---|---|---|
+| G-22 | 有効な巨大Polygon（一辺5km）の中央。100m以内に輪郭がない | `inside`（GEOS。半径に依存しない） | 検証の当て込み: `search_limit`、`far_reading` は `inside`。正式判定を置き換えない | 製品の理由コードなし |
+| G-23 | 有効な細長いPolygon（幅300m・長さ5km）の中央。両側の平行線は150m先、5km先で閉じる | `inside` | 同じ形を自己接触で無効にした場合（端で1点の接触）: `search_limit`、`far_reading` は `inside`（採用しない） | 無効の場合 `no_local_boundary`（`search_scope`）。`geometry_state.validity: invalid_geometry` を別に持つ |
+| G-24 | U字型（腕の幅40m、間隔60m）。腕の中・U字の切れ込みの中・底の近く | 腕の中 `inside`、切れ込み `outside` | 無効にした場合: 腕の中・切れ込みとも局所で `decided`（20〜30m以内に輪郭）。問題箇所が100m以内になければ `all_conditions_met` | 切れ込みの中で2つの腕から等距離・異なる側なら `ambiguous_nearest`（`analysis_method`） |
+| G-25 | 外周と穴が3mで近接。外周と穴の間・穴の中 | 間 `inside`、穴 `outside` | 無効にした場合: 局所で `decided`（5mの半径で両方の輪郭が入り、最寄りの側が一致） | 穴が外周に2点で接する変形では `defect_within_decision_radius`（`source_geometry`） |
+| G-26 | 最寄りの輪郭が100.5m（最大半径の直外）。比較として100.0m | どちらも正式判定は半径に依存しない | 100.5m: `search_limit`。100.0m: 100mで `decided`（距離 ≤ 半径） | 100.5m は `no_local_boundary`（`search_scope`）。境界値の扱いを固定する |
+| G-27 | 無効Polygon（遠方500mに頂点の自己接触）。地点は輪郭から20m | — | `decided`、最大半径内に問題箇所なし → `all_conditions_met`（洪水の採用方針の場合） | `all_conditions_met`（`result`）。`geometry_state.validity: invalid_geometry` は残る |
+| G-28 | 無効Polygon、局所範囲（100m）に輪郭がない | — | `search_limit`。`far_reading` を記録（採用しない） | `no_local_boundary`（`search_scope`）。**`source_geometry` として集計しない** |
+| G-29 | 全体の回転数と局所の読みが矛盾（8の字の反転した部分の近く） | — | `reading_disagreement`（局所は内側、回転数は −1） | `local_far_disagree`（`analysis_method`）、偶奇の不一致があれば `even_odd_winding_disagree` も |
+| G-30 | 有効なPolygonで、穴が外周に1点で接する点の5m以内 | `inside` または `outside`（GEOS） | 検証の当て込み: `defect_proximity`（正当な接触が問題箇所として記録される）。`legality: unknown` | 製品の理由コードなし。参考解析の文言で「不整合」と断定しないこと（設計レビュー 13.4節） |
+| G-31 | 無効Polygonで、局所範囲に輪郭はなく、問題箇所の位置が特定できない | — | `method_not_applicable`（`defect_location_unknown`。現行は半径に関わらずこれを返す）。探索の上限を併記するかは未決定 | `defect_location_unknown`（`analysis_method`、背景 `source_geometry`） |
+
+- いずれの項目も、メモリ上の実装とSQLite上の実装の一致を確認する。
+- G-22・G-23・G-26 は、有効なPolygonで探索の上限が起きることを示し、`search_limit` を原典の品質の指標にしないことの回帰に使う。
+- 現行の `analyze` は、問題箇所の位置が特定できない構成では、半径に関わらず `defect_location_unknown` を返す（`evaluate` の最初の確認）。G-31 の期待はこの現行の挙動に合わせる。
