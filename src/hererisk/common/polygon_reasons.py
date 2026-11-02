@@ -66,12 +66,18 @@ COMMON: dict[str, dict[str, Any]] = {d["code"]: d for d in (
     _d("zone_ref_not_in_provider_unknowns", "data", "data_inconsistency", 13,
        "この区域は診断の対象ではありません。",
        "正式な検索で判定保留とされた区域だけを診断します。この区域はその対象に含まれていません。"),
+    _d("diagnosis_limit_exceeded", "processing", "processing_failure", 14,
+       "診断の対象となる区域が多すぎるため、参考の解析結果を表示できません。",
+       "診断の対象件数が上限を超えたため、一部だけの結果は返していません。正式な判定には影響しません。"),
     _d("diagnosis_failed", "processing", "processing_failure", 15,
        "判定の処理が完了しませんでした。",
        "診断処理が失敗したため、結果がありません。正式な判定には影響しません。"),
     _d("diagnosis_timeout", "processing", "processing_failure", 16,
        "判定の処理が時間内に完了しませんでした。",
        "診断処理が制限時間を超えたため中断しました。正式な判定には影響しません。"),
+    _d("diagnosis_busy", "processing", "processing_failure", 18,
+       "混み合っているため、参考の解析を実行できませんでした。",
+       "同時に処理できる診断の数を超えたため、診断を行っていません。時間をおいて再度お試しください。正式な判定には影響しません。"),
     # coverage
     _d("outside_service_region", "coverage", "outside_coverage", 20,
        "この地点は、登録している区域データの対象地域の外です。",
@@ -187,8 +193,64 @@ def resolve_reasons(codes: Iterable[str], hazard_type: str | None = None,
             "message_version": MESSAGE_VERSION}
 
 
+# Phase 4-G: what a diagnostic interpretation reads (the result), apart from the reason codes (why it is
+# or is not decided). Same mechanism: common neutral text, a hazard registers its own wording.
+RESULT_KINDS = {
+    "candidate_inside": "参考解析で区域の内側と解釈された（原典の区分あり）",
+    "candidate_inside_class_unknown": "参考解析で区域の内側と解釈された（原典の区分を確認できない）",
+    "candidate_outside": "参考解析で区域の外側と解釈された",
+    "diagnostic_notice": "参考解析の結果全体に添える注記",
+}
+
+
+def _res(kind, message, detail):
+    return {"kind": kind, "scope": "common", "text": {"ja": {"message": message, "detail": detail}}}
+
+
+COMMON_RESULTS: dict[str, dict[str, Any]] = {d["kind"]: d for d in (
+    _res("candidate_inside", "参考解析では、この区域に含まれると解釈されました。",
+         "元の区域データを独自に解析した結果です。正式な判定ではありません。"),
+    _res("candidate_inside_class_unknown", "参考解析では、この区域に含まれると解釈されました。",
+         "元の区域データを独自に解析した結果です。正式な判定ではありません。原典の区分を確認できないため、区分は示していません。"),
+    _res("candidate_outside", "参考解析では、この区域の外側と解釈されました。",
+         "元の区域データを独自に解析した結果です。正式な判定ではなく、該当しないことを確定したものではありません。"),
+    _res("diagnostic_notice", "HereRiskが元の区域データを独自に解析した参考情報です。正式な判定ではありません。",
+         "公式データによる判定は official_assessment にあります。参考解析は、正式な検索で判定保留とされた区域だけを対象にしています。"),
+)}
+_HAZARD_RESULTS: dict[str, dict[str, dict[str, Any]]] = {}
+
+
+def register_hazard_results(hazard_type: str, definitions: Iterable[dict[str, Any]]) -> None:
+    """Hazard wording of the result kinds (``RESULT_KINDS`` only; no new kinds)."""
+    table = {}
+    for d in definitions:
+        if d.get("scope") != hazard_type or d.get("kind") not in RESULT_KINDS:
+            raise ValueError("a hazard result needs scope == hazard_type and a known kind")
+        if not all(t.get("message", "").strip() and t.get("detail", "").strip() for t in d["text"].values()):
+            raise ValueError("empty message")
+        table[d["kind"]] = d
+    with _LOCK:
+        _HAZARD_RESULTS[hazard_type] = table
+
+
+def resolve_result(kind: str, hazard_type: str | None = None, locale: str = DEFAULT_LOCALE) -> dict[str, Any]:
+    """The text of one result kind: the hazard's own, else the common one. Unknown kinds raise (a
+    result is produced by code, never taken from data)."""
+    d = ((_HAZARD_RESULTS.get(hazard_type) or {}).get(kind) if hazard_type else None) or COMMON_RESULTS[kind]
+    text = d["text"].get(locale)
+    fallback = text is None
+    text = text or d["text"][DEFAULT_LOCALE]
+    loc = DEFAULT_LOCALE if fallback else locale
+    out = {"kind": kind, f"message_{loc}": text["message"], f"detail_{loc}": text["detail"], "scope": d["scope"],
+           "hazard_type": hazard_type, "message_version": MESSAGE_VERSION}
+    if fallback:
+        out["locale_fallback"] = DEFAULT_LOCALE
+    return out
+
+
 def catalog(hazard_type: str | None = None) -> dict[str, Any]:
     """Every definition (common, or common with the hazard's wording) for a settings / data screen."""
     codes = sorted(set(COMMON) | set(_HAZARDS.get(hazard_type, {})))
     return {"message_version": MESSAGE_VERSION, "concepts": CONCEPTS, "assessment_kinds": ASSESSMENT_KINDS,
-            "hazard_type": hazard_type, "reasons": [resolve_reason(c, hazard_type) for c in codes]}
+            "hazard_type": hazard_type, "reasons": [resolve_reason(c, hazard_type) for c in codes],
+            "results": [resolve_result(k, hazard_type) for k in RESULT_KINDS]}

@@ -1,6 +1,6 @@
 # 洪水診断の提示契約（Stage 3案）
 
-- 状態: **設計案（未承認・未実装）**。Location API v0.1 には追加していない。
+- 状態: **設計案（未承認・未実装）**。Location API v0.1 には追加していない。Phase 4-G で、参考情報を取得するための独立したエンドポイント（[洪水の参考解析API v0.1](flood-diagnostic-api-v0.1.md)、初期値は無効）を実装した。これは `/api/v1/location` の正式な応答への提示ではなく、本案の条件と承認の対象は変わらない。
 - 前提: Phase 4-E のShadow統合と分類（`flood-diagnosis-adoption-v1`）。理由コードの文言と、責務の分け方（`official_assessment`・`diagnostic_interpretation`・`reasons`・`messages`・`source`）は [Polygon判定理由の共通仕様 v0.1](polygon-reason-catalog-v0.1.md) に従う。
 
 ## 1. 目的

@@ -33,6 +33,10 @@
   (``hererisk.location.flood_shadow``); the official answer is unchanged and the counters are at
   ``GET /api/v1/diagnostics/flood-shadow``. A missing, incomplete or foreign diagnosis index stops the
   start (exit 3). ``--flood-diag-index`` without Shadow on is refused (exit 2)
+* Phase 4-G: with ``diagnosis.api_enabled`` (a separate switch from Shadow, same ``--flood-diag-index``)
+  ``GET /api/v1/diagnostics/flood?lat=&lon=`` returns the official flood section and the diagnostic
+  interpretation of the point side by side (``hererisk.location.flood_diagnostics``); ``/api/v1/location``
+  is unchanged. ``--flood-diag-index`` is needed exactly when Shadow or the diagnostic API is on
 * no request line, path, query or position is logged (the stdlib access log is disabled)
 * the request body is never read; the API only accepts GET
 """
@@ -103,14 +107,15 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
         raise ValueError("--address-regions replaces --address-isj / --address-n03")
     if flood_index and not address_regions:
         raise ValueError("--flood-index needs --address-regions")
-    shadow = False
+    shadow = diag_api = False
     if flood_settings or flood_diag_index:
         from hererisk.flood.settings import load_settings
         cfg = load_settings(flood_settings)
-        shadow = cfg["diagnosis"]["shadow_enabled"]
-        if not flood_index or (shadow and not flood_diag_index) or (flood_diag_index and not shadow):
-            raise ValueError("Shadow needs --flood-index, --flood-diag-index and diagnosis.shadow_enabled together")
-    diagnostics = None
+        shadow, diag_api = cfg["diagnosis"]["shadow_enabled"], cfg["diagnosis"]["api_enabled"]
+        if not flood_index or bool(flood_diag_index) != (shadow or diag_api):
+            raise ValueError("Shadow / the diagnostic API need --flood-index, --flood-diag-index and "
+                             "diagnosis.shadow_enabled / api_enabled together")
+    diagnostics = flood_diagnosis = None
     address = bool(address_isj or address_regions)
     if sample_data and (elevation_api or address):
         raise ValueError("--sample-data cannot be combined with connected providers")
@@ -130,6 +135,11 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
             if flood_index:
                 from hererisk.location.flood_provider import FloodProvider   # needs shapely
                 providers["flood"] = FloodProvider(address_regions, flood_index)
+                if diag_api:
+                    from hererisk.flood.settings import radii
+                    from hererisk.location.flood_diagnostics import FloodDiagnosisApi
+                    flood_diagnosis = FloodDiagnosisApi(providers["flood"], flood_diag_index, flood_index,
+                                                        radii(cfg["local_analysis"])).lookup
                 if shadow:
                     from hererisk.flood.settings import radii
                     from hererisk.location.flood_shadow import ShadowFloodProvider
@@ -145,7 +155,7 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
         orchestrator = Orchestrator(providers, mode="local", allow_synthetic=elevation_fixture)
     else:
         orchestrator = Orchestrator(default_providers(), mode="mock", allow_synthetic=False)
-    api = LocationApi(orchestrator, diagnostics=diagnostics)
+    api = LocationApi(orchestrator, diagnostics=diagnostics, flood_diagnosis=flood_diagnosis)
     server = ThreadingHTTPServer((host, port), make_handler(api))
     server.daemon_threads = True
     server.location_api = api            # the same request -> response function, for in-process checks
@@ -186,13 +196,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.flood_settings or args.flood_diag_index:
         from hererisk.flood.settings import FloodSettingsError, load_settings
         try:
-            shadow = load_settings(args.flood_settings)["diagnosis"]["shadow_enabled"]
+            diag = load_settings(args.flood_settings)["diagnosis"]
         except FloodSettingsError as exc:
             sys.stderr.write(f"hererisk-location-api: {exc}\n")
             return 2
-        if not args.flood_index or bool(args.flood_diag_index) != shadow:
-            sys.stderr.write("hererisk-location-api: Shadow needs --flood-index, --flood-diag-index and "
-                             "diagnosis.shadow_enabled together\n")
+        if not args.flood_index or bool(args.flood_diag_index) != (diag["shadow_enabled"] or diag["api_enabled"]):
+            sys.stderr.write("hererisk-location-api: Shadow / the diagnostic API need --flood-index, --flood-diag-index "
+                             "and diagnosis.shadow_enabled / api_enabled together\n")
             return 2
     if (args.elevation_token_file or args.elevation_fixture) and not args.elevation_api:
         sys.stderr.write("hererisk-location-api: --elevation-token-file / --elevation-fixture need --elevation-api\n")
@@ -226,7 +236,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                      f"{' (address regions: file)' if args.address_regions else ''}"
                      f"{' (municipality: N03 polygons)' if args.address_n03 else ''}"
                      f"{' (flood: connected, local verification)' if args.flood_index else ''}"
-                     f"{' (flood diagnosis: Shadow, diagnosis only)' if args.flood_diag_index else ''}\n")
+                     f"{' (flood diagnosis index: Shadow / diagnostic API, diagnosis only)' if args.flood_diag_index else ''}\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

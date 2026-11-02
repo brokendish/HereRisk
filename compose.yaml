@@ -11,6 +11,8 @@
 #   docker compose --profile verify run --rm flood-diag [point|compare|bench|cases ...]  # diagnosis only
 #   docker compose --profile shadow up -d location-api-shadow   # Phase 4-E: Location API + Shadow (127.0.0.1:8011)
 #   docker compose --profile verify run --rm flood-shadow-verify  # Phase 4-E automated Shadow checks
+#   docker compose --profile diagnostic-api up -d location-api-diagnostic  # Phase 4-G: + diagnostic API (127.0.0.1:8012)
+#   docker compose --profile verify run --rm flood-diag-api-verify  # Phase 4-G automated diagnostic API checks
 #
 # Host exposure is 127.0.0.1 only. Official data, the regions file and the token stay outside Git
 # and outside the image; they are mounted read only. See README "Docker Compose".
@@ -108,6 +110,38 @@ services:
       - flood-index:/var/lib/hererisk-flood:ro
       - flood-diag:/var/lib/hererisk-flood-diag:ro
       - ./deploy/flood/flood-settings.shadow.json:/etc/hererisk/flood-settings.json:ro
+    secrets:
+      - api_token
+    networks:
+      - public
+    depends_on:
+      elevation-api:
+        condition: service_healthy
+    healthcheck:   # the real endpoint: GET /api/v1/location -> 200
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8001/api/v1/location?lat=35.681236&lon=139.767125',timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  location-api-diagnostic:   # Phase 4-G acceptance only: the same API + GET /api/v1/diagnostics/flood (not for publication)
+    <<: *hardening
+    profiles: ["diagnostic-api"]
+    restart: "no"
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.location.server", "--host", "0.0.0.0", "--port", "8001", "--container",
+              "--address-regions", "/data/regions.json",
+              "--elevation-api", "http://elevation-api:8000", "--elevation-token-file", "/run/secrets/api_token",
+              "--elevation-fixture", "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite",
+              "--flood-settings", "/etc/hererisk/flood-settings.json",
+              "--flood-diag-index", "/var/lib/hererisk-flood-diag/flood-diag.sqlite"]
+    ports:
+      - "127.0.0.1:8012:8001"
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood:ro
+      - flood-diag:/var/lib/hererisk-flood-diag:ro
+      - ./deploy/flood/flood-settings.diagnostic-api.json:/etc/hererisk/flood-settings.json:ro
     secrets:
       - api_token
     networks:
@@ -230,6 +264,22 @@ services:
     restart: "no"
     mem_limit: 2g
     entrypoint: ["python", "-m", "hererisk.flood", "shadow-verify", "--regions", "/data/regions.json",
+                 "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite",
+                 "--diag-index", "/var/lib/hererisk-flood-diag/flood-diag.sqlite", "--report-dir", "/reports"]
+    command: ["--help"]
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood:ro
+      - flood-diag:/var/lib/hererisk-flood-diag:ro
+      - ${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports
+
+  flood-diag-api-verify:   # Phase 4-G: one-shot diagnostic API checks on the Phase 4-C points (generated points only)
+    <<: *hardening
+    profiles: ["verify"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 2g
+    entrypoint: ["python", "-m", "hererisk.flood", "diag-api-verify", "--regions", "/data/regions.json",
                  "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite",
                  "--diag-index", "/var/lib/hererisk-flood-diag/flood-diag.sqlite", "--report-dir", "/reports"]
     command: ["--help"]

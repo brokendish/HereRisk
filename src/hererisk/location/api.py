@@ -4,6 +4,11 @@ Phase 4-E: with the flood Shadow diagnosis on (``--flood-settings`` with ``diagn
 ``GET /api/v1/diagnostics/flood-shadow`` (no query) returns its counters (no positions). Without it
 that path is ``not_found`` as before.
 
+Phase 4-G: with the diagnostic API on (``diagnosis.api_enabled``), ``GET /api/v1/diagnostics/flood?lat=&lon=``
+returns the official flood section and HereRisk's diagnostic interpretation side by side
+(``hererisk.location.flood_diagnostics``). The query rules are those of ``/api/v1/location``. Without it
+that path is ``not_found``. ``/api/v1/location`` is unchanged either way.
+
 Pure request -> response function (no sockets). Check order: path -> method -> query.
 Input rules (docs/api/location-api-v0.1.md section 3): exactly the two parameters ``lat`` and
 ``lon``, each once, plain decimal numbers, lat -90..90 and lon -180..180. Nothing is clamped,
@@ -22,6 +27,7 @@ from hererisk.location.orchestrator import SCHEMA_VERSION, Orchestrator
 
 PATH = "/api/v1/location"
 DIAGNOSTICS_PATH = "/api/v1/diagnostics/flood-shadow"
+FLOOD_DIAGNOSIS_PATH = "/api/v1/diagnostics/flood"
 MAX_QUERY_CHARS = 256
 _NUMBER = re.compile(r"-?(?:0|[1-9][0-9]{0,2})(?:\.[0-9]{1,15})?\Z")
 
@@ -69,9 +75,11 @@ def parse_point(query: str) -> tuple[float, float]:
 
 
 class LocationApi:
-    def __init__(self, orchestrator: Orchestrator, *, diagnostics: Callable[[], dict[str, Any]] | None = None) -> None:
+    def __init__(self, orchestrator: Orchestrator, *, diagnostics: Callable[[], dict[str, Any]] | None = None,
+                 flood_diagnosis: Callable[[float, float], dict[str, Any]] | None = None) -> None:
         self._orchestrator = orchestrator
         self._diagnostics = diagnostics
+        self._flood_diagnosis = flood_diagnosis
 
     def handle(self, method: str, path: str, query: str) -> Response:
         try:
@@ -81,6 +89,11 @@ class LocationApi:
                 if query:
                     raise _Rejected("invalid_input")
                 return _json(200, {"schema_version": SCHEMA_VERSION, "flood_shadow": self._diagnostics()})
+            if self._flood_diagnosis is not None and path == FLOOD_DIAGNOSIS_PATH:
+                if method != "GET":
+                    raise _Rejected("method_not_allowed")
+                lat, lon = parse_point(query)
+                return _json(200, self._flood_diagnosis(lat, lon))
             if path != PATH:
                 raise _Rejected("not_found")
             if method != "GET":

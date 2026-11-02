@@ -72,13 +72,13 @@ def test_adoption_rules() -> None:
 
 
 def test_settings_diagnosis_block(tmp_path) -> None:
-    assert settings.load_settings(None)["diagnosis"] == {"shadow_enabled": False}
+    assert settings.load_settings(None)["diagnosis"] == {"shadow_enabled": False, "api_enabled": False}
     la = dict(settings.DEFAULT_LOCAL_ANALYSIS)
     f = tmp_path / "s.json"
     f.write_text(json.dumps({"local_analysis": la}))                      # a Phase 4-C file still loads
     assert settings.load_settings(f)["diagnosis"]["shadow_enabled"] is False
     f.write_text(json.dumps({"local_analysis": la, "diagnosis": {"shadow_enabled": True}}))
-    assert settings.load_settings(f)["diagnosis"]["shadow_enabled"] is True
+    assert settings.load_settings(f)["diagnosis"] == {"shadow_enabled": True, "api_enabled": False}   # a 4-E file
     for bad in ({"local_analysis": la, "diagnosis": {"shadow_enabled": 1}},
                 {"local_analysis": la, "diagnosis": {"shadow_enabled": True, "x": 1}},
                 {"local_analysis": {**la, "enabled": True}, "diagnosis": {"shadow_enabled": True}},

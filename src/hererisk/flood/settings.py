@@ -2,12 +2,15 @@
 
     {"local_analysis": {"enabled": false, "initial_radius_m": 5,
                         "expansion_radii_m": [10, 25, 50, 100], "max_radius_m": 100},
-     "diagnosis": {"shadow_enabled": false}}
+     "diagnosis": {"shadow_enabled": false, "api_enabled": false}}
 
-``diagnosis`` is optional (a Phase 4-C file without it still loads; the default is off).
+``diagnosis`` is optional (a Phase 4-C file without it still loads; the default is off), and so is
+``diagnosis.api_enabled`` (a Phase 4-E file without it still loads; the default is off).
 ``local_analysis.enabled`` would put the local analysis into the official answer and is refused;
 ``diagnosis.shadow_enabled`` only runs the diagnosis beside the official answer (Phase 4-E Shadow:
-``hererisk.location.flood_shadow``), never changes it, and is allowed.
+``hererisk.location.flood_shadow``), never changes it, and is allowed. ``diagnosis.api_enabled`` (Phase 4-G) serves the diagnostic
+interpretation of a point at ``GET /api/v1/diagnostics/flood`` (``hererisk.location.flood_diagnostics``),
+apart from the official answer; it is a separate switch from Shadow and does not change the official answer.
 
 Diagnosis only in this version: the Flood Provider does not read these settings and its responses do
 not change. ``enabled: true`` is refused until the local analysis is adopted (an OWNER decision).
@@ -33,10 +36,12 @@ FIELDS = {
 }
 
 
-DEFAULT_DIAGNOSIS: dict[str, Any] = {"shadow_enabled": False}
+DEFAULT_DIAGNOSIS: dict[str, Any] = {"shadow_enabled": False, "api_enabled": False}
 DIAGNOSIS_FIELDS = {
     "shadow_enabled": {"type": "boolean", "label": "診断をShadowで並行実行する", "editable": True,
                        "note": "診断専用。正式な洪水判定・Location APIの応答は変えない"},
+    "api_enabled": {"type": "boolean", "label": "参考解析API（/api/v1/diagnostics/flood）を公開する", "editable": True,
+                    "optional": True, "note": "参考情報のみ。正式な洪水判定・/api/v1/location の応答は変えない"},
 }
 
 
@@ -78,11 +83,13 @@ def radii(block: dict[str, Any]) -> list[float]:
 
 
 def check_diagnosis(block: Any) -> dict[str, Any]:
-    if not isinstance(block, dict) or set(block) != set(DIAGNOSIS_FIELDS):
-        raise FloodSettingsError(f"diagnosis keys must be {sorted(DIAGNOSIS_FIELDS)}")
-    if not isinstance(block["shadow_enabled"], bool):
-        raise FloodSettingsError("diagnosis.shadow_enabled must be true or false")
-    return {"shadow_enabled": block["shadow_enabled"]}
+    if not isinstance(block, dict) or "shadow_enabled" not in block or not set(block) <= set(DIAGNOSIS_FIELDS):
+        raise FloodSettingsError("diagnosis keys must be shadow_enabled and optionally api_enabled")
+    out = {**DEFAULT_DIAGNOSIS, **block}
+    for key in DIAGNOSIS_FIELDS:
+        if not isinstance(out[key], bool):
+            raise FloodSettingsError(f"diagnosis.{key} must be true or false")
+    return out
 
 
 def load_settings(path: Path | None) -> dict[str, Any]:
@@ -107,6 +114,7 @@ def describe() -> dict[str, Any]:
                                          "max_radius_m equals the last radius", "enabled is false in this version"],
                                "used_by": "diagnosis (python -m hererisk.flood local-analysis / diag) only"},
             "diagnosis": {"fields": DIAGNOSIS_FIELDS, "defaults": DEFAULT_DIAGNOSIS,
-                          "rules": ["optional block", "shadow_enabled never changes the official answer",
-                                    "shadow_enabled needs a complete diagnosis index of the same flood index"],
-                          "used_by": "Location API --flood-settings (Shadow)"}}
+                          "rules": ["optional block", "api_enabled is optional (default false)",
+                                    "shadow_enabled / api_enabled never change the official answer",
+                                    "shadow_enabled / api_enabled need a complete diagnosis index of the same flood index"],
+                          "used_by": "Location API --flood-settings (Shadow / diagnostic API)"}}

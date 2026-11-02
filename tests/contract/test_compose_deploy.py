@@ -99,7 +99,8 @@ def test_data_inventory_container_bind(no_bind, monkeypatch, tmp_path) -> None:
 # compose.yaml ---------------------------------------------------------------------------------
 def test_host_ports_are_loopback_only() -> None:
     ports = re.findall(r'^\s+- "([^"]*:\d+:\d+)"$', COMPOSE, re.M)
-    assert sorted(ports) == ["127.0.0.1:8000:8000", "127.0.0.1:8001:8001", "127.0.0.1:8011:8001", "127.0.0.1:8090:8090"]
+    assert sorted(ports) == ["127.0.0.1:8000:8000", "127.0.0.1:8001:8001", "127.0.0.1:8011:8001", "127.0.0.1:8012:8001",
+                            "127.0.0.1:8090:8090"]
     for forbidden in ("network_mode: host", "privileged", "docker.sock", "/var/run/docker", "cap_add",
                       "pid: host", "ipc: host", "0.0.0.0:", "--private-experiment", "--production"):
         assert forbidden not in COMPOSE, forbidden
@@ -164,6 +165,22 @@ def test_flood_shadow_is_opt_in_and_read_only() -> None:
     assert 'profiles: ["verify"]' in v and "network_mode: none" in v and "flood-diag:/var/lib/hererisk-flood-diag:ro" in v
     cfg = json.loads((REPO / "deploy/flood/flood-settings.shadow.json").read_text(encoding="utf-8"))
     assert cfg["diagnosis"]["shadow_enabled"] is True and cfg["local_analysis"]["enabled"] is False
+
+
+def test_flood_diagnostic_api_is_opt_in_and_read_only() -> None:
+    loc = _service("location-api")
+    assert "diagnostic-api" not in loc and "--flood-diag-index" not in loc        # the default API: off
+    s = _service("location-api-diagnostic")
+    assert 'profiles: ["diagnostic-api"]' in s and '"127.0.0.1:8012:8001"' in s and 'restart: "no"' in s
+    assert "flood-diag:/var/lib/hererisk-flood-diag:ro" in s and "flood-index:/var/lib/hererisk-flood:ro" in s
+    assert "./deploy/flood/flood-settings.diagnostic-api.json:/etc/hererisk/flood-settings.json:ro" in s
+    v = _service("flood-diag-api-verify")
+    assert 'profiles: ["verify"]' in v and "network_mode: none" in v and "ports:" not in v
+    assert "flood-diag:/var/lib/hererisk-flood-diag:ro" in v
+    cfg = json.loads((REPO / "deploy/flood/flood-settings.diagnostic-api.json").read_text(encoding="utf-8"))
+    assert cfg["diagnosis"] == {"shadow_enabled": False, "api_enabled": True} and cfg["local_analysis"]["enabled"] is False
+    shadow = json.loads((REPO / "deploy/flood/flood-settings.shadow.json").read_text(encoding="utf-8"))
+    assert "api_enabled" not in shadow["diagnosis"]                       # Shadow alone does not open the API
 
 
 def test_data_inventory_is_admin_only_and_isolated() -> None:

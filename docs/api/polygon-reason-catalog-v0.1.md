@@ -1,6 +1,6 @@
 # Polygon判定理由の共通仕様と日本語メッセージカタログ v0.1
 
-- 状態: Phase 4-F で実装（`hererisk.common.polygon_reasons`、`message_version: v0.1`）。正式なLocation APIの応答には追加していない。
+- 状態: Phase 4-F で実装（`hererisk.common.polygon_reasons`、`message_version: v0.1`）。正式なLocation APIの応答には追加していない。Phase 4-G で、結果の文言（9章）と処理状態のコード2つ（`diagnosis_limit_exceeded`・`diagnosis_busy`）を追加し、[洪水の参考解析API](flood-diagnostic-api-v0.1.md) で使用している。
 - 対象: Polygon由来の判定（洪水から開始。津波・高潮・土砂災害などのProviderも同じ機能を使える）。
 
 ## 1. 責務
@@ -87,8 +87,10 @@
 | `diag_index_identity_mismatch` | data | data_inconsistency | 11 | 判定に使用するデータの整合性を確認できませんでした。 | （共通の文言） |
 | `zone_ref_not_in_diag_index` | data | data_inconsistency | 12 | 判定に使用するデータの整合性を確認できませんでした。 | （共通の文言） |
 | `zone_ref_not_in_provider_unknowns` | data | data_inconsistency | 13 | この区域は診断の対象ではありません。 | （共通の文言） |
+| `diagnosis_limit_exceeded` | processing | processing_failure | 14 | 診断の対象となる区域が多すぎるため、参考の解析結果を表示できません。 | （共通の文言） |
 | `diagnosis_failed` | processing | processing_failure | 15 | 判定の処理が完了しませんでした。 | （共通の文言） |
 | `diagnosis_timeout` | processing | processing_failure | 16 | 判定の処理が時間内に完了しませんでした。 | （共通の文言） |
+| `diagnosis_busy` | processing | processing_failure | 18 | 混み合っているため、参考の解析を実行できませんでした。 | （共通の文言） |
 | `outside_service_region` | coverage | outside_coverage | 20 | この地点は、登録している区域データの対象地域の外です。 | この地点は、登録している浸水想定区域データの対象地域の外です。 |
 | `service_region_boundary` | coverage | coverage_boundary | 21 | 提供データの対象地域の境界付近にあるため、判定できません。 | （共通の文言） |
 | `on_boundary` | geometry | on_boundary | 30 | 対象区域の境界上にあるため、区域内かどうかを確定できません。 | 浸水想定区域の境界上にあるため、区域内かどうかを確定できません。 |
@@ -119,9 +121,9 @@
 
 理由コード・原典の識別子（`source_id`・`zone_ref`）・診断方式を、同じ記録に結び付けて持つ。将来のData Managerで、提供元別・区域別・問題の種類別に集計し、後から再検証できるようにするためである。集計画面と外部への報告機能は実装していない。
 
-## 8. 将来の提示API（契約案、未実装）
+## 8. 提示APIの責務の分け方
 
-責務を次の5つに分ける（概念名であり、既存のLocation APIのフィールドは変えない）。
+責務を次の5つに分ける（概念名であり、既存のLocation APIのフィールドは変えない）。Phase 4-G の [洪水の参考解析API](flood-diagnostic-api-v0.1.md) は、この分け方で実装した（`official_assessment`・`diagnostic.interpretations[]` の `reasons`・`message`・`source_id`/`zone_ref`）。下の例は概念の説明用。
 
 | 概念 | 内容 |
 |---|---|
@@ -145,3 +147,19 @@
 
 - 共通部分はハザードの意味を解釈しない。浸水深（洪水・津波・高潮）や警戒区域の区分（土砂災害）は、各Providerが原典の属性のまま持ち、表示層で説明する。
 - 提示の条件と未決定事項は [洪水診断の提示契約（Stage 3案）](flood-diagnosis-stage3-draft.md) に従う。
+
+## 9. 結果の文言（Phase 4-G）
+
+理由コード（なぜ確定できないか）とは別に、参考解析で「何と読めたか」を示す文言を、同じ仕組み（共通の中立な文言＋ハザードの文言の登録）で持つ。`resolve_result(kind, hazard_type)` で解決する。未知の種類はエラーにする（結果の種類はコードが決めるもので、データから受け取らない）。
+
+| 種類（kind） | 共通の文言（message_ja） | 洪水の文言 |
+|---|---|---|
+| `candidate_inside` | 参考解析では、この区域に含まれると解釈されました。 | この浸水深の想定区域に含まれる可能性があります。 |
+| `candidate_inside_class_unknown` | 参考解析では、この区域に含まれると解釈されました。 | この浸水想定区域に含まれる可能性があります。 |
+| `candidate_outside` | 参考解析では、この区域の外側と解釈されました。 | 参考解析では、この想定区域の外側と解釈されました。 |
+| `diagnostic_notice` | HereRiskが元の区域データを独自に解析した参考情報です。正式な判定ではありません。 | HereRiskが元の浸水想定区域データを独自に解析した参考情報です。正式な判定ではありません。 |
+
+- どの文言の説明（`detail_ja`）にも「正式な判定ではありません」（または「正式な判定ではなく」）を含める（テストで確認）。
+- `candidate_outside` の洪水の説明には「浸水しないことを意味しません」を含める。区域外であることを確定した表現（「区域外です」「該当しません」）や「安全」は使わない。
+- `candidate_inside_class_unknown` は、原典の浸水深区分を確認できない場合に使う。浸水深は示さない。
+- `undetermined`・`rejected` には結果の文言を使わず、理由コードの代表メッセージ（6章）を示す。

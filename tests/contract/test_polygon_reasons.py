@@ -135,3 +135,28 @@ def test_contract_document_lists_every_code() -> None:
     assert listed == set(pr.COMMON) | {"flood_response_limit_exceeded"}
     for code, d in pr.COMMON.items():
         assert d["text"]["ja"]["message"] in doc, code
+
+
+def test_result_messages_phase_4g() -> None:
+    """Result kinds (what was read) are kept apart from reason codes (why) and follow the same wording rules."""
+    for hazard in (None, "flood", "tsunami"):
+        for kind in pr.RESULT_KINDS:
+            r = pr.resolve_result(kind, hazard)
+            text = r["message_ja"] + r["detail_ja"]
+            assert r["message_ja"].strip() and r["detail_ja"].strip() and r["message_version"] == "v0.1"
+            assert not any(b in text for b in BANNED) and "境界上" not in text, (hazard, kind)
+            assert "正式な判定ではありません" in text or "正式な判定ではなく" in text, (hazard, kind)
+            if hazard != "flood":
+                assert "浸水" not in text and r["scope"] == "common"
+    assert pr.resolve_result("candidate_inside", "flood")["message_ja"] == "この浸水深の想定区域に含まれる可能性があります。"
+    assert pr.resolve_result("candidate_outside", "flood")["message_ja"] == "参考解析では、この想定区域の外側と解釈されました。"
+    assert "浸水しないことを意味しません" in pr.resolve_result("candidate_outside", "flood")["detail_ja"]
+    assert "浸水深は示していません" in pr.resolve_result("candidate_inside_class_unknown", "flood")["detail_ja"]
+    with pytest.raises(KeyError):
+        pr.resolve_result("no_such_kind", "flood")
+    with pytest.raises(ValueError):
+        pr.register_hazard_results("x", [{"kind": "new_kind", "scope": "x", "text": {"ja": {"message": "m", "detail": "d"}}}])
+    assert {r["kind"] for r in pr.catalog("flood")["results"]} == set(pr.RESULT_KINDS)
+    for code in ("diagnosis_limit_exceeded", "diagnosis_busy", "diagnosis_timeout", "diagnosis_failed"):
+        r = pr.resolve_reason(code, "flood")
+        assert r["known"] and r["category"] == "processing" and "正式な判定には影響しません" in r["detail_ja"]

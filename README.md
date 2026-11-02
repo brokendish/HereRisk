@@ -560,6 +560,44 @@ Polygon由来の判定で「判定できた範囲」と「判定できない理�
 | 浸水想定区域の境界上にあるため、区域内かどうかを確定できません。 | 46 |
 | 周辺の区域境界が複雑なため、判定結果を確定できません。 | 16 |
 
+### 洪水の参考解析API（Phase 4-G、初期値は無効）
+
+1地点について、公式データによる洪水の判定と、HereRiskが無効Polygonを独自に解析した参考情報を、別々の情報として返すAPIです（`GET /api/v1/diagnostics/flood?lat=&lon=`）。契約は [洪水の参考解析API v0.1](docs/api/flood-diagnostic-api-v0.1.md) にあります。**`/api/v1/location` の応答とShadowは変えません。正式な洪水判定への採用は対象外です。**
+
+- **分離**: `official_assessment` は `/api/v1/location` の `hazards.flood` と同じセクションです。参考解析は `diagnostic.interpretations[]` に、区域（`source_id`・`zone_ref`）ごとに入れます。公式の `zones` には混ぜません。区域・ソースをまとめた全体の判定や最大値は作りません。
+- **対象**: 公式の検索で判定保留（`unknowns`）になった区域だけです。分類はPhase 4-E、文言はPhase 4-Fのカタログを使います。結果の文言（「この浸水深の想定区域に含まれる可能性があります。」「参考解析では、この想定区域の外側と解釈されました。」）は、理由コードとは別の種類としてカタログに登録しました。浸水深は、`candidate` で内側と読めたときだけ、原典の区分をそのまま示します。
+- **上限**: 診断索引の接続2本（同時に使えるのは各1リクエスト）、1地点32区域、1秒です。超えたときは `busy`・`limit_exceeded`・`timeout` と理由を返し、一部だけの一覧は返しません。公式の判定はどの場合も返します。
+- **有効化**: 設定 `diagnosis.api_enabled: true`（省略時は無効）と `--flood-diag-index` を指定します。Composeでは検証用の `location-api-diagnostic`（`--profile diagnostic-api`、`127.0.0.1:8012`）です。リバースプロキシにはつないでいません。
+- **東京都での確認（2026-11-02、601地点・2,113組）**:
+  - `/api/v1/location` は、APIの有効・無効で601地点すべて同一でした。`official_assessment` も `hazards.flood`・Flood Providerの答えと601地点すべてで一致しました。
+  - 解釈の対象はすべて `unknowns` と一致しました。分類・理由・内外もPhase 4-Eとすべて同一でした。ケースA（15組）・ケースB（521組）はすべて `undetermined` のままです。
+
+| 解釈 | 組数 |
+|---|---:|
+| `candidate_inside`（原典の浸水深区分を表示） | 118 |
+| `candidate_outside` | 355 |
+| `undetermined` | 1,640 |
+| `rejected` | 0 |
+
+  - 応答時間（HTTP、逐次）: 参考解析APIは中央値1.4ms・p95 10.7ms・最大17ms、`/api/v1/location` は中央値1.5msです。1地点の対象は最大15区域でした（上限32）。
+  - 並列: HTTPで8・32並列の601リクエストは、すべて逐次と同じ答えでした。プロセス内の32並列では、601件中31件が `busy` を返しました（答えの変化はありません）。
+  - メモリ: コンテナで577MiB（通常のLocation APIは583MiB）。診断索引の接続を開いても、常駐メモリはほとんど増えません。
+
+**受入手順**
+
+```sh
+docker compose build && docker compose --profile init run --rm flood-diag-build   # 診断索引がなければ
+# 1. 自動検証（4-Cの固定Seedの地点と、4-Dのケース。生成した地点だけを記録する）
+docker compose --profile verify run --rm flood-diag-api-verify \
+  --baseline /reports/flood-local-analysis-<日時> --cases-dir /reports/flood-diag-compare-<日時>
+# 2. 参考解析APIを有効にしたAPI（127.0.0.1:8012）
+docker compose --profile diagnostic-api up -d location-api-diagnostic
+curl -s 'http://127.0.0.1:8012/api/v1/diagnostics/flood?lat=35.681236&lon=139.767125'
+docker compose --profile diagnostic-api rm -sf location-api-diagnostic   # 確認後に止める（常駐させない）
+```
+
+`diag-api-verify` の終了コード: 0 全項目合格、1 不合格の項目あり、2 引数の誤り、3 入力の拒否・処理の失敗。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
