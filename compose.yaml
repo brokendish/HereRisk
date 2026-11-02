@@ -7,6 +7,8 @@
 #   docker compose --profile init run --rm flood-index    # once (and after a flood registration change)
 #   docker compose --profile verify run --rm flood-verify  # check the flood index against the source
 #   docker compose --profile verify run --rm flood-local-analysis  # Phase 4-C PoC (diagnosis only)
+#   docker compose --profile init run --rm flood-diag-build   # Phase 4-D: prepare invalid polygons (offline)
+#   docker compose --profile verify run --rm flood-diag [point|compare|bench|cases ...]  # diagnosis only
 #
 # Host exposure is 127.0.0.1 only. Official data, the regions file and the token stay outside Git
 # and outside the image; they are mounted read only. See README "Docker Compose".
@@ -158,6 +160,35 @@ services:
       - flood-index:/var/lib/hererisk-flood:ro
       - ${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports
 
+  flood-diag-build:   # Phase 4-D: offline preparation of the invalid flood polygons into their own volume
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.flood", "diag", "build", "--regions", "/data/regions.json",
+              "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite",
+              "--output", "/var/lib/hererisk-flood-diag/flood-diag.sqlite"]
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood:ro
+      - flood-diag:/var/lib/hererisk-flood-diag
+
+  flood-diag:   # Phase 4-D: one-shot light search / comparison / benchmark (diagnosis only, reads no ZIP)
+    <<: *hardening
+    profiles: ["verify"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 256m
+    environment:
+      HERERISK_FLOOD_DIAG_INDEX: /var/lib/hererisk-flood-diag/flood-diag.sqlite
+    entrypoint: ["python", "-m", "hererisk.flood", "diag"]
+    command: ["point", "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite", "--point", "35.625065,139.573836"]
+    volumes:
+      - flood-index:/var/lib/hererisk-flood:ro
+      - flood-diag:/var/lib/hererisk-flood-diag:ro
+      - ${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports
+
   token:   # creates ${HERERISK_SECRET_DIR}/api-token (0600); refuses to overwrite
     <<: *hardening
     profiles: ["init"]
@@ -176,6 +207,8 @@ volumes:
     name: hererisk-elevation-data
   flood-index:
     name: hererisk-flood-index
+  flood-diag:
+    name: hererisk-flood-diag
 
 secrets:
   api_token:

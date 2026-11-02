@@ -413,6 +413,67 @@ PYTHONPATH=src .venv/bin/python -m hererisk.flood local-analysis --regions ~/her
   - `make_valid` の初回: 最大2.7s
 - **メモリ**: 事前処理の結果は1,486構成で379MiB。ピークは約2.5GiBで、大半は検証用に原典を全件読む部分。
 
+### 無効Polygonのオフライン前処理と軽量局所検索（Phase 4-D、診断専用）
+
+Phase 4-Cの局所解析を、データ準備（オフライン）と地点検索に分けたPoCです（`hererisk.flood.diag`）。**Flood Provider・Location APIの応答、flood索引、原典ZIPは変更しません。** 結果は診断情報であり、公式の浸水深としては返しません。
+
+```sh
+docker compose --profile init run --rm flood-diag-build          # 前処理（flood索引の作成後・更新後に1回）
+docker compose --profile verify run --rm flood-diag              # 指定地点 35.625065,139.573836 の診断
+docker compose --profile verify run --rm flood-diag compare --flood-index /var/lib/hererisk-flood/flood-index.sqlite \
+  --baseline /reports/flood-local-analysis-<日時> --report-dir /reports   # Phase 4-Cの結果との照合
+docker compose --profile verify run --rm flood-diag bench --points /reports/flood-diag-compare-<日時>/bench-points.json
+docker compose --profile verify run --rm flood-diag cases --cases /reports/flood-diag-compare-<日時>/regression-cases.json
+```
+
+**前処理（`diag build`）**
+
+- **入力**: flood索引の判定保留の行（`usable = 0`）。Providerが `unknown` と答える構成そのもので、Phase 4-Bで原典と全行照合済み。作成時に原典ZIPのSHA-256を計算し直し、flood索引の記録と一致しなければ作成しない。
+- **処理**: Phase 4-Cの方式（`local_analysis.Prepared`）で、リングごとの線分・向き・問題箇所と、その種類（接触・辺上の接触・重なり・交差）を求める。
+- **保存先**: 独立したボリューム `hererisk-flood-diag` のSQLite。
+- **保存形式**:
+  - 線分: リングの64線分ごとの頂点列（float64）
+  - 空間索引: 構成・頂点列・問題箇所それぞれにR-tree
+  - `meta`: 形式と方式の版、元のflood索引の識別情報（作成日時・ZIPのSHA-256・ファイルのSHA-256）、登録内容、検証結果、状態
+- **作成後の検証**: 全リングを頂点列から組み立て直し、flood索引の形状と一致することを確認する。
+- **書き込み**: 一時ファイルに書き、完成してから置き換える。失敗しても既存のファイルは残る。
+
+**地点検索（`DiagIndex`）**
+
+- 原典ZIPもshapelyも使わず、起動時に何も読み込まない。
+- 半径ごとに、その範囲の頂点列と問題箇所だけを読む。輪郭の側が分かったときは、構成の外接矩形から一番近い方向へ1本の光線を伸ばし、その上の頂点列だけで回転数を数える。
+- 判定規則と計算は4-Cと同一。
+- 次の場合は使用を拒否する。
+  - `status` が `complete` でない
+  - 形式または方式の版が違う
+  - `--flood-index` を指定したとき、別のflood索引から作られている
+- 半径は `local_analysis` の設定から読む。`compare` では、4-Cのレポートと半径が異なると拒否する（終了コード2）。
+
+**終了コード**: 0 正常、1 4-Cとの不一致・ケースの不一致、2 引数・設定の誤り、3 索引の拒否・処理の失敗。
+
+**東京都での結果（2026-11-02、Docker、4-CのSeed 20261102のレポートを基準）**
+
+- **前処理**: 5,070構成（全件が判定保留の行と一致）、610万線分、21.7万頂点列、問題箇所52,602（すべて頂点での接触）。所要27秒、最大メモリ297MB、ファイル148MB。リングの組み立て直しの不一致は0。
+- **4-Cとの一致**: 2,113組の全項目（半径ごとの結果・最終結果・到達半径・輪郭と問題箇所の距離・回転数・遠方の読み・浸水深区分・河川・ソース・線分数・問題箇所数）が一致した。保存した2,113件のケースの再実行も全件一致。
+- **候補の構成**: 外接矩形だけで選ぶと、70地点で4-Cより多くなる。いずれも対象地域の判定をProviderが行うためで、地点検索ではProviderの `unknowns` を渡す。
+- **A. make_valid と偶奇規則の不一致（15組・14構成）**: すべて地点がちょうど輪郭上（距離0）。GEOSの `contains` は境界を含めず、偶奇規則の光線は境界を内側に数える、という違い。局所解析は15組すべてを判定不能（輪郭上12・問題箇所が5m以内3）としており、機械的に判定不能と分類できる。
+- **B. 半径を広げると判定不能になる組**:
+  - 4-Cの668組は、無効な構成521組と、有効な構成（対照）147組の合計だった。対照の問題箇所は外周と穴の正当な接点で、GEOSの `contains` で判定される。
+  - 521組の問題箇所はすべて頂点での接触。最初の結果に対して、make_valid・偶奇規則・回転数は521組すべてで一致した。
+  - 「外周だけ」の読みが食い違う151組は、すべて「外部」と判定した組（穴の中の地点を、穴を無視して内部と読んだもの）。
+  - 問題箇所までの距離と輪郭までの距離の比は、中央値8.1、最小1.2（2未満は44組）。
+  - 最初の結果を維持する案（頂点での接触で、全読み方が一致: 370組）は記録するが、採用しない。
+- **性能（軽量検索だけのプロセス、357地点）**:
+
+| 項目 | Phase 4-C（メモリ上） | Phase 4-D（永続化索引） |
+|---|---|---|
+| 地点検索時の原典ZIPの読込 | 必要 | 不要 |
+| 線分・問題箇所の準備 | 実行時 | オフライン（27秒） |
+| ピークメモリ | 2.5GiB（検証プロセス全体） | 51MB（軽量検索だけ） |
+| 地点あたりの応答時間 | 中央値1.8ms・p95 5.7ms・最大13.6ms | 中央値3.7ms・p95 11.4ms・最大16ms |
+| 同じ地点の繰り返し（200回） | — | 中央値2.9ms・最大5.1ms |
+| 起動 | 原典の読込に約2.3分 | 0.1ms |
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

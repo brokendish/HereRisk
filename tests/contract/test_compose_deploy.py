@@ -19,6 +19,7 @@ from hererisk.location import server as location_server
 from hererisk.location.elevation_provider import ElevationConfigError, ElevationProvider
 
 COMPOSE = (REPO / "compose.yaml").read_text(encoding="utf-8")
+DOCKERFILE = (REPO / "deploy/app/Dockerfile").read_text(encoding="utf-8")
 APP = REPO / "deploy" / "app"
 
 
@@ -137,6 +138,17 @@ def test_flood_local_analysis_is_one_shot_and_read_only() -> None:
     assert 'profiles: ["verify"]' in v and "network_mode: none" in v and 'restart: "no"' in v
     assert "${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro" in v and "flood-index:/var/lib/hererisk-flood:ro" in v
     assert "${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports" in v and "ports:" not in v
+
+
+def test_flood_diag_is_offline_built_and_read_only_when_used() -> None:
+    b = _service("flood-diag-build")
+    assert 'profiles: ["init"]' in b and "network_mode: none" in b
+    assert "${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro" in b and "flood-index:/var/lib/hererisk-flood:ro" in b
+    assert "flood-diag:/var/lib/hererisk-flood-diag\n" in b                 # its own volume, the only writable one
+    v = _service("flood-diag")
+    assert 'profiles: ["verify"]' in v and "network_mode: none" in v and 'restart: "no"' in v and "ports:" not in v
+    assert "flood-diag:/var/lib/hererisk-flood-diag:ro" in v and "/data" not in v   # no official ZIP at lookup time
+    assert "name: hererisk-flood-diag" in COMPOSE and "/var/lib/hererisk-flood-diag" in DOCKERFILE
 
 
 def test_data_inventory_is_admin_only_and_isolated() -> None:
