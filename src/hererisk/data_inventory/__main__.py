@@ -20,7 +20,7 @@ from hererisk.location.address_provider import AddressDataError
 
 def table(inv: dict) -> str:
     cols = [("データID", lambda i: i["data_id"]), ("都道府県", lambda i: f"{i['prefecture_code']} {i['prefecture_name']}"),
-            ("分類", lambda i: i["category_label"]),
+            ("分類", lambda i: i["category_label"]), ("提供組織", lambda i: i["organization"]),
             ("年度・版", lambda i: " ".join(v for v in (i["year"], i["version"].get("edition"), i["version"].get("reference_date")) if v)),
             ("ファイル", lambda i: i["file"]["name"]), ("状態", lambda i: FILE_LABELS[i["file"]["state"]]),
             ("サイズ", lambda i: "-" if i["file"]["size_bytes"] is None else f"{i['file']['size_bytes']:,}"),

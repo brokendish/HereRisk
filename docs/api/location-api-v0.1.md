@@ -5,6 +5,7 @@
 - 改訂: 2026-10-25 Phase 3-C — `address` を国土交通省「大字・町丁目レベル位置参照情報」に接続するProviderを追加（第8.2節）
 - 改訂: 2026-10-25 Phase 3-D — N03 行政区域Polygonで市区町村を判定してから代表点を検索する方式を追加（第8.3節）
 - 改訂: 2026-10-25 Phase 3-E — 複数の都道府県の登録（地域ファイル `--address-regions`）を追加（第8.4節）。東京都・神奈川県で確認
+- 改訂: 2026-11-02 Phase 4-A — `hazards.flood` を国土数値情報 A31a（想定最大規模）に接続するFloodProviderを追加（第8.5節）。東京都で確認（ローカル検証のみ）
 - 状態: **契約案（OWNERレビュー待ち）**。実装はローカルのサービス骨格のみ。公式データの製品利用・一般公開の承認ではない
 - 上位: [Design Principles](../architecture/design-principles-v1.0.md)、[共通API契約 v0.1](common-contract-v0.1.md)
 - 実装: `src/hererisk/location/`、テスト: `tests/contract/test_location_api.py`
@@ -396,6 +397,45 @@ Phase 2-Cで残ったBlocking（利用条件、認可、派生形状、精度プ
 
 - 利用条件は東京都と同じである（位置参照情報: 第8.2節、N03: 第8.3節）。
 - 神奈川県のN03のメタデータにも、同じ「測量法に基づく国土地理院長承認（複製）R 7JHf 351」の記載がある。そのため、ローカルでの検証に限る。
+
+### 8.5 FloodProvider（Phase 4-A）
+
+`hererisk.location.flood_provider.FloodProvider` は、地域ファイルの `flood_sources` に登録した公式の洪水浸水想定区域を、ソースごとに独立して検索する。意味の正本は [Flood提示契約（案）](../architecture/flood-official-data-presentation-contract-v0.1.md) 第6〜8章、形は [Flood API MVP契約（案）](flood-api-mvp-contract-v0.1.md) 第5章に従う。**どちらも未承認の契約案であり、本節はそれを正式採用したものではない。**
+
+**データと前処理**
+
+- 原典ZIPを `python -m hererisk.flood build` で読み、検索用の索引（SQLite、Gitの外）を作る。起動時に、索引の作成元の登録・ZIP・N03のSHA-256が現在のものと一致しなければ起動しない（終了コード3）。
+- A31aの形式の確認は `hererisk.flood.a31a` だけが行う。想定はZIP内のフォルダで選ぶ（ZIP名の `_10`／`_20` は河川の種別）。メンバー名のカテゴリ・配布単位・年、`FeatureCollection` の名前・座標系（EPSG:6668）、属性が `A31a_201`〜`A31a_205` の5つだけであること、浸水ランクコードが製品仕様書（メタデータに記載の第4.3版）の表にあること、`A31a_203` が登録の河川管理者と一致することを確認し、1つでも外れたら索引を作らない。
+- 浸水ランクの型（整数・文字列）は原典のまま `source_value_type` に残す。2025年版の想定最大規模では、東京都の2つのZIPの全地物と、関東地方整備局のZIPの索引に保持した全地物（126,442）が整数だった（調査記録の「東京都は文字列」とは異なる。関東地方整備局の保持しなかった地物の型は記録していない）。
+- 構成Polygonごとに、GEOSで有効なもの（Feature全体の無効原因に関与しないもの）を判定に使う。無効なもの（`invalid_geometry`）、有効でもFeature全体の無効原因に関与するもの（`feature_invalid_component`。構成どうしの内部の重なり・辺の共有）は判定保留とする。関与の特定ができないFeatureがあれば索引を作らない。修復・派生形状は使わない。
+- 対象地域（`service_region` の都道府県のN03）から約45m以内の構成を持つFeatureを、全構成のまま保持する。判定保留の構成は外接矩形で選ぶ。
+
+**検索と状態**
+
+| 状況 | `status` | 補足 |
+|---|---|---|
+| 地点がどのソースの対象地域からも10mより遠い | `not_available` | `reason: "outside_service_region"` |
+| どれかのソースに該当区域がある | `available` | `results` に全ソースの全区域（同じソースの複数区域も別々）。各ソースの `unknowns`・`boundary_contacts` も `sources[]` に残す |
+| 区域なし。判定保留の範囲（L1）・区域の境界上・対象地域の境界から10m以内のいずれか | `unknown` | `reasons` に `pending_geometry_zone`・`zone_boundary_contact`・`service_region_boundary` |
+| 対象地域の内部で、全ソースに区域・判定保留・境界接触がない | `no_match` | `searched_sources` に全ソース。`scope_notice` で「浸水しないことを意味しない」と示す |
+| 該当件数の合計が500を超える | `error` | `flood_response_limit_exceeded`。部分結果を返さない |
+
+- 穴の内側は区域外、穴の縁は境界上（`boundary_contacts`）である。
+- 各ソースは `source_id`（登録の値）・提供組織・想定・版・出典（「国土数値情報（洪水浸水想定区域データ）」（国土交通省）を加工して作成）・`data_use`（台帳の利用条件と公開承認）を持つ。
+- 区域の `zone_ref`・`product_ref` は、Catalog / Identity契約の案と同じ作り方のハッシュだが、別の接頭辞（`loc-zn-`・`loc-prd-`）とし、`identifiers: "provisional_local"` と明示する。案の正式採用ではない。原典への追跡は `python -m hererisk.flood trace`（内部用）で行い、応答にはファイル名・メンバー名を出さない。
+- 応答の `limitations` に、契約との差を出す: `single_geometry_validator`（妥当性の検査がGEOSの1つだけ）、`coordinates_as_float`（座標を整数に変換していない）、`no_integrated_validate_record`（統合の検証記録がない）。そのため `candidate_completeness` は常に `not_guaranteed`。
+
+**東京都での確認（2026-11-02、2025年版、Mac）**
+
+| ソース | 成果品 | 地物（全体） | 保持 | 判定保留の構成（保持分） |
+|---|---:|---:|---:|---:|
+| 東京都（13_10・13_20） | 15 | 261,312 | 261,312 | 1,943 |
+| 関東地方整備局（83_10） | 48 | 2,438,935 | 126,442 | 3,127 |
+
+- 索引の作成は約2分、Location APIの起動は数秒、検索は1回あたり中央値0.01ms・最大約40ms。メモリは約550MB。
+- 東京駅: 東京都の隅田川の成果品のランク1が `zones`。関東地方整備局の荒川の4つの構成（GEOS: Ring Self-intersection）が `unknowns`。
+- 関東地方整備局の荒川などに、外接矩形が数十kmの無効形状がある。そのため、東京都東部の多くの地点が `unknown` になる。東京都の無作為な3,000地点の内訳は、`available` 468、`unknown` 1,016、`no_match` 1,516だった。派生形状による解消は、契約上BLOCKED（Normalize契約 ON-15・ON-16）である。
+- A31aの利用条件は取得元台帳で `review_required`（承認記録なし）である。ローカルでの検証に限り、一般公開の承認として扱わない。
 
 ## 9. 未決定事項（OWNER判断）
 

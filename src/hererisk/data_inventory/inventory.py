@@ -2,11 +2,11 @@
 
 Nothing here is a source of truth of its own. Every column is read from its owner:
 
-    regions / local files     the regions file (``--address-regions``)
+    regions / local files     the regions file (``--address-regions``; flood data: its ``flood_sources``)
     source and usage terms    the Official Source Ledger (docs/data-sources/official-source-ledger.json)
     recorded SHA-256          the Ledger ``download_verification`` (an acquisition record)
     file existence / size     measured now (``os.stat``); SHA-256 only when asked (``measure_hashes``)
-    publication               not read in this MVP (address data has no Dataset Registry entry)
+    publication               not read in this MVP (address / flood data have no Dataset Registry entry)
 
 Unknown stays unknown: a missing record is shown as ``unknown`` / ``not_recorded``, never as approved.
 Reading a ZIP's member list (central directory) is the only access to file contents in a normal run.
@@ -22,6 +22,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from hererisk.flood import a31a
+from hererisk.flood.registry import CATEGORIES, SCENARIO_LABELS, load_flood_sources
 from hererisk.location.address_regions import load_regions
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -161,14 +163,87 @@ def build_inventory(regions_file: Path, ledger_file: Path = DEFAULT_LEDGER, *, m
                 "publication": {"registry": "not_referenced",
                                 "note": "address data is not published through a Dataset Registry in this MVP"},
             })
+    items.extend(_flood_items(regions_file, ledger, measure_hashes))
     return {"inventory_version": "0.1", "regions_file": str(Path(regions_file).expanduser()),
             "ledger_file": str(ledger_file), "hashes_measured": measure_hashes, "items": items}
+
+
+def _flood_version(source: dict[str, Any], f: dict[str, Any]) -> dict[str, Any]:
+    """Year / distribution code / scenario members from the ZIP member list; never the data."""
+    try:
+        with zipfile.ZipFile(f["path"]) as z:
+            members = a31a.scenario_members(z, source["scenario"], f["distribution_code"], source["data_year"])
+    except (OSError, zipfile.BadZipFile):
+        return {"status": "unreadable"}
+    except a31a.A31aFormatError:
+        return {"status": "not_found"}
+    codes = a31a.zip_name_codes(f["path"]) or {}
+    return {"status": "read", "year": "20" + codes["yy"], "distribution_code": codes["dist"],
+            "scenario": source["scenario"], "scenario_members": len(members)}
+
+
+def _flood_items(regions_file: Path, ledger: list[dict[str, Any]], measure_hashes: bool) -> list[dict[str, Any]]:
+    """One row per registered flood file (``flood_sources``); nothing per prefecture or source is coded."""
+    entries = {e.get("entry_id"): e for e in ledger}
+    items = []
+    for src in load_flood_sources(regions_file):
+        pref = src["service_prefectures"][0]
+        for n, f in enumerate(src["files"], start=1):
+            path: Path = f["path"]
+            file_state, size = _file_state(path)
+            version = _flood_version(src, f) if file_state == "present" else {"status": "unknown"}
+            year = version.get("year")
+            entry = entries.get(f["ledger_entry"])
+            if entry and (entry.get("distribution") or {}).get("file_name") != path.name:
+                entry = None                     # the referenced entry is about another file
+            usage = (entry or {}).get("usage_terms") or {}
+            usage_status = usage.get("status", "unknown")
+            recorded = ((entry or {}).get("availability") or {}).get("download_verification") or {}
+            measured = sha256_file(path) if measure_hashes and file_state == "present" else None
+            dataset = (entry or {}).get("dataset") or {}
+            label = CATEGORIES[src["category"]]
+            items.append({
+                "data_id": f"flood-{src['source_id']}-{n}",
+                "edition_id": entry["entry_id"] if entry else "unknown",
+                "name": f"{prefecture_name(pref)} / {label}（{src['title']}）",
+                "prefecture_code": pref,
+                "prefecture_name": prefecture_name(pref),
+                "service_prefectures": src["service_prefectures"],
+                "category": src["category"],
+                "category_label": label,
+                "title": src["title"],
+                "organization": src["organization"],
+                "source_id": src["source_id"],
+                "scenario": SCENARIO_LABELS[src["scenario"]],
+                "year": year or "unknown",
+                "version": version,
+                "file": {"name": path.name, "path": str(path), "state": file_state, "size_bytes": size},
+                "sha256": {"recorded": recorded.get("sha256"),
+                           "recorded_source": f"official-source-ledger: {entry['entry_id']}" if recorded.get("sha256") else None,
+                           "measured": measured,
+                           "match": None if not (measured and recorded.get("sha256")) else measured == recorded["sha256"]},
+                # the distribution code (e.g. 83) is not a prefecture code: nothing to compare
+                "prefecture_code_matches_file": None,
+                "api_connection": {"configured": True, "via": "regions file flood_sources (Location API --flood-index)",
+                                   "running": "unknown"},
+                "ledger": {"entry_id": entry["entry_id"] if entry else None,
+                           "data_year": dataset.get("data_year"),
+                           "year_matches_file": None if not (year and dataset.get("data_year")) else year == dataset["data_year"],
+                           "usage_terms": usage_status,
+                           "approval_ref": usage.get("approval_ref"),
+                           "open_issues": usage.get("open_issues", [])},
+                "public_approval": "approved" if usage_status == "approved" and usage.get("approval_ref") else "unconfirmed",
+                "publication": {"registry": "not_referenced",
+                                "note": "flood data is searched in a local index for verification; not published"},
+            })
+    return items
 
 
 def summary_line(item: dict[str, Any]) -> str:
     year = f"{item['year']}年版" if item["year"] != "unknown" else "年度unknown"
     usage = USAGE_LABELS.get(item["ledger"]["usage_terms"], item["ledger"]["usage_terms"])
-    return " / ".join([item["prefecture_name"], item["category_label"], year, FILE_LABELS[item["file"]["state"]],
+    return " / ".join([item["prefecture_name"], item["category_label"], year, item["organization"],
+                       FILE_LABELS[item["file"]["state"]],
                        "API接続設定あり" if item["api_connection"]["configured"] else "API接続設定なし",
                        f"利用条件: {usage}",
                        "公開承認済み" if item["public_approval"] == "approved" else "公開承認未確認"])

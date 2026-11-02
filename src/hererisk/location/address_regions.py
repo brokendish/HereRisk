@@ -10,6 +10,9 @@ A local JSON file outside Git (it holds local paths), given with ``--address-reg
 Adding a prefecture means adding one entry; the address logic has no per-prefecture code.
 Relative paths are resolved against the file's directory. Each data file is checked against its
 ``prefecture_code`` when it is loaded (file name and contents).
+
+The same file may also hold ``"flood_sources": [...]`` (Phase 4-A, ``hererisk.flood.registry``);
+the address provider ignores that key.
 """
 
 from __future__ import annotations
@@ -24,10 +27,11 @@ from hererisk.location.address_provider import AddressDataError
 MAX_REGIONS_FILE_BYTES = 64 * 1024
 _PREF = re.compile(r"(0[1-9]|[1-3][0-9]|4[0-7])\Z")
 KEYS = {"prefecture_code", "address_isj", "address_n03"}
+TOP_KEYS = ({"regions"}, {"regions", "flood_sources"})
 
 
-def load_regions(path: Path) -> list[dict[str, Any]]:
-    """Returns [{"prefecture_code", "address_isj": Path, "address_n03": Path}], in file order."""
+def read_registration(path: Path) -> dict[str, Any]:
+    """The whole regions file as strict JSON (duplicate keys rejected); top-level keys checked."""
     path = Path(path).expanduser()
     try:
         raw = path.read_bytes()
@@ -39,8 +43,15 @@ def load_regions(path: Path) -> list[dict[str, Any]]:
         doc = parse_strict_json(raw)        # UTF-8, duplicate keys rejected
     except ConfigurationError as exc:
         raise AddressDataError("regions file is not valid JSON") from exc
-    if not isinstance(doc, dict) or set(doc) != {"regions"} or not isinstance(doc["regions"], list) or not doc["regions"]:
+    if not isinstance(doc, dict) or set(doc) not in TOP_KEYS or not isinstance(doc["regions"], list) or not doc["regions"]:
         raise AddressDataError('regions file must be {"regions": [ ... ]} with at least one region')
+    return doc
+
+
+def load_regions(path: Path) -> list[dict[str, Any]]:
+    """Returns [{"prefecture_code", "address_isj": Path, "address_n03": Path}], in file order."""
+    path = Path(path).expanduser()
+    doc = read_registration(path)
     out, seen = [], set()
     for n, r in enumerate(doc["regions"], start=1):
         if not isinstance(r, dict) or set(r) != KEYS:

@@ -78,7 +78,7 @@ def test_four_items_with_names_and_years(setup) -> None:
     assert n03["year"] == "2026" and n03["version"]["reference_date"] == "2026-01-01"
     assert n03["ledger"]["entry_id"] == "ksj-n03-2026-13" and n03["ledger"]["year_matches_file"] is True
     assert n03["edition_id"] == "ksj-n03-2026-13" and n03["prefecture_code_matches_file"] is True
-    assert summary_line(items["address-n03-14"]).startswith("神奈川県 / 行政区域 / 2026年版 / ファイルあり / API接続設定あり")
+    assert summary_line(items["address-n03-14"]).startswith("神奈川県 / 行政区域 / 2026年版 / 国土交通省 / ファイルあり / API接続設定あり")
 
 
 # 3: a missing file is shown as missing ------------------------------------------------------------

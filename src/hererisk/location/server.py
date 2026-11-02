@@ -24,6 +24,10 @@
   Needs shapely (``pip install -e '.[address]'``)
 * ``--address-regions <JSON>`` (Phase 3-E): several prefectures at once, one entry per prefecture
   (``hererisk.location.address_regions``). Replaces ``--address-isj`` / ``--address-n03``
+* ``--flood-index <index.sqlite>`` (Phase 4-A, with ``--address-regions``): the ``hazards.flood`` section
+  comes from the ``flood_sources`` of the regions file, searched in the local index built by
+  ``python -m hererisk.flood build`` (``hererisk.location.flood_provider``). A registration / file that
+  does not match the index stops the start (exit 3)
 * no request line, path, query or position is logged (the stdlib access log is disabled)
 * the request body is never read; the API only accepts GET
 """
@@ -41,6 +45,8 @@ from urllib.parse import urlsplit
 from hererisk.location.address_provider import AddressDataError, MlitAddressProvider
 from hererisk.location.address_regions import load_regions
 from hererisk.location.api import LocationApi
+from hererisk.flood.errors import FloodIndexError
+from hererisk.flood.registry import FloodRegistrationError
 from hererisk.location.elevation_provider import ElevationProvider
 from hererisk.location.orchestrator import Orchestrator
 from hererisk.location.providers import default_providers, sample_providers
@@ -81,13 +87,16 @@ def make_handler(api: LocationApi):
 def build_server(host: str, port: int, *, sample_data: bool = False, elevation_api: str | None = None,
                  elevation_token_file: Path | None = None, elevation_fixture: bool = False,
                  address_isj: Path | None = None, address_n03: Path | None = None,
-                 address_regions: Path | None = None, container: bool = False) -> ThreadingHTTPServer:
+                 address_regions: Path | None = None, flood_index: Path | None = None,
+                 container: bool = False) -> ThreadingHTTPServer:
     if not container and not ipaddress.ip_address(host).is_loopback:
         raise ValueError("the Location API skeleton is only served on a loopback address")
     if address_n03 and not address_isj:
         raise ValueError("--address-n03 needs --address-isj")
     if address_regions and (address_isj or address_n03):
         raise ValueError("--address-regions replaces --address-isj / --address-n03")
+    if flood_index and not address_regions:
+        raise ValueError("--flood-index needs --address-regions")
     address = bool(address_isj or address_regions)
     if sample_data and (elevation_api or address):
         raise ValueError("--sample-data cannot be combined with connected providers")
@@ -104,6 +113,9 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
             municipalities = N03Municipalities([(r["prefecture_code"], r["address_n03"]) for r in regions])
             providers["address"] = MlitAddressProvider([(r["prefecture_code"], r["address_isj"]) for r in regions],
                                                        municipalities)
+            if flood_index:
+                from hererisk.location.flood_provider import FloodProvider   # needs shapely
+                providers["flood"] = FloodProvider(address_regions, flood_index)
         elif address_isj:
             municipalities = None
             if address_n03:
@@ -136,6 +148,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help="国土数値情報 N03 行政区域 ZIP: municipality by polygon (needs --address-isj)")
     parser.add_argument("--address-regions", type=Path, metavar="JSON",
                         help="regions file: 位置参照情報 and N03 per prefecture (outside Git)")
+    parser.add_argument("--flood-index", type=Path, metavar="SQLITE",
+                        help="local flood index (python -m hererisk.flood build) for the regions file's flood_sources")
     parser.add_argument("--container", action="store_true",
                         help="inside a container: allow a non-loopback bind and http://elevation-api:<port> "
                              "(expose only via a 127.0.0.1 port mapping)")
@@ -151,9 +165,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                               elevation_token_file=args.elevation_token_file,
                               elevation_fixture=args.elevation_fixture, address_isj=args.address_isj,
                               address_n03=args.address_n03, address_regions=args.address_regions,
-                              container=args.container)
+                              flood_index=args.flood_index, container=args.container)
     except ImportError:
         sys.stderr.write("hererisk-location-api: --address-n03 needs shapely (pip install -e '.[address]')\n")
+        return 3
+    except (FloodRegistrationError, FloodIndexError) as exc:
+        sys.stderr.write(f"hererisk-location-api: flood data rejected ({exc}); not serving\n")
         return 3
     except AddressDataError as exc:
         sys.stderr.write(f"hererisk-location-api: address data rejected ({exc}); not serving\n")
@@ -166,7 +183,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                      f"{' (elevation: connected)' if args.elevation_api else ''}"
                      f"{' (address: connected)' if args.address_isj or args.address_regions else ''}"
                      f"{' (address regions: file)' if args.address_regions else ''}"
-                     f"{' (municipality: N03 polygons)' if args.address_n03 else ''}\n")
+                     f"{' (municipality: N03 polygons)' if args.address_n03 else ''}"
+                     f"{' (flood: connected, local verification)' if args.flood_index else ''}\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

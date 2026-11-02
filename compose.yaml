@@ -4,11 +4,14 @@
 #   docker compose --profile admin up -d      # + data-inventory (management page)
 #   docker compose --profile init run --rm token          # once: Bearer token file
 #   docker compose --profile init run --rm elevation-init # once: fixture elevation data
+#   docker compose --profile init run --rm flood-index    # once (and after a flood registration change)
 #
 # Host exposure is 127.0.0.1 only. Official data, the regions file and the token stay outside Git
 # and outside the image; they are mounted read only. See README "Docker Compose".
 #   HERERISK_DATA_DIR    address data + regions.json (default ~/hererisk-data)  -> /data (ro)
 #   HERERISK_SECRET_DIR  directory holding api-token (default ~/.hererisk-local/secrets)
+# The flood search index (built from the registered A31a ZIPs, local verification only) lives in the
+# volume hererisk-flood-index; the Location API reads it read only.
 name: hererisk
 
 x-hardening: &hardening
@@ -61,11 +64,12 @@ services:
     command: ["python", "-m", "hererisk.location.server", "--host", "0.0.0.0", "--port", "8001", "--container",
               "--address-regions", "/data/regions.json",
               "--elevation-api", "http://elevation-api:8000", "--elevation-token-file", "/run/secrets/api_token",
-              "--elevation-fixture"]
+              "--elevation-fixture", "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite"]
     ports:
       - "127.0.0.1:8001:8001"
     volumes:
       - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood:ro
     secrets:
       - api_token
     networks:
@@ -78,7 +82,7 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 60s
+      start_period: 120s
 
   # Management page: only with --profile admin, own network (no route to / from the public APIs),
   # host 127.0.0.1 only. Never give it a public port; on a VPS reach it through an SSH tunnel.
@@ -113,6 +117,18 @@ services:
     volumes:
       - elevation-data:/var/lib/hererisk
 
+  flood-index:   # builds the flood search index from the registered ZIPs (read only) into its volume
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.flood", "build", "--regions", "/data/regions.json",
+              "--output", "/var/lib/hererisk-flood/flood-index.sqlite"]
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood
+
   token:   # creates ${HERERISK_SECRET_DIR}/api-token (0600); refuses to overwrite
     <<: *hardening
     profiles: ["init"]
@@ -129,6 +145,8 @@ networks:
 volumes:
   elevation-data:
     name: hererisk-elevation-data
+  flood-index:
+    name: hererisk-flood-index
 
 secrets:
   api_token:

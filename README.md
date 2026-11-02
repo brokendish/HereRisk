@@ -221,6 +221,76 @@ PYTHONPATH=src .venv/bin/python -m hererisk.data_inventory --regions ~/hererisk-
 
 実データのProviderへの切替え方は、契約の第8章に書いています。
 
+## 洪水浸水想定区域（Phase 4-A、Flood Provider・ローカル検証）
+
+`hazards.flood` を、国土数値情報 A31a（洪水浸水想定区域・**想定最大規模**）に接続します。公式データごとに独立して検索し、該当した区域を原典の浸水深区分のまま返します。比較・代表値・安全／危険の判定はしません。設計の正本は [提示契約（案）](docs/architecture/flood-official-data-presentation-contract-v0.1.md)・[Flood API契約（案）](docs/api/flood-api-mvp-contract-v0.1.md)、Location APIでの形は [契約 第8.5節](docs/api/location-api-v0.1.md) です。
+
+**利用条件が未承認（取得元台帳 `review_required`）のため、ローカルでの検証に限ります。** 応答の各ソースにも `data_use.scope: "local_verification_only"`・`public_approval: "unconfirmed"` が入ります。
+
+**1. データを置く（Gitの外。展開しない）**
+
+[A31aのページ](https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-A31a-2025.html) のGeoJSON版ZIPを、データディレクトリ（例 `~/hererisk-data/a31a/`）に置きます。東京都で確認したのは次の3つです。ZIP名の `_10`／`_20` は河川の種別で、想定（シナリオ）ではありません。想定最大規模は、ZIPの中の `20_想定最大規模` フォルダだけを読みます。
+
+| ファイル | 公表 | SHA-256（取得時） |
+|---|---|---|
+| `A31a-25_13_10_GEOJSON.zip` | 東京都（洪水予報河川・水位周知河川） | `ecef23e95ac75554bfd42e6156800291b7af27bca49198002eab6f0394fe9f93` |
+| `A31a-25_13_20_GEOJSON.zip` | 東京都（その他の河川） | `3101bac42ebb9693f7c9f92d994b7eb60a2cfe2bf2659a21dfb2a0886885e0b4` |
+| `A31a-25_83_10_GEOJSON.zip` | 関東地方整備局（東京都以外の区域も含む） | `e66542cecda1c2ed9e7cf74d3333512a65bdb334557410389e521e7c259bca35` |
+
+**2. 地域ファイルに登録する**（`~/hererisk-data/regions.json` に `flood_sources` を追加。相対パスはこのファイルが基準）
+
+```json
+"flood_sources": [
+  {"source_id": "local-a31a-2025-13", "organization": "東京都",
+   "title": "洪水浸水想定区域（想定最大規模）東京都管理河川", "category": "flood_inundation",
+   "format": "ksj-a31a-geojson", "scenario": "maximum", "data_year": "2025", "river_manager_code": "13",
+   "service_region": {"prefecture_codes": ["13"]},
+   "files": [{"path": "a31a/A31a-25_13_10_GEOJSON.zip", "distribution_code": "13", "ledger_entry": "ksj-a31a-2025-13-10"},
+             {"path": "a31a/A31a-25_13_20_GEOJSON.zip", "distribution_code": "13", "ledger_entry": "ksj-a31a-2025-13-20"}]},
+  {"source_id": "local-a31a-2025-83", "organization": "国土交通省 関東地方整備局",
+   "title": "洪水浸水想定区域（想定最大規模）関東地方整備局管理河川", "category": "flood_inundation",
+   "format": "ksj-a31a-geojson", "scenario": "maximum", "data_year": "2025", "river_manager_code": "83",
+   "service_region": {"prefecture_codes": ["13"]},
+   "files": [{"path": "a31a/A31a-25_83_10_GEOJSON.zip", "distribution_code": "83", "ledger_entry": "ksj-a31a-2025-83-10"}]}
+]
+```
+
+- `distribution_code` は配布単位（`83` は関東地方整備局）で、都道府県コードではありません。検索する範囲は `service_region` の都道府県のN03（`regions` に登録が必要）で決まります。
+- `river_manager_code` は、全地物の `A31a_203`（河川管理者）と一致しなければなりません。
+- 登録すると、Data Inventoryにもファイルごとに表示されます（例「東京都 / 洪水浸水想定区域 / 2025年版 / 国土交通省 関東地方整備局 / ファイルあり / API接続設定あり / 利用条件: 要確認 / 公開承認未確認」）。
+- **神奈川県などの追加**: 対象県のA31a ZIPを置き、`flood_sources` に1件追加する（関東地方整備局分を神奈川県でも検索するなら、その `service_region` に `"14"` を加える）→ 索引を作り直す。コードの変更は不要です。
+
+**3. 検索用の索引を作る**（登録を変えたら作り直す。関東地方整備局分を含めて約2〜3分）
+
+```sh
+# Docker（索引はボリューム hererisk-flood-index に入る。データはRead Only）
+docker compose --profile init run --rm flood-index
+docker compose up -d            # Location APIが索引を読む（起動時に登録・ZIP・N03のSHA-256を照合）
+
+# Dockerを使わない場合
+PYTHONPATH=src .venv/bin/python -m hererisk.flood build --regions ~/hererisk-data/regions.json \
+  --output ~/.hererisk-local/flood-index.sqlite
+PYTHONPATH=src .venv/bin/python -m hererisk.location.server --port 8001 \
+  --address-regions ~/hererisk-data/regions.json --flood-index ~/.hererisk-local/flood-index.sqlite
+```
+
+```sh
+curl -s "http://127.0.0.1:8001/api/v1/location?lat=35.681236&lon=139.767125"   # 東京駅
+# "flood": {"status": "available",
+#   "results": [{"source": {"source_id": "local-a31a-2025-13", "organization": "東京都", ...},
+#                "river_name_in_source": "隅田川", "original_class": {"code": "1", "label": "0～0.5m未満"}, ...}],
+#   "sources": [{"source_id": "local-a31a-2025-13", "zones": [...], "unknowns": [], ...},
+#               {"source_id": "local-a31a-2025-83", "zones": [], "unknowns": [{"river_name_in_source": "荒川",
+#                "reason": "invalid_geometry", "unknown_level": "L1", ...}, ...], ...}], ...}
+
+# 区域の内部の追跡（原典のZIP・メンバー・地物番号。APIの応答には出さない）
+PYTHONPATH=src .venv/bin/python -m hererisk.flood trace --index ~/.hererisk-local/flood-index.sqlite --zone-ref <loc-zn-...>
+```
+
+- `available`: どれかのソースに該当区域がある（全ソースの全区域を返す）。`no_match`: 対象地域の内部で、全ソースを検索して区域・判定保留・境界接触がない（**浸水しないことを意味しない**。A31aは評価済みの範囲を持たない）。`unknown`: 判定保留（無効形状）の範囲・区域の境界上・対象地域の境界上。`not_available`: 対象地域の外。`error`: 処理の失敗・件数の上限超過（部分結果は返さない）。
+- 無効形状は修復しません。判定保留の範囲は、その構成の外接矩形（L1）です。**関東地方整備局の荒川などの大きな無効形状のため、東京都東部の多くの地点が `unknown` になります**（東京都の無作為な3,000地点で `unknown` 1,016・`available` 468・`no_match` 1,516）。派生形状による解消は、契約上BLOCKED（OWNER承認待ち）です。
+- 妥当性の検査はGEOSの1つだけです（契約は独立した2つを求める）。そのため `candidate_completeness: "not_guaranteed"` と `limitations` を応答に入れています。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
@@ -238,6 +308,7 @@ Location API・標高API・Data Inventoryを、それぞれコンテナで起動
 | 地域ファイルと住所データ（`regions.json`・`isj/`・`n03/`） | `~/hererisk-data`（`HERERISK_DATA_DIR` で変更） | `/data`（Read Only） |
 | Bearer Token（`api-token`） | `~/.hererisk-local/secrets`（`HERERISK_SECRET_DIR` で変更） | `/run/secrets/api_token`（Read Only） |
 | 標高のFixture公開データ | Dockerボリューム `hererisk-elevation-data` | `/var/lib/hererisk`（APIからはRead Only） |
+| 洪水の検索用索引（A31aから作成） | Dockerボリューム `hererisk-flood-index` | `/var/lib/hererisk-flood`（APIからはRead Only） |
 
 `regions.json` の相対パスは、ファイルの場所が基準です。`isj/13000-19.0b.zip` は、コンテナ内では `/data/isj/13000-19.0b.zip` になります。データを複製・改名する必要はありません（[上の Phase 3-E](#複数の都道府県を登録するphase-3-e) の `regions.json` をそのまま使います）。
 
@@ -251,6 +322,9 @@ docker compose --profile init run --rm token
 # 初回のみ: 標高のFixtureを公開データとしてボリュームに入れる（2回目以降は「変更なし」）
 docker compose build
 docker compose --profile init run --rm elevation-init
+
+# 初回のみ（洪水の登録を変えたら再実行）: 洪水の検索用索引を作る（上の「洪水浸水想定区域」の節）
+docker compose --profile init run --rm flood-index
 
 # 起動・状態・ログ・停止
 docker compose up -d --build
@@ -269,7 +343,7 @@ docker compose --profile admin exec data-inventory python -m hererisk.data_inven
 ```
 
 - ソースコードを変えたら、`docker compose up -d --build`（管理画面も使うなら `--profile admin` を付ける）で作り直します。地域ファイルやデータを変えたときは、`docker compose restart location-api` で読み直します。
-- `docker compose ps` で `healthy` になるまで、Location APIは数十秒かかります（N03の読み込み）。ヘルスチェックは、既存のエンドポイント（`POST /api/v1/elevation`・`GET /api/v1/location`・`GET /inventory.json`）を使います。
+- `docker compose ps` で `healthy` になるまで、Location APIは数十秒かかります（N03・洪水の索引の読み込み）。メモリは約550MBです。ヘルスチェックは、既存のエンドポイント（`POST /api/v1/elevation`・`GET /api/v1/location`・`GET /inventory.json`）を使います。
 - 標高APIは、Fixtureが未投入なら起動しません（未検証のデータでは応答しない）。先に `elevation-init` を実行してください。
 - Linux（VPS）では、Tokenのファイルは実行ユーザー（uid 10001）の所有で0600である必要があります。`token` サービスで作れば、そうなります。
 - VPSでも同じ `compose.yaml` を使います。`--profile admin` は付けず、管理画面は一般公開しません。使うときは、VPS上で一時的に起動し、SSHのポート転送（`ssh -L 8090:127.0.0.1:8090 <VPS>`）で見ます。一般向けの公開経路（リバースプロキシ）には、Location APIだけをつなぎます。

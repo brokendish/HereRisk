@@ -24,7 +24,7 @@ APP = REPO / "deploy" / "app"
 
 def _service(name: str) -> str:
     """The block of one service in compose.yaml (up to the next top-level service key)."""
-    match = re.search(rf"^  {name}:\n(.*?)(?=^  [a-z][a-z-]*:\n|^\S)", COMPOSE, re.M | re.S)
+    match = re.search(rf"^  {name}:[^\n]*\n(.*?)(?=^  [a-z][a-z-]*:[^\n]*\n|^\S)", COMPOSE, re.M | re.S)
     assert match, name
     return "\n".join(l for l in match.group(1).splitlines() if not l.lstrip().startswith("#")) + "\n"
 
@@ -112,6 +112,16 @@ def test_hardening_and_read_only_data() -> None:
     assert "http://elevation-api:8000" in _service("location-api")
     assert "--elevation-fixture" in _service("location-api")          # fixture stays synthetic: true
     assert "--fixture-demo" in _service("elevation-api")
+
+
+def test_flood_index_is_built_offline_and_mounted_read_only() -> None:
+    build = _service("flood-index")
+    assert 'profiles: ["init"]' in build and "network_mode: none" in build
+    assert "${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro" in build   # official data stays read only
+    assert "flood-index:/var/lib/hererisk-flood\n" in build                  # only the index volume is writable
+    loc = _service("location-api")
+    assert "flood-index:/var/lib/hererisk-flood:ro" in loc and "--flood-index" in loc
+    assert "name: hererisk-flood-index" in COMPOSE
 
 
 def test_data_inventory_is_admin_only_and_isolated() -> None:
