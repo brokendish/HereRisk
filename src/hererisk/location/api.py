@@ -1,5 +1,9 @@
 """GET /api/v1/location?lat=<latitude>&lon=<longitude> — request validation and the response.
 
+Phase 4-E: with the flood Shadow diagnosis on (``--flood-settings`` with ``diagnosis.shadow_enabled``),
+``GET /api/v1/diagnostics/flood-shadow`` (no query) returns its counters (no positions). Without it
+that path is ``not_found`` as before.
+
 Pure request -> response function (no sockets). Check order: path -> method -> query.
 Input rules (docs/api/location-api-v0.1.md section 3): exactly the two parameters ``lat`` and
 ``lon``, each once, plain decimal numbers, lat -90..90 and lon -180..180. Nothing is clamped,
@@ -11,12 +15,13 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Callable
 from urllib.parse import parse_qsl
 
 from hererisk.location.orchestrator import SCHEMA_VERSION, Orchestrator
 
 PATH = "/api/v1/location"
+DIAGNOSTICS_PATH = "/api/v1/diagnostics/flood-shadow"
 MAX_QUERY_CHARS = 256
 _NUMBER = re.compile(r"-?(?:0|[1-9][0-9]{0,2})(?:\.[0-9]{1,15})?\Z")
 
@@ -64,11 +69,18 @@ def parse_point(query: str) -> tuple[float, float]:
 
 
 class LocationApi:
-    def __init__(self, orchestrator: Orchestrator) -> None:
+    def __init__(self, orchestrator: Orchestrator, *, diagnostics: Callable[[], dict[str, Any]] | None = None) -> None:
         self._orchestrator = orchestrator
+        self._diagnostics = diagnostics
 
     def handle(self, method: str, path: str, query: str) -> Response:
         try:
+            if self._diagnostics is not None and path == DIAGNOSTICS_PATH:
+                if method != "GET":
+                    raise _Rejected("method_not_allowed")
+                if query:
+                    raise _Rejected("invalid_input")
+                return _json(200, {"schema_version": SCHEMA_VERSION, "flood_shadow": self._diagnostics()})
             if path != PATH:
                 raise _Rejected("not_found")
             if method != "GET":

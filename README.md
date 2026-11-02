@@ -474,6 +474,65 @@ docker compose --profile verify run --rm flood-diag cases --cases /reports/flood
 | 同じ地点の繰り返し（200回） | — | 中央値2.9ms・最大5.1ms |
 | 起動 | 原典の読込に約2.3分 | 0.1ms |
 
+### 診断結果の分類とLocation APIへのShadow統合（Phase 4-E、診断専用）
+
+無効Polygonの診断結果を、`candidate`・`undetermined`・`rejected` に機械的に分類し、理由コードを付けます（`hererisk.flood.adoption`）。そのうえで、Location APIの洪水検索に並べて実行します（Shadow、`hererisk.location.flood_shadow`）。**正式な洪水判定と応答は変えません。** `candidate` は診断上の候補にすぎず、正式な区域への昇格でも浸水深でもありません。規則と理由コードの一覧は [Location API契約 8.6](docs/api/location-api-v0.1.md) にあります。将来の提示形式の案は [Stage 3案](docs/api/flood-diagnosis-stage3-draft.md) です（未実装）。
+
+**設定**（`--flood-settings`、Phase 4-Cの形式と後方互換）
+
+```json
+{"local_analysis": {"enabled": false, "initial_radius_m": 5, "expansion_radii_m": [10, 25, 50, 100], "max_radius_m": 100},
+ "diagnosis": {"shadow_enabled": false}}
+```
+
+- `local_analysis.enabled`（正式判定への組み込み）は引き続き拒否します。
+- `diagnosis.shadow_enabled`（並行して診断するだけ）は許可します。
+- `diagnosis` を省略した場合は無効です。
+
+**受入手順**
+
+```sh
+docker compose build && docker compose --profile init run --rm flood-diag-build
+# 1. 自動検証（4-Cの固定Seedの地点と、4-Dのケース。生成した地点だけを記録する）
+docker compose --profile verify run --rm flood-shadow-verify \
+  --baseline /reports/flood-local-analysis-<日時> --cases-dir /reports/flood-diag-compare-<日時>
+# 2. Shadowを有効にしたAPI（127.0.0.1:8011）と通常のAPI（127.0.0.1:8001）の応答を比べる
+docker compose --profile shadow up -d location-api-shadow
+curl -s 'http://127.0.0.1:8011/api/v1/diagnostics/flood-shadow'     # 件数のみ（位置は含まない）
+docker compose --profile shadow rm -sf location-api-shadow          # 確認後に止める（常駐させない）
+```
+
+`shadow-verify` の終了コード: 0 全項目合格、1 不合格の項目あり、2 引数の誤り、3 入力の拒否・処理の失敗。
+
+**東京都での結果（2026-11-02、Docker）**
+
+- **正式応答**: 4-Cの601地点で、FloodProvider単体とShadow経由の洪水セクションが全件一致しました。8スレッドの並列実行でも全件一致です。
+  - HTTPでは、通常のAPIとShadowを有効にしたAPIで、2回×601地点の1,202件の応答全体（`evaluated_at` を除く）が一致しました。
+- **診断対象**: 601地点すべてで、Providerの `unknowns` と同じでした（4-Cの対象とも一致）。
+- **分類**: 2,113組のうち、`candidate` 473・`undetermined` 1,640・`rejected` 0です。
+  - `candidate` 473件は、オフラインの `make_valid` と全件一致しました。`exterior_only` が異なるのは69件で、穴を無視する読み方のためです。
+  - `undetermined` の理由別の内訳です。
+
+| 理由 | 組数 |
+|---|---:|
+| `no_local_boundary` | 976 |
+| `defect_within_max_radius` | 521 |
+| `defect_within_decision_radius` | 67 |
+| `service_region_boundary` | 56 |
+| `on_boundary` | 46 |
+| `ambiguous_nearest` | 16 |
+
+- **4-Dのケース**:
+  - A15組は、すべて `undetermined` です（`on_boundary` 12・`defect_within_decision_radius` 3）。
+  - B521組も、すべて `undetermined`（`defect_within_max_radius`）です。1組には `service_region_boundary` も付きます。
+- **性能**:
+  - HTTPの応答時間: 通常は中央値1.75ms・p95 2.59ms、Shadowでは中央値1.86ms・p95 2.54ms。
+  - 診断用スレッド: 1地点あたり中央値5.7ms・最大26ms。
+  - メモリ: 575MiB対581MiB。診断索引を開いても常駐メモリはほとんど増えません。
+  - 起動時の検証: 診断索引の `meta` とflood索引の `meta` を比べるだけです（ハッシュの再計算なし）。
+  - 並列のバースト（8スレッド×601地点）では、キュー（64件）があふれた分の診断を省略し、件数として記録しました。正式な応答は待たせていません。
+- **異常時**: 診断索引がない・壊れている・別のflood索引から作られている場合、Shadowを有効にしたAPIは起動しません（終了コード3）。実行中の失敗は `state: "error"` と件数で示します。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

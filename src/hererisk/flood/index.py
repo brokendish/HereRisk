@@ -6,6 +6,7 @@ Location API flood provider. A local verification artifact, not a Publish / Data
     python -m hererisk.flood verify ...   (hererisk.flood.verify: independent check against the source)
     python -m hererisk.flood local-analysis ...   (hererisk.flood.local_analysis: Phase 4-C PoC, diagnosis only)
     python -m hererisk.flood diag ...   (hererisk.flood.diag: Phase 4-D offline preparation + light search, diagnosis only)
+    python -m hererisk.flood shadow-verify ...   (hererisk.flood.shadow_verify: Phase 4-E Shadow checks)
 
 Build (``build_index``), per registered source and file:
 
@@ -281,6 +282,9 @@ def main(argv: list[str] | None = None) -> int:
     if argv[:1] == ["diag"]:
         from hererisk.flood.diag import main as diag_main
         return diag_main(argv[1:])
+    if argv[:1] == ["shadow-verify"]:
+        from hererisk.flood.shadow_verify import main as shadow_main
+        return shadow_main(argv[1:])
     parser = argparse.ArgumentParser(prog="python -m hererisk.flood")
     sub = parser.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("build", help="build the local flood search index from the registered ZIPs")

@@ -48,6 +48,7 @@ from typing import Any
 
 import numpy as np
 
+from hererisk.flood.errors import DiagIndexError
 from hererisk.flood.settings import load_settings, radii as setting_radii
 
 DIAG_FORMAT = "hererisk-flood-diag-v0.1"
@@ -59,10 +60,6 @@ TIE_M = 1e-6
 DECIDED = ("inside", "outside")
 KIND_ORDER = ("touch", "touch_on_edge", "overlap", "crossing")   # worst last
 RING_DTYPE = np.dtype([("hole", "i1"), ("area_sign", "i1"), ("inner_left", "i1"), ("segments", "<i4")])
-
-
-class DiagIndexError(ValueError):
-    """The diagnosis index is missing, incomplete or does not belong to these inputs. Fixed messages."""
 
 
 def _scale(lat: float) -> tuple[float, float]:
@@ -285,7 +282,8 @@ class DiagIndex:
         self.chunk = int(self.meta["chunk_segments"])
         if flood_index is not None:
             from hererisk.flood.index import read_meta
-            if _flood_identity(read_meta(flood_index)) != self.meta["derived_from"]["flood_index"]:
+            derived = self.meta.get("derived_from")
+            if not isinstance(derived, dict) or _flood_identity(read_meta(flood_index)) != derived.get("flood_index"):
                 raise DiagIndexError("diagnosis index was derived from another flood index")
 
     # components
@@ -488,6 +486,31 @@ class DiagIndex:
             else:
                 far = {**final, "outcome": "inconsistent_winding", "winding": w}
         return {"per_radius": evals, "local": final, "local_plus_far": far}
+
+    def diagnose(self, lat: float, lon: float, radii: list[float], targets: list[tuple[str, str | None, list[str]]],
+                 *, identity_ok: bool) -> list[dict[str, Any]]:
+        """Phase 4-E: classify the Provider's unknowns, ``targets`` = [(source_id, service region relation,
+        unknown zone_refs)]. Only these components are diagnosed; nothing is added from the index."""
+        from hererisk.flood.adoption import classify
+        out = []
+        for sid, relation, refs in targets:
+            for ref, comp in zip(refs, self.by_refs(refs)):
+                t0 = time.perf_counter()
+                analysis = None
+                if comp is not None:
+                    comp = {**comp, "ring_count": len(comp["rings"])}
+                    if comp["source_id"] != sid:
+                        comp = None                   # another source's component: not this unknown
+                if comp is not None:
+                    analysis = self.analyze(comp, lat, lon, radii)
+                    dd = self.defect_distance_m(comp, lat, lon, within_m=radii[-1])
+                    analysis["defect_within_max"] = dd if dd[0] is not None and dd[0] <= radii[-1] else None
+                c = classify({"status": self.meta.get("status"), "identity_ok": identity_ok, "in_provider_unknowns": True,
+                              "service_region_relation": relation}, comp, analysis)
+                out.append({"source_id": sid, "zone_ref": ref, "method": self.meta["method"], **c,
+                            "depth_class_in_source": None if comp is None else comp["depth_class"],
+                            "seconds": round(time.perf_counter() - t0, 6)})
+        return out
 
     def lookup(self, lat: float, lon: float, radii: list[float], *, zone_refs: list[str] | None = None,
                all_radii: bool = False) -> dict[str, Any]:

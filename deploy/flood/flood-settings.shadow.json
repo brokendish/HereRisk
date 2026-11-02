@@ -1,0 +1,11 @@
+{
+  "local_analysis": {
+    "enabled": false,
+    "initial_radius_m": 5,
+    "expansion_radii_m": [10, 25, 50, 100],
+    "max_radius_m": 100
+  },
+  "diagnosis": {
+    "shadow_enabled": true
+  }
+}

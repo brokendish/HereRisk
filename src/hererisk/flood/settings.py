@@ -1,7 +1,13 @@
-"""Flood Provider settings (Phase 4-C): the ``local_analysis`` block, checked here.
+"""Flood Provider settings (Phase 4-C / 4-E): the ``local_analysis`` and ``diagnosis`` blocks, checked here.
 
     {"local_analysis": {"enabled": false, "initial_radius_m": 5,
-                        "expansion_radii_m": [10, 25, 50, 100], "max_radius_m": 100}}
+                        "expansion_radii_m": [10, 25, 50, 100], "max_radius_m": 100},
+     "diagnosis": {"shadow_enabled": false}}
+
+``diagnosis`` is optional (a Phase 4-C file without it still loads; the default is off).
+``local_analysis.enabled`` would put the local analysis into the official answer and is refused;
+``diagnosis.shadow_enabled`` only runs the diagnosis beside the official answer (Phase 4-E Shadow:
+``hererisk.location.flood_shadow``), never changes it, and is allowed.
 
 Diagnosis only in this version: the Flood Provider does not read these settings and its responses do
 not change. ``enabled: true`` is refused until the local analysis is adopted (an OWNER decision).
@@ -24,6 +30,13 @@ FIELDS = {
     "initial_radius_m": {"type": "number", "label": "初期半径（m）", "min_exclusive": 0, "max": MAX_RADIUS_LIMIT_M},
     "expansion_radii_m": {"type": "array<number>", "label": "拡大半径（m、昇順）", "min_items": 0, "max_items": 10},
     "max_radius_m": {"type": "number", "label": "最大半径（m）", "min_exclusive": 0, "max": MAX_RADIUS_LIMIT_M},
+}
+
+
+DEFAULT_DIAGNOSIS: dict[str, Any] = {"shadow_enabled": False}
+DIAGNOSIS_FIELDS = {
+    "shadow_enabled": {"type": "boolean", "label": "診断をShadowで並行実行する", "editable": True,
+                       "note": "診断専用。正式な洪水判定・Location APIの応答は変えない"},
 }
 
 
@@ -64,17 +77,27 @@ def radii(block: dict[str, Any]) -> list[float]:
     return [block["initial_radius_m"], *block["expansion_radii_m"]]
 
 
+def check_diagnosis(block: Any) -> dict[str, Any]:
+    if not isinstance(block, dict) or set(block) != set(DIAGNOSIS_FIELDS):
+        raise FloodSettingsError(f"diagnosis keys must be {sorted(DIAGNOSIS_FIELDS)}")
+    if not isinstance(block["shadow_enabled"], bool):
+        raise FloodSettingsError("diagnosis.shadow_enabled must be true or false")
+    return {"shadow_enabled": block["shadow_enabled"]}
+
+
 def load_settings(path: Path | None) -> dict[str, Any]:
-    """{"local_analysis": checked block}; the defaults when ``path`` is None."""
+    """{"local_analysis": checked block, "diagnosis": checked block}; the defaults when ``path`` is None."""
     if path is None:
-        return {"local_analysis": check_local_analysis(dict(DEFAULT_LOCAL_ANALYSIS))}
+        return {"local_analysis": check_local_analysis(dict(DEFAULT_LOCAL_ANALYSIS)),
+                "diagnosis": dict(DEFAULT_DIAGNOSIS)}
     try:
         doc = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise FloodSettingsError("flood settings file cannot be read as JSON") from exc
-    if not isinstance(doc, dict) or set(doc) != {"local_analysis"}:
-        raise FloodSettingsError("flood settings must hold exactly {\"local_analysis\": {...}}")
-    return {"local_analysis": check_local_analysis(doc["local_analysis"])}
+    if not isinstance(doc, dict) or "local_analysis" not in doc or not set(doc) <= {"local_analysis", "diagnosis"}:
+        raise FloodSettingsError("flood settings must hold {\"local_analysis\": {...}} and optionally {\"diagnosis\": {...}}")
+    return {"local_analysis": check_local_analysis(doc["local_analysis"]),
+            "diagnosis": check_diagnosis(doc.get("diagnosis", dict(DEFAULT_DIAGNOSIS)))}
 
 
 def describe() -> dict[str, Any]:
@@ -82,4 +105,8 @@ def describe() -> dict[str, Any]:
     return {"local_analysis": {"fields": FIELDS, "defaults": DEFAULT_LOCAL_ANALYSIS,
                                "rules": ["every key is required", "radii increase strictly",
                                          "max_radius_m equals the last radius", "enabled is false in this version"],
-                               "used_by": "diagnosis (python -m hererisk.flood local-analysis) only"}}
+                               "used_by": "diagnosis (python -m hererisk.flood local-analysis / diag) only"},
+            "diagnosis": {"fields": DIAGNOSIS_FIELDS, "defaults": DEFAULT_DIAGNOSIS,
+                          "rules": ["optional block", "shadow_enabled never changes the official answer",
+                                    "shadow_enabled needs a complete diagnosis index of the same flood index"],
+                          "used_by": "Location API --flood-settings (Shadow)"}}

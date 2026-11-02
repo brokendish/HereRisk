@@ -437,6 +437,54 @@ Phase 2-Cで残ったBlocking（利用条件、認可、派生形状、精度プ
 - 関東地方整備局の荒川などに、外接矩形が数十kmの無効形状がある。そのため、東京都東部の多くの地点が `unknown` になる。東京都の無作為な3,000地点の内訳は、`available` 468、`unknown` 1,016、`no_match` 1,516だった。派生形状による解消は、契約上BLOCKED（Normalize契約 ON-15・ON-16）である。
 - A31aの利用条件は取得元台帳で `review_required`（承認記録なし）である。ローカルでの検証に限り、一般公開の承認として扱わない。
 
+### 8.6 洪水診断のShadow統合（Phase 4-E、診断専用）
+
+`--flood-settings`（`diagnosis.shadow_enabled: true`）と `--flood-diag-index` を指定すると、`hererisk.location.flood_shadow.ShadowFloodProvider` がFloodProviderを包む。診断索引は `python -m hererisk.flood diag build` で作る。
+
+**正式な応答は変えない**
+
+- FloodProviderの洪水セクションを、同じオブジェクトのまま返す。`status`・`results`・`sources`・`zones`・`unknowns`・`boundary_contacts`・`summary`・`reasons`・`limitations` は変えない。診断の結果で `unknown` を `available` や `no_match` に変えることもない。
+- Shadowが無効なときは、処理も応答も従来と同じで、診断用のパスも従来どおり404になる。
+
+**診断の対象と実行**
+
+- 診断の対象は、FloodProviderが返したソースごとの `unknowns` だけ。診断索引から構成を追加で拾わない。
+- 受け渡しは、上限64件のキューで診断用スレッド1本へ渡す。キューが満杯のときは診断を省略して数え、応答は待たせない。
+- 診断1件の上限は1秒（SQLiteの進行ハンドラで中断し、`timeout` として数える）。
+
+**分類**（`hererisk.flood.adoption`、`flood-diagnosis-adoption-v1`）
+
+構成ごとに、`candidate`・`undetermined`・`rejected` のいずれかと理由コードを付ける。`candidate` は「定義した条件を満たす診断上の候補」であり、正式な区域への昇格でも浸水深でもない。
+
+| 分類 | 理由コード |
+|---|---|
+| `rejected` | `diag_index_not_complete`・`diag_index_identity_mismatch`・`zone_ref_not_in_provider_unknowns`・`zone_ref_not_in_diag_index`・`outside_service_region` |
+| `undetermined` | `service_region_boundary`・`feature_level_invalidity_not_analyzed`・`on_boundary`・`defect_within_decision_radius`・`no_local_boundary`・`ambiguous_nearest`・`orientation_unknown`・`defect_location_unknown`・`local_far_disagree`・`even_odd_winding_disagree`・`defect_within_max_radius` |
+| `candidate` | `all_conditions_met`: 局所の読み（最寄りの輪郭のどちら側か）、穴を含む全輪郭の回転数、偶奇規則が一致し、地点が輪郭上でなく、最大半径内に問題箇所がない |
+
+- `make_valid` との一致は、オフラインの検証（`shadow-verify`）でだけ評価する。
+- `exterior_only` は穴を無視するので、正解の参照に使わない。
+- 方式の一致は候補の必要条件であって、正式採用の十分条件ではない。
+- `on_boundary` は形状上の境界接触であり、GPSの測位誤差とは別の概念である。測位誤差による補正はしない。
+
+**記録とプライバシー**
+
+- 位置は保持も記録もしない。保持するのは、分類・理由・判定に到達した半径・所要時間・エラーの件数だけ。
+- 件数は `GET /api/v1/diagnostics/flood-shadow`（クエリなし。Shadowが有効なときだけ存在する）で返す。`state` は `active`、または実行時の失敗があれば `error`。
+- 地点ごとの記録は、自動生成した検証用の地点についてだけ `python -m hererisk.flood shadow-verify` が保存する。
+
+**異常時**
+
+- 起動時に次のいずれかなら、起動しない（終了コード3）。
+  - 診断索引がない・読めない
+  - `status` が `complete` でない
+  - 形式または方式の版が違う
+  - 別のflood索引から作られている
+- Shadowが有効なのに診断索引の指定がない場合、および診断索引の指定があるのにShadowが無効の場合は、終了コード2。
+- 実行中の失敗は、件数と例外の種類だけを記録して `state: "error"` にする。正式な応答には影響しない。
+
+将来、診断結果を利用者に提示する場合の契約案は [洪水診断の提示契約（Stage 3案）](flood-diagnosis-stage3-draft.md) にある。本APIには追加していない。
+
 ## 9. 未決定事項（OWNER判断）
 
 1. 状態名を、共通API契約の暫定の名前（第4章の対応表）に統一するか、本APIの5状態を共通契約へ反映するか。
