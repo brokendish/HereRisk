@@ -124,6 +124,14 @@ def test_flood_index_is_built_offline_and_mounted_read_only() -> None:
     assert "name: hererisk-flood-index" in COMPOSE
 
 
+def test_flood_verify_is_one_shot_and_read_only() -> None:
+    v = _service("flood-verify")
+    assert 'profiles: ["verify"]' in v and "network_mode: none" in v and 'restart: "no"' in v
+    assert "${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro" in v and "flood-index:/var/lib/hererisk-flood:ro" in v
+    assert "${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports" in v   # reports outside Git
+    assert "ports:" not in v
+
+
 def test_data_inventory_is_admin_only_and_isolated() -> None:
     inv = _service("data-inventory")
     assert 'profiles: ["admin"]' in inv
@@ -143,9 +151,10 @@ def test_healthchecks_use_existing_endpoints() -> None:
 
 
 def test_secret_and_data_defaults_outside_repository() -> None:
-    defaults = re.findall(r"\$\{HERERISK_(?:SECRET|DATA)_DIR:-(\$\{HOME\}/[^}]+)\}", COMPOSE)
-    assert sorted(set(defaults)) == ["${HOME}/.hererisk-local/secrets", "${HOME}/hererisk-data"]
-    assert len(defaults) == COMPOSE.count("${HERERISK_SECRET_DIR:-") + COMPOSE.count("${HERERISK_DATA_DIR:-")
+    defaults = re.findall(r"\$\{HERERISK_(?:SECRET|DATA|REPORT)_DIR:-(\$\{HOME\}/[^}]+)\}", COMPOSE)
+    assert sorted(set(defaults)) == ["${HOME}/.hererisk-local/reports", "${HOME}/.hererisk-local/secrets",
+                                     "${HOME}/hererisk-data"]
+    assert len(defaults) == sum(COMPOSE.count(f"${{HERERISK_{k}_DIR:-") for k in ("SECRET", "DATA", "REPORT"))
 
 
 def test_image_contains_code_only() -> None:

@@ -291,6 +291,45 @@ PYTHONPATH=src .venv/bin/python -m hererisk.flood trace --index ~/.hererisk-loca
 - 無効形状は修復しません。判定保留の範囲は、その構成の外接矩形（L1）です。**関東地方整備局の荒川などの大きな無効形状のため、東京都東部の多くの地点が `unknown` になります**（東京都の無作為な3,000地点で `unknown` 1,016・`available` 468・`no_match` 1,516）。派生形状による解消は、契約上BLOCKED（OWNER承認待ち）です。
 - 妥当性の検査はGEOSの1つだけです（契約は独立した2つを求める）。そのため `candidate_completeness: "not_guaranteed"` と `limitations` を応答に入れています。
 
+### 原典との照合・自動検証（Phase 4-B）
+
+Flood Providerの結果を、公式A31aの原典ZIPと機械的に照合します。期待結果は、索引・Provider・索引生成の処理を使わず、原典ZIP（とN03）を別の実装で直接読んで計算します（`hererisk.flood.verify`）。
+
+```sh
+# Docker（データ・索引はRead Only、レポートは ~/.hererisk-local/reports。Linuxではこのディレクトリをuid 10001が書けるようにする）
+mkdir -p ~/.hererisk-local/reports
+docker compose --profile verify run --rm flood-verify
+docker compose --profile verify run --rm flood-verify python -m hererisk.flood verify --regions /data/regions.json \
+  --index /var/lib/hererisk-flood/flood-index.sqlite --report-dir /reports --source local-a31a-2025-13 --point 35.625065,139.573836
+
+# Dockerを使わない場合
+PYTHONPATH=src .venv/bin/python -m hererisk.flood verify --regions ~/hererisk-data/regions.json \
+  --index ~/.hererisk-local/flood-index.sqlite --report-dir ~/.hererisk-local/reports [--source ID] [--per-category 40] [--per-rank 10] [--seed 20261102] [--point LAT,LON]
+```
+
+1. **来歴**: 原典ZIPのSHA-256（今の値と索引作成時の値）、登録内容、プログラム・GEOSの版、入力条件。
+2. **原典と索引の照合（全件）**: 成果品ごとの地物数・構成Polygon数・無効形状の数。地物数は、行の解析とは別に、バイト列中の `"type":"Feature"` の数でも数える。索引の全行について、地物・構成の番号、属性、浸水深区分、外接矩形、形状（完全一致）、判定保留の理由を確認する。対象地域から10m以内に関係しうる地物が、索引から欠けていないことも確認する。
+3. **地点の照合（抽出）**: 固定のSeedで、原典から地点を区分ごとに抽出する。区分は、有効な区域の内部（浸水深区分ごとにも抽出）、同じソース内の重なり、浸水深区分が異なる重なり、2つのソースの重なり、穴、区域の頂点（境界）、無効形状の外接矩形、対象地域内の該当なし、対象地域外、対象地域の境界。
+
+| 判定 | 意味 |
+|---|---|
+| `PASS` | 原典から確定できる結果と一致 |
+| `FAIL` | 原典から確定できる結果と不一致（状態・区域・浸水深区分・河川・判定保留の集合のいずれか） |
+| `INDETERMINATE` | 一致したが、無効形状の範囲が地点を覆うため、原典からも確定できない（PASSに数えない） |
+| `OUT_OF_SCOPE` | 登録した対象地域の外で、Providerも対象外と返した |
+| `ERROR` | 検証の処理自体の失敗 |
+
+- 標準出力に要約を表示します。`--report-dir` には `summary.json`（来歴・照合・集計）、`points.jsonl`（全地点。再現用の座標を含む）、`cases.json`（原因ごとの代表例）を保存します。
+- `INDETERMINATE` の地点では、無効形状を3つの読み方（偶奇規則・GEOSの `make_valid`・外周だけ）で見た結果も参考として出力します。**判定や浸水深には使いません。**
+- 終了コードは次のとおりです。0: FAIL・ERRORがなく、照合も一致。1: FAILまたは照合の不一致。2: 引数の誤り。3: 検証の処理の失敗。
+- 抽出した地点の一致は、全区域の正しさを保証するものではありません。別の都道府県でも、登録と索引があれば同じコマンドで検証できます。
+
+**東京都での結果（2026-11-02、Docker、Seed 20261102、732地点、約5分）**
+
+- 原典と索引の照合は、2つのソースとも一致した（東京都 261,706行、関東地方整備局 126,442行の全行。原典の地物 261,312・2,438,935、無効の構成 1,943・40,853。対象地域の10m以内に関係する地物の欠落なし）。3つのZIPのSHA-256も、索引の作成時と一致した。
+- 地点: `PASS` 179、`FAIL` 0、`INDETERMINATE` 435、`OUT_OF_SCOPE` 118、`ERROR` 0。`INDETERMINATE` の原因は、すべてGEOSの無効形状である（関東地方整備局の「Ring Self-intersection」（頂点での自己接触）、東京都の「Interior is disconnected」と自己接触）。
+- 狛江市東和泉（35.625065, 139.573836）: 原典の有効な区域には該当がない。関東地方整備局の無効な9つの構成（多摩川・浅川・大栗川）の外接矩形に入るため、`unknown` になる。そのうち3つ（3河川のランク3「3.0～5.0m未満」）は、参考の3つの読み方がすべて「内部」と読む。自己接触の位置は地点から1.5〜3km離れている。つまり、原典に区域がないのではなく、無効形状のため確定できない。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

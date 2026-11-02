@@ -5,6 +5,7 @@
 #   docker compose --profile init run --rm token          # once: Bearer token file
 #   docker compose --profile init run --rm elevation-init # once: fixture elevation data
 #   docker compose --profile init run --rm flood-index    # once (and after a flood registration change)
+#   docker compose --profile verify run --rm flood-verify  # check the flood index against the source
 #
 # Host exposure is 127.0.0.1 only. Official data, the regions file and the token stay outside Git
 # and outside the image; they are mounted read only. See README "Docker Compose".
@@ -128,6 +129,19 @@ services:
     volumes:
       - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
       - flood-index:/var/lib/hererisk-flood
+
+  flood-verify:   # one-shot check of the flood index / provider against the official ZIPs (read only)
+    <<: *hardening
+    profiles: ["verify"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 4g
+    command: ["python", "-m", "hererisk.flood", "verify", "--regions", "/data/regions.json",
+              "--index", "/var/lib/hererisk-flood/flood-index.sqlite", "--report-dir", "/reports"]
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood:ro
+      - ${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports
 
   token:   # creates ${HERERISK_SECRET_DIR}/api-token (0600); refuses to overwrite
     <<: *hardening
