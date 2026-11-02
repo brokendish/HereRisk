@@ -12,7 +12,9 @@ connected and the address / elevation sections not connected. For each point:
    ``GET /api/v1/diagnostics/flood`` equals that ``hazards.flood`` section and the Flood Provider's answer
 2. the interpretations are exactly the Provider's ``unknowns`` (source_id, zone_ref, order); their
    classes, reason codes and relations equal ``DiagIndex.diagnose`` (Phase 4-E); every reason code is
-   known to the catalog (Phase 4-F); no depth except for a candidate read as inside, and then the source's
+   known to the catalog (Phase 4-F); no depth except for a candidate read as inside, and then the source's;
+   (Phase 4-I) every reason has a cause, no placeholder is left in a text, and a no_local_boundary text
+   shows the largest radius of the settings (the radius actually searched)
 3. the Phase 4-D cases (``--cases-dir``): none is a candidate
 4. the same points from ``--threads`` threads, and from 4x as many: identical answers or an explicit
    ``busy`` (counted); timings and memory
@@ -65,6 +67,7 @@ def run(regions: Path, flood_index: Path, diag_index: Path, baseline: Path, *, c
     off, on = LocationApi(orchestrator), LocationApi(orchestrator, flood_diagnosis=fd.lookup)
     diag = DiagIndex(diag_index, flood_index=flood_index)            # Phase 4-E records (reference)
     checks, kinds, statuses, reasons, case_result = Counter(), Counter(), Counter(), Counter(), Counter()
+    causes = Counter()
     records, t_loc, t_api, per_point_targets = [], [], [], Counter()
     sequential = {}
     for n, pt in enumerate(points):
@@ -109,6 +112,15 @@ def run(regions: Path, flood_index: Path, diag_index: Path, baseline: Path, *, c
             reasons.update(f"{it['interpretation']}:{c}" for c in it["reasons"])
             if not all(m["known"] for m in it["reason_messages"]):
                 checks["UNEXPLAINED_REASON"] += 1
+            for m in it["reason_messages"]:
+                causes[f"{m['code']}:{m['cause']}"] += 1
+                if m["cause"] is None:
+                    checks["REASON_WITHOUT_CAUSE"] += 1
+                if "{" in m["message_ja"] + m["detail_ja"] or "}" in m["message_ja"] + m["detail_ja"]:
+                    checks["PLACEHOLDER_LEFT"] += 1
+                if m["code"] == "no_local_boundary":
+                    shown = f"周辺{radii[-1]:g}mの範囲では"
+                    checks["search_radius_shown" if m["message_ja"].startswith(shown) else "SEARCH_RADIUS_NOT_SHOWN"] += 1
             text = it["message"]["message_ja"] + it["message"]["detail_ja"]
             if any(b in text for b in BANNED):
                 checks["BANNED_WORDING"] += 1
@@ -124,7 +136,8 @@ def run(regions: Path, flood_index: Path, diag_index: Path, baseline: Path, *, c
             records.append({"category": pt["category"], "lat": lat, "lon": lon, "source_id": it["source_id"],
                             "zone_ref": it["zone_ref"], "classification": it["classification"],
                             "interpretation": it["interpretation"], "relation": it["relation"],
-                            "reasons": it["reasons"], "message_ja": it["message"]["message_ja"],
+                            "reasons": it["reasons"], "causes": [m["cause"] for m in it["reason_messages"]],
+                            "message_ja": it["message"]["message_ja"], "message_version": d["message_version"],
                             "depth_class_code": (it["depth_class_in_source"] or {}).get("class_code")})
         if (n + 1) % 100 == 0:
             log(f"diag-api verify: {n + 1}/{len(points)} points")
@@ -160,7 +173,7 @@ def run(regions: Path, flood_index: Path, diag_index: Path, baseline: Path, *, c
             "checks": dict(checks), "failed": sorted(k for k in checks if k.isupper()),
             "diagnostic_status": dict(statuses), "interpretations": dict(kinds),
             "targets_per_point": {str(k): v for k, v in sorted(per_point_targets.items())},
-            "reasons": dict(reasons.most_common()), "cases": dict(case_result),
+            "reasons": dict(reasons.most_common()), "causes": dict(causes.most_common()), "cases": dict(case_result),
             "timing_ms": {"location_api": _dist(t_loc), "diagnostic_api": _dist(t_api)},
             "concurrency": concurrency,
             "memory": {"rss_start_bytes": rss0, "rss_after_provider_bytes": rss_provider,

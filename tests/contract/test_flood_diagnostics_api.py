@@ -32,9 +32,9 @@ GRID = [tuple(reversed(ll(x, y))) for x in range(-20, 1080, 53) for y in range(-
 BANNED = ("安全", "浸水しません", "区域外です", "該当しません", "誤り", "危険")
 
 
-def _api(prepared, **kw):
+def _api(prepared, radii=RADII, **kw):
     regions, index, diag_path, _ = prepared
-    return FloodDiagnosisApi(FloodProvider(regions, index), diag_path, index, RADII, **kw)
+    return FloodDiagnosisApi(FloodProvider(regions, index), diag_path, index, radii, **kw)
 
 
 def _targets(section):
@@ -98,8 +98,10 @@ def test_interpretations_per_kind(prepared) -> None:
     assert doc["official_assessment"]["status"] == "unknown"                  # not turned into no_match
     # 3. undetermined: the Phase 4-F message of the representative reason, no depth
     lat, lon, it = kinds["undetermined"]
-    rep = pr.resolve_reasons(it["reasons"], "flood")["representative"]
-    assert it["message"] == {"code": rep["code"], "message_ja": rep["message_ja"], "detail_ja": rep["detail_ja"]}
+    rec = next(r for r in _records(prepared, lat, lon) if r["zone_ref"] == it["zone_ref"])
+    rep = pr.resolve_reasons(it["reasons"], "flood", params=reason_messages.message_params(rec))["representative"]
+    assert it["message"] == {"code": rep["code"], "cause": rep["cause"], "message_ja": rep["message_ja"],
+                             "detail_ja": rep["detail_ja"]}
     assert it["depth_class_in_source"] is None and it["relation"] is None
     assert [m["code"] for m in it["reason_messages"]] == it["reasons"] and all(m["known"] for m in it["reason_messages"])
 
@@ -393,3 +395,26 @@ def test_diag_api_verify_cli(prepared, tmp_path, capsys) -> None:
     assert out["concurrency"]["4"]["requests"] == n
     diag_path.unlink()
     assert flood_cli(args[:-2]) == 3
+
+
+
+def test_search_radius_comes_from_the_record(prepared) -> None:
+    """Phase 4-I: the radius in the no_local_boundary text is the largest radius actually searched."""
+    for radii, shown in ((RADII, "100"), ([5, 10, 25, 50], "50")):
+        api = _api(prepared, radii=radii)
+        seen = 0
+        for lat, lon in GRID:
+            doc = api.lookup(lat, lon)
+            assert doc["diagnostic"]["message_version"] == "v0.2" and doc["diagnostic"]["radii_m"] == radii
+            for it in doc["diagnostic"]["interpretations"] or []:
+                text = json.dumps(it, ensure_ascii=False)
+                assert "{max_radius_m}" not in text
+                for m in it["reason_messages"]:
+                    assert m["cause"] in pr.CAUSES
+                    if m["code"] == "no_local_boundary":
+                        seen += 1
+                        assert m["cause"] == "search_scope"
+                        assert m["message_ja"].startswith(f"周辺{shown}mの範囲では") and f"半径{shown}m" in m["detail_ja"]
+                if it["message"].get("code") == "no_local_boundary":
+                    assert it["message"]["message_ja"].startswith(f"周辺{shown}mの範囲では")
+        assert seen, radii

@@ -1,8 +1,8 @@
 # 洪水の参考解析API v0.1（Phase 4-G、初期実装）
 
-- 状態: Phase 4-G で実装。**初期値は無効**。管理者が `diagnosis.api_enabled: true` を設定したときだけ公開される。一般公開の経路（リバースプロキシ）にはつないでいない。
+- 状態: Phase 4-G で実装、Phase 4-I で文言 v0.2・`cause` を追加（2.4節）。**初期値は無効**。管理者が `diagnosis.api_enabled: true` を設定したときだけ公開される。一般公開の経路（リバースプロキシ）にはつないでいない。
 - 実装: `hererisk.location.flood_diagnostics`（処理）、`hererisk.flood.reason_messages.interpret`（1区域分の解釈と文言）、`hererisk.common.polygon_reasons`（文言のカタログ）。
-- 前提: 分類は Phase 4-E の `flood-diagnosis-adoption-v1`、文言は [Polygon判定理由の共通仕様 v0.1](polygon-reason-catalog-v0.1.md)（Phase 4-F、9章に結果の文言）、位置の指定は [Location API v0.1](location-api-v0.1.md) 第2章と同じ。
+- 前提: 分類は Phase 4-E の `flood-diagnosis-adoption-v1`、文言は [Polygon判定理由カタログ v0.2](polygon-reason-catalog-v0.2.md)（Phase 4-F・4-I、9章に結果の文言）、位置の指定は [Location API v0.1](location-api-v0.1.md) 第2章と同じ。
 
 **公式データによる判定（`official_assessment`）と、HereRiskの参考解析（`diagnostic`）は別の情報である。** 参考解析は防災上の公式判定を置き換えない。正式な洪水判定への採用（昇格）は対象外。
 
@@ -37,7 +37,7 @@ GET /api/v1/diagnostics/flood?lat=<緯度>&lon=<経度>
     "certainty": "diagnostic_only",
     "method": "local-contour-winding-v1 (Phase 4-C local_analysis)",
     "adoption_version": "flood-diagnosis-adoption-v1",
-    "message_version": "v0.1",
+    "message_version": "v0.2",
     "diag_index": {"built_at": "…", "status": "complete", "derived_from_flood_index_built_at": "…"},
     "radii_m": [5, 10, 25, 50, 100],
     "targets_total": 9,
@@ -58,7 +58,7 @@ GET /api/v1/diagnostics/flood?lat=<緯度>&lon=<経度>
                     "message_ja": "この浸水深の想定区域に含まれる可能性があります。",
                     "detail_ja": "元の区域データを独自に解析した結果です。正式な判定ではありません。浸水深は原典の区分をそのまま示しています。"},
         "reasons": ["all_conditions_met"],
-        "reason_messages": [{"code": "all_conditions_met", "known": true, "message_ja": "…", "detail_ja": "…"}],
+        "reason_messages": [{"code": "all_conditions_met", "known": true, "cause": "result", "message_ja": "…", "detail_ja": "…"}],
         "method": "local-contour-winding-v1 (Phase 4-C local_analysis)",
         "adoption_version": "flood-diagnosis-adoption-v1"
       }
@@ -88,7 +88,7 @@ GET /api/v1/diagnostics/flood?lat=<緯度>&lon=<経度>
 | `diag_index` | 診断索引の作成日時と、作成元のflood索引の作成日時（起動時に一致を確認済み） |
 | `targets_total` / `max_targets` | 診断の対象（Providerの `unknowns`）の件数と上限 |
 | `interpretations` | 区域ごとの解釈（2.3節）。完了しなかったときは `null`（一部だけを返さない） |
-| `reason` | 完了しなかった理由（理由コードと日本語）。完了時は `null` |
+| `reason` | 完了しなかった理由（理由コード・`cause`・日本語）。完了時は `null` |
 | `notice` | 参考解析全体への注記 |
 
 ### 2.3 `interpretations[]`（1区域につき1件）
@@ -102,12 +102,26 @@ GET /api/v1/diagnostics/flood?lat=<緯度>&lon=<経度>
 | `candidate` ＋ 内側 | `candidate_inside` | `inside` | 原典の浸水深区分（そのまま） | 「この浸水深の想定区域に含まれる可能性があります。」 |
 | `candidate` ＋ 内側、原典の区分を確認できない | `candidate_inside_class_unknown` | `inside` | `null` | 「この浸水想定区域に含まれる可能性があります。」（浸水深は示さない） |
 | `candidate` ＋ 外側 | `candidate_outside` | `outside` | `null` | 「参考解析では、この想定区域の外側と解釈されました。」（説明に「浸水しないことを意味しません」） |
-| `undetermined` | `undetermined` | `null` | `null` | 理由コードの代表メッセージ（Phase 4-F、優先度順） |
+| `undetermined` | `undetermined` | `null` | `null` | 理由コードの代表メッセージ（優先度順）。`message` に `code`・`cause` を含む |
 | `rejected` | `rejected` | `null` | `null` | 使えない理由の代表メッセージ |
 
 - 浸水深区分は原典の属性（`A31a_205` とその表）をそのまま返す。HereRiskが水深を計算したものではない。`candidate` で内側と読めた場合以外は、区分を推測して付けない。
 - `candidate_outside` は「区域がない」「浸水しない」「安全」を意味しない。`no_match` にしない。
-- `reasons` は全件を保持し、`reason_messages` に各コードの日本語を付ける（未知のコードも `known: false` で残す）。
+- `reasons` は全件を保持し、`reason_messages` に各コードの日本語と `cause`（定義上確かな場合は `background_cause` も）を付ける（未知のコードも `known: false`・`cause: null` で残す）。
+
+### 2.4 Phase 4-I の差分（意図した契約変更）
+
+| 項目 | Phase 4-G | Phase 4-I |
+|---|---|---|
+| `diagnostic.message_version` | `v0.1` | `v0.2` |
+| `reason_messages[].cause`・`message.cause`（理由コードの場合）・`diagnostic.reason.cause` | なし | 追加（[カタログ v0.2](polygon-reason-catalog-v0.2.md) 2.1節） |
+| `reason_messages[].background_cause` | なし | 定義上確かなコードだけに追加 |
+| `no_local_boundary` の文言 | 「周辺の境界情報だけでは、浸水想定区域内かどうかを確実に判定できません。」 | 「周辺{max_radius_m}mの範囲では判定に必要な浸水想定区域の境界を確認できないため、判定を保留しています。」 |
+| `defect_within_decision_radius`・`ambiguous_nearest` の文言、`defect_within_max_radius` の説明 | v0.1 | v0.2（カタログ v0.2 第10章） |
+
+- **`{max_radius_m}` の値**: その記録で、局所の探索が最大半径まで境界なしで終わったときの `evidence.stopped_at_m`（実際に調べた最大半径。設定の半径の列の最後の値と同じ）。API側の定数は使わない。設定の半径の列が `[5, 10, 25, 50]` なら「周辺50m」と表示される（テストで確認）。値のない記録は、数値なしの文言になる。
+- **変えていないもの**: `official_assessment`、診断対象の `source_id`・`zone_ref`、分類（`candidate` / `undetermined` / `rejected`）、`relation`、浸水深区分、理由コードの配列と代表の優先順位、`schema_version`、上限・時間切れ・混雑の扱い、Shadow。
+- **`schema_version` を `flood-diagnostic-v0.1` のまま据え置いた理由**: 変更はフィールドの追加と文言（`message_version` で版を管理）だけで、既存のフィールドの削除・名称・型・意味は変えていない。ただし共通API契約 第8章では「追加フィールドを許容する規則」が未決定であり、追加を自動的に互換とはしていない。本APIは初期値が無効で、利用者がいないため据え置いたが、**この判断はOWNERの確認事項とする**（第7章 5）。
 
 ## 3. 実行方式・上限・異常時
 
@@ -164,3 +178,4 @@ Phase 4-C の固定シードの地点（自動生成、利用者の位置では�
 2. 画面での表示方法（公式の区域と見た目で区別し、注記を必ず添える）。
 3. 上限値（接続数2・対象32件・1秒）を運用環境に合わせて見直すか。
 4. Stage 3案（[洪水診断の提示契約](flood-diagnosis-stage3-draft.md)）の条件（`candidate` 以外を提示しない等）との関係。本APIは「参考情報の取得」のための独立したエンドポイントで、`undetermined`・`rejected` も理由とともに返す。正式な応答（`/api/v1/location`）への提示は引き続きStage 3案の条件とOWNERの承認による。
+5. Phase 4-I の追加フィールド（`cause` など）で `schema_version` を据え置いたことの確認（2.4節）。

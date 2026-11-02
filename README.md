@@ -535,7 +535,7 @@ docker compose --profile shadow rm -sf location-api-shadow          # 確認後�
 
 ### Polygon判定理由の共通仕様と日本語メッセージ（Phase 4-F）
 
-Polygon由来の判定で「判定できた範囲」と「判定できない理由」を日本語で伝えるための共通カタログです（`hererisk.common.polygon_reasons`）。仕様は [Polygon判定理由の共通仕様 v0.1](docs/api/polygon-reason-catalog-v0.1.md) にあります。**正式なLocation APIの応答とShadowの分類は変えません。**
+Polygon由来の判定で「判定できた範囲」と「判定できない理由」を日本語で伝えるための共通カタログです（`hererisk.common.polygon_reasons`）。仕様は [Polygon判定理由カタログ v0.2](docs/api/polygon-reason-catalog-v0.2.md) にあります。**正式なLocation APIの応答とShadowの分類は変えません。**
 
 - **理由コード**: 機械判定用の安定したコードで、既存のコード名をそのまま使います。文言は一か所で管理し、`message_version` で版を付けます。各コードは次の属性を持ちます。
   - 短い文言（`message_ja`）と詳しい説明（`detail_ja`）
@@ -603,9 +603,18 @@ docker compose --profile diagnostic-api rm -sf location-api-diagnostic   # 確�
 洪水・津波・高潮・土砂災害で共通に使えるPolygon判定の基盤について、責務の分け方・内部契約案・段階的な移行計画をまとめました。**コード・索引・APIの応答は変えていません。**
 
 - [設計レビュー](docs/architecture/polygon-engine-review-v0.1.md): 既存処理の棚卸し（共通・ハザード固有・条件だけ個別）、リスク、依存関係の規則、推奨構成
-- [Polygon Engine 内部契約案](docs/api/polygon-engine-contract-draft-v0.1.md): 入出力、判定の状態とエラー、識別子、世代、正式判定と参考解釈の分離、合成Geometryの試験項目
+- [Polygon Engine 共通契約 v0.2](docs/api/polygon-engine-contract-v0.2.md)（Phase 4-I で確定。旧: [契約案 v0.1](docs/api/polygon-engine-contract-draft-v0.1.md)）: 入出力、判定の状態とエラー、識別子、世代、正式判定と参考解釈の分離、合成Geometryの試験項目
 - [移行計画](docs/architecture/polygon-engine-migration-plan-v0.1.md): Step 1〜4、回帰基準（東京都・洪水の601地点・2,113組）、ロールバック条件、Codexの独立検証の時期
-- [ADR-002案](docs/decisions/2026-11-02-polygon-engine-responsibility-draft.md): Engineは幾何の事実だけを返し、意味と採用基準はハザードが持つ（未決定）
+- [ADR-002](docs/decisions/2026-11-03-polygon-engine-responsibility.md): Engineは幾何の事実だけを返し、意味と採用基準はハザードが持つ（Phase 4-I で ACCEPTED）
+
+### Polygon共通契約の確定と日本語メッセージv0.2（Phase 4-I）
+
+Polygon共通基盤の責務を [ADR-002](docs/decisions/2026-11-03-polygon-engine-responsibility.md) として確定し、共通の内部契約を [v0.2](docs/api/polygon-engine-contract-v0.2.md) に整理しました（Engine本体は未実装）。理由コードのカタログを [v0.2](docs/api/polygon-reason-catalog-v0.2.md) に更新しました。**判定・分類・索引・正式な洪水判定は変えていません。**
+
+- **原因の区分 `cause`**: すべての理由コードに、直接の原因を付けました（`source_geometry`・`search_scope`・`analysis_method`・`point_position`・`coverage`・`index_data`・`analysis_scope`・`processing`・`result`）。`no_local_boundary` は `search_scope`（探索範囲による判定保留）で、原典の不整合ではありません。コード・category・concept・priority・scope は v0.1 から変えていません（テストで固定）。
+- **文言 v0.2**: 探索範囲による判定保留は、実際に調べた最大半径を値として示します（例「周辺100mの範囲では判定に必要な浸水想定区域の境界を確認できないため、判定を保留しています。」）。半径は記録の `evidence.stopped_at_m` から取り、値がなければ数値なしの文言にします。輪郭の接点・交点は「不整合」と断定しない文言にしました。
+- **参考解析API**: `message_version` が `v0.2` になり、各理由に `cause` が付きます。`schema_version` は据え置きました（[API仕様 2.4節](docs/api/flood-diagnostic-api-v0.1.md)）。
+- **東京都での確認（601地点・2,113組）**: 分類・理由コード・区域の識別子・内外・浸水深区分は Phase 4-G と全件一致しました。文言が変わったのは `no_local_boundary`（936組）、`defect_within_decision_radius`（66組）、`ambiguous_nearest`（16組）の代表メッセージだけです。Shadowの分類・集計も Phase 4-F と同一でした。
 
 ## Docker Compose（Phase 3-G、開発・実行環境）
 

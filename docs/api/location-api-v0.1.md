@@ -483,7 +483,7 @@ Phase 2-Cで残ったBlocking（利用条件、認可、派生形状、精度プ
 - Shadowが有効なのに診断索引の指定がない場合、および診断索引の指定があるのにShadowが無効の場合は、終了コード2。
 - 実行中の失敗は、件数と例外の種類だけを記録して `state: "error"` にする。正式な応答には影響しない。
 
-将来、診断結果を正式な応答で利用者に提示する場合の契約案は [洪水診断の提示契約（Stage 3案）](flood-diagnosis-stage3-draft.md) にある。本APIには追加していない（参考情報を別のエンドポイントで取得する方法は8.7節）。理由コードの日本語の説明は [Polygon判定理由の共通仕様 v0.1](polygon-reason-catalog-v0.1.md)（Phase 4-F）で一元管理し、応答の `reasons`・`reason`・`unknowns[].reason` のコードもそこで説明する。応答そのものには文言を追加していない。
+将来、診断結果を正式な応答で利用者に提示する場合の契約案は [洪水診断の提示契約（Stage 3案）](flood-diagnosis-stage3-draft.md) にある。本APIには追加していない（参考情報を別のエンドポイントで取得する方法は8.7節）。理由コードの日本語の説明は [Polygon判定理由カタログ v0.2](polygon-reason-catalog-v0.2.md)（Phase 4-F）で一元管理し、応答の `reasons`・`reason`・`unknowns[].reason` のコードもそこで説明する。応答そのものには文言を追加していない。
 
 ### 8.7 洪水の参考解析API（Phase 4-G、初期値は無効）
 

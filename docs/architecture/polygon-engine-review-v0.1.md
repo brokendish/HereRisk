@@ -1,10 +1,10 @@
 # Polygon判定処理の共通化 設計レビュー v0.1（Phase 4-H）
 
-- 状態: **設計レビュー（提案。OWNERレビュー待ち）**。本書は実装・データ再構築・既存の契約の変更の承認ではない。
+- 状態: **設計レビュー（提案）**。本書は実装・データ再構築・既存の契約の変更の承認ではない。2026-11-03 Phase 4-I で、責務の分け方を [ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md) として採用し、`cause` と文言 v0.2 を実装した（第12章の U-2（配置だけ）・U-9・U-10）。それ以外の未決定事項は未決定のまま。
 - 作成: 2026-11-02（Claude）
 - 基準コミット: `c8845dabde601c41eede00355518802cc3ebf3f2`（Phase 4-G）
 - 改訂: 2026-11-03 Phase 4-H.1（基準 `cd97905d2eb0c34cbceaba406be467950fa358e2`）— 原典の形状状態と、HereRiskの探索・解析状態を分ける第13章を追加した。あわせて 4.2節・第5章（R-11・R-12）・第12章（U-9〜U-12）を更新した。コード・索引・API・理由コードのカタログは変更していない
-- 関連: [契約案](../api/polygon-engine-contract-draft-v0.1.md)、[移行計画](polygon-engine-migration-plan-v0.1.md)、[ADR-002案](../decisions/2026-11-02-polygon-engine-responsibility-draft.md)、[Design Principles](design-principles-v1.0.md)、[ADR-001](../decisions/2026-10-25-multiple-official-hazard-results.md)、[Dataset Registry](dataset-registry-v0.1.md)、[Data Publish](data-publish-v0.1.md)、[共通API契約](../api/common-contract-v0.1.md)、[座標精度方針（案）](hazard-source-format-precision-policy-v0.1.md)、[Polygon判定理由の共通仕様](../api/polygon-reason-catalog-v0.1.md)
+- 関連: [共通契約 v0.2](../api/polygon-engine-contract-v0.2.md)、[移行計画](polygon-engine-migration-plan-v0.1.md)、[ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md)、[Design Principles](design-principles-v1.0.md)、[ADR-001](../decisions/2026-10-25-multiple-official-hazard-results.md)、[Dataset Registry](dataset-registry-v0.1.md)、[Data Publish](data-publish-v0.1.md)、[共通API契約](../api/common-contract-v0.1.md)、[座標精度方針（案）](hazard-source-format-precision-policy-v0.1.md)、[Polygon判定理由カタログ v0.2](../api/polygon-reason-catalog-v0.2.md)
 
 ## 0. 結論（要約）
 
@@ -285,15 +285,15 @@ hererisk/location/<hazard>_provider.py      状態の対応・提示（B-3・B-4
 | ID | 事項 |
 |---|---|
 | U-1 | 次のハザードを津波（A40）とするか |
-| U-2 | 共通Engineの置き場所（`hererisk.common.polygon`）と、正本にする局所輪郭法の実装（SQLite上を推奨） |
+| U-2 | 共通Engineの置き場所（`hererisk.common.polygon`）と、正本にする局所輪郭法の実装（SQLite上を推奨）。**置き場所は Phase 4-I で決定（ADR-002）。正本は未決定** |
 | U-3 | 正式索引・診断索引を、Data Publish・Dataset Registryの世代としてどう管理するか（現在は対象外のローカル検証の成果物） |
 | U-4 | 複数ハザードのメモリの方式（9.2節の (a)〜(c)）。計測の結果による |
 | U-5 | 座標の精度プロファイル（整数・8桁）を、新しいハザードで採用するか（洪水は浮動小数のまま） |
 | U-6 | API入力（WGS84）とJGD2011の扱い（ON-11） |
 | U-7 | 共通の既定の採用方針を置くか（置く場合も、ハザードが明示的に選ぶ） |
 | U-8 | A40・A49の原典の自己接触を、洪水と同じく判定保留とするか（Phase 2-C.6 の未決定事項） |
-| U-9 | 理由コードに原因の区分 `cause` を追加するか（13.3節。既存の `category` は変えない） |
-| U-10 | 文言 v0.2 案（13.5節。探索半径を値として埋め込む）を採用するか |
+| U-9 | 理由コードに原因の区分 `cause` を追加するか（13.3節。既存の `category` は変えない）。**Phase 4-I で採用・実装**（[カタログ v0.2](../api/polygon-reason-catalog-v0.2.md)） |
+| U-10 | 文言 v0.2 案（13.5節。探索半径を値として埋め込む）を採用するか。**Phase 4-I で採用・実装**。`defect_within_max_radius` は message を変えず、説明だけを改めた |
 | U-11 | 無効Polygonで、全体の回転数による読み（局所に境界がない場合）を、追加の条件付きで参考解釈に使うか（13.6節。Stage 3案の未決定事項3と同じ） |
 | U-12 | 問題箇所のうち正当な接触（別の環どうしの1点接触）を、`defect_within_*` の対象から外すか（13.4節。分類が変わるため、洪水の回帰基準の改訂を伴う） |
 

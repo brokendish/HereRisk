@@ -1,5 +1,7 @@
 # Polygon判定理由の共通仕様と日本語メッセージカタログ v0.1
 
+> **この版は [v0.2](polygon-reason-catalog-v0.2.md)（Phase 4-I）で置き換えた。** 記録として残す。実装の現行の版は v0.2。
+
 - 状態: Phase 4-F で実装（`hererisk.common.polygon_reasons`、`message_version: v0.1`）。正式なLocation APIの応答には追加していない。Phase 4-G で、結果の文言（9章）と処理状態のコード2つ（`diagnosis_limit_exceeded`・`diagnosis_busy`）を追加し、[洪水の参考解析API](flood-diagnostic-api-v0.1.md) で使用している。
 - 対象: Polygon由来の判定（洪水から開始。津波・高潮・土砂災害などのProviderも同じ機能を使える）。
 

@@ -101,7 +101,7 @@ class FloodDiagnosisApi:
             "targets_total": total, "max_targets": MAX_TARGETS, "interpretations": interpretations,
             "reason": None if reason is None else {
                 k: v for k, v in resolve_reason(reason, HAZARD_TYPE).items()
-                if k in ("code", "message_ja", "detail_ja", "message_version")},
+                if k in ("code", "cause", "message_ja", "detail_ja", "message_version")},
             "notice": {"message_ja": notice["message_ja"], "detail_ja": notice["detail_ja"]},
         }
         return {"schema_version": SCHEMA_VERSION, "hazard_type": HAZARD_TYPE, "location": {"lat": lat, "lon": lon},

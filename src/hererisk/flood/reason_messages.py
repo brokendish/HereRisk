@@ -10,6 +10,11 @@ Phase 4-G: the flood wording of the result kinds (``register_hazard_results``) a
 element of ``diagnostic.interpretations`` of ``GET /api/v1/diagnostics/flood``
 (``hererisk.location.flood_diagnostics``). The source's depth class is shown only for a candidate read
 as inside, as the source gives it; never computed, never guessed for any other result.
+
+Phase 4-I (messages v0.2): ``message_params`` gives the display parameters of a record from the
+record itself: ``max_radius_m`` is the largest radius actually searched (``evidence.stopped_at_m`` of
+a record whose local search reached the largest radius without a boundary), never a constant. Without
+it the text without the number is used. The classification and the reason codes are not touched.
 """
 
 from __future__ import annotations
@@ -23,8 +28,11 @@ HAZARD_TYPE = "flood"
 KIND_OF = {"candidate": "diagnostic_candidate", "undetermined": "undetermined", "rejected": "not_applicable"}
 
 
-def _f(code, message, detail, **extra):
-    return {"code": code, "scope": HAZARD_TYPE, "text": {"ja": {"message": message, "detail": detail}}, **extra}
+def _f(code, message, detail, fallback=None, **extra):
+    text = {"message": message, "detail": detail}
+    if fallback:
+        text["fallback"] = {"message": fallback[0], "detail": fallback[1]}
+    return {"code": code, "scope": HAZARD_TYPE, "text": {"ja": text}, **extra}
 
 
 FLOOD = [
@@ -36,17 +44,22 @@ FLOOD = [
        "地点が、形状の検査で不整合が見つかった浸水想定区域の範囲（外接矩形）に入るため、判定を保留しています。"
        "浸水しないことを意味しません。"),
     _f("defect_within_max_radius", "元の区域データの境界に不整合があるため、正確に判定できません。",
-       "周辺の輪郭からは浸水想定区域の内外を読めましたが、調べる範囲の中に輪郭の不整合箇所があるため、その読みを確定していません。"),
-    _f("defect_within_decision_radius", "判定に必要な範囲で、区域データの形状に不整合が見つかりました。",
-       "地点の周辺で判定に使う範囲の中に、浸水想定区域の輪郭が自身と接する・交わる箇所があるため、判定を保留しています。"),
-    _f("no_local_boundary", "周辺の境界情報だけでは、浸水想定区域内かどうかを確実に判定できません。",
-       "調べる範囲の中に浸水想定区域の境界がなく、周辺の情報だけでは内外を確定できないため、判定を保留しています。"),
+       "この浸水想定区域のデータの形状には不整合があります。周辺の輪郭からは内外を読めましたが、調べる範囲の中に輪郭が"
+       "接する・交わる箇所があるため、その読みを確定していません。"),
+    _f("defect_within_decision_radius", "判定に必要な範囲に、区域データの輪郭が接する・交わる箇所があるため、判定を保留しています。",
+       "地点の周辺で判定に使う範囲の中に、浸水想定区域の輪郭が接する・交わる箇所があります。原典の形状の不整合とは限りませんが、"
+       "この範囲では内外の読みを確定していません。"),
+    _f("no_local_boundary", "周辺{max_radius_m}mの範囲では判定に必要な浸水想定区域の境界を確認できないため、判定を保留しています。",
+       "設定した探索範囲（半径{max_radius_m}m）の中に浸水想定区域の境界がありませんでした。探索範囲による結果で、"
+       "区域データの不整合を示すものではありません。",
+       fallback=("周辺の探索範囲では判定に必要な浸水想定区域の境界を確認できないため、判定を保留しています。",
+                 "設定した探索範囲の中に浸水想定区域の境界がありませんでした。探索範囲による結果で、区域データの不整合を示すものではありません。")),
     _f("outside_service_region", "この地点は、登録している浸水想定区域データの対象地域の外です。",
        "登録している浸水想定区域データの対象地域（提供範囲）に含まれないため、判定していません。"
        "浸水しないことを意味しません。"),
     _f("flood_response_limit_exceeded", "該当する浸水想定区域が多すぎるため、結果を表示できません。",
        "該当件数が上限を超えたため、一部だけの結果は返していません。",
-       category="processing", concept="processing_failure", priority=17),
+       category="processing", concept="processing_failure", priority=17, cause="processing"),
 ]
 register_hazard_messages(HAZARD_TYPE, FLOOD)
 
@@ -69,10 +82,19 @@ FLOOD_RESULTS = [
 register_hazard_results(HAZARD_TYPE, FLOOD_RESULTS)
 
 
+def message_params(record: dict[str, Any]) -> dict[str, Any]:
+    """Display parameters taken from the record (nothing assumed): the largest radius searched when the
+    local search reached it without a boundary."""
+    ev = record.get("evidence") or {}
+    if ev.get("local_outcome") == "no_boundary_within_max_radius" and ev.get("stopped_at_m") is not None:
+        return {"max_radius_m": ev["stopped_at_m"]}
+    return {}
+
+
 def explain(record: dict[str, Any], locale: str = "ja") -> dict[str, Any]:
     """User and technical layers of one classification record (``adoption.classify`` / ``diagnose``)."""
     kind = KIND_OF[record["classification"]]
-    r = resolve_reasons(record["reasons"], HAZARD_TYPE, locale)
+    r = resolve_reasons(record["reasons"], HAZARD_TYPE, locale, message_params(record))
     return {
         "assessment_kind": kind, "assessment_label_ja": ASSESSMENT_KINDS[kind]["ja"],
         "user": {"message_ja": r["representative"]["message_ja"] if r["representative"] else None,
@@ -111,13 +133,15 @@ def interpret(record: dict[str, Any], locale: str = "ja") -> dict[str, Any]:
     if kind.startswith("candidate_"):
         message = {"kind": kind, **_text(resolve_result(kind, HAZARD_TYPE, locale))}
     else:
-        rep = resolve_reasons(record["reasons"], HAZARD_TYPE, locale)["representative"]
-        message = {"code": rep["code"], **_text(rep)}
+        rep = resolve_reasons(record["reasons"], HAZARD_TYPE, locale, message_params(record))["representative"]
+        message = {"code": rep["code"], "cause": rep["cause"], **_text(rep)}
     return {"source_id": record.get("source_id"), "zone_ref": record.get("zone_ref"),
             "classification": cls, "relation": record.get("relation") if cls == "candidate" else None,
             "interpretation": kind, "assessment_kind": e["assessment_kind"],
             "assessment_label_ja": e["assessment_label_ja"], "certainty": "diagnostic_only", "official": False,
             "depth_class_in_source": depth, "message": message,
             "reasons": e["technical"]["reasons"],
-            "reason_messages": [{"code": m["code"], "known": m["known"], **_text(m)} for m in e["technical"]["messages"]],
+            "reason_messages": [{"code": m["code"], "known": m["known"], "cause": m["cause"],
+                                 **({"background_cause": m["background_cause"]} if "background_cause" in m else {}),
+                                 **_text(m)} for m in e["technical"]["messages"]],
             "method": record.get("method"), "adoption_version": record.get("adoption_version")}

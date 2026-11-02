@@ -1,5 +1,7 @@
 # Polygon Engine 内部契約案 v0.1（Phase 4-H）
 
+> **この版は [共通契約 v0.2](polygon-engine-contract-v0.2.md)（Phase 4-I）で置き換えた。** 記録として残す。
+
 - 状態: **契約案（未承認・未実装）**。本書のJSONは設計例であり、確定したスキーマではない。既存の洪水の索引・Provider・`/api/v1/location`・`/api/v1/diagnostics/flood` の形は変えない。
 - 作成: 2026-11-02（Claude）。基準コミット `c8845dabde601c41eede00355518802cc3ebf3f2`
 - 改訂: 2026-11-03 Phase 4-H.1（基準 `cd97905d2eb0c34cbceaba406be467950fa358e2`）— 原典の形状状態（`geometry_state`）と探索・解析状態（`analysis_state`）を独立した情報にした（3.3〜3.5節）。理由コードの原因の区分 `cause`（3.6節）、試験項目 G-22〜G-31 を追加した。既存の洪水の実装・API・カタログは変更していない
