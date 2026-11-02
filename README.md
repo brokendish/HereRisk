@@ -598,6 +598,15 @@ docker compose --profile diagnostic-api rm -sf location-api-diagnostic   # 確�
 
 `diag-api-verify` の終了コード: 0 全項目合格、1 不合格の項目あり、2 引数の誤り、3 入力の拒否・処理の失敗。
 
+### Polygon判定処理の共通化に向けた設計レビュー（Phase 4-H、設計のみ）
+
+洪水・津波・高潮・土砂災害で共通に使えるPolygon判定の基盤について、責務の分け方・内部契約案・段階的な移行計画をまとめました。**コード・索引・APIの応答は変えていません。**
+
+- [設計レビュー](docs/architecture/polygon-engine-review-v0.1.md): 既存処理の棚卸し（共通・ハザード固有・条件だけ個別）、リスク、依存関係の規則、推奨構成
+- [Polygon Engine 内部契約案](docs/api/polygon-engine-contract-draft-v0.1.md): 入出力、判定の状態とエラー、識別子、世代、正式判定と参考解釈の分離、合成Geometryの試験項目
+- [移行計画](docs/architecture/polygon-engine-migration-plan-v0.1.md): Step 1〜4、回帰基準（東京都・洪水の601地点・2,113組）、ロールバック条件、Codexの独立検証の時期
+- [ADR-002案](docs/decisions/2026-11-02-polygon-engine-responsibility-draft.md): Engineは幾何の事実だけを返し、意味と採用基準はハザードが持つ（未決定）
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
