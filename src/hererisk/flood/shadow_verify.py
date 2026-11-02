@@ -10,6 +10,7 @@ Points: the fixed-seed points of a Phase 4-C report (generated, not user positio
    be identical (JSON); the diagnosed zone_refs must be exactly the Provider's ``unknowns``
 2. the diagnosis records (``DiagIndex.diagnose``: classification, reason codes, decided radius,
    duration) and, offline, whether a candidate agrees with the Phase 4-C ``make_valid`` reading
+   and (Phase 4-F) every reason code explained by the message catalog
 3. the Phase 4-D cases (``--cases-dir``): case A (make_valid vs even-odd, 15 pairs) and case B (decided,
    then a defect at a larger radius, 521 pairs) must all be ``undetermined`` with their reason codes
 4. the same points from ``--threads`` threads at once through one Shadow provider: identical answers,
@@ -32,6 +33,7 @@ from typing import Any
 from hererisk.flood.adoption import ADOPTION_VERSION, CANDIDATE, UNDETERMINED
 from hererisk.flood.diag import DiagIndex, _baseline, _dist, _rss_bytes
 from hererisk.flood.errors import DiagIndexError
+from hererisk.flood.reason_messages import explain
 from hererisk.flood.settings import load_settings, radii as setting_radii
 
 
@@ -98,7 +100,11 @@ def run(regions: Path, flood_index: Path, diag_index: Path, baseline: Path, *, c
             for tag, keys in cases.items():
                 if key in keys:
                     case_result[tag][f"{r['classification']}:{','.join(r['reasons'])}"] += 1
-            records.append({"category": pt["category"], "lat": lat, "lon": lon, **r})
+            e = explain(r)                       # Phase 4-F: every reason code must have its message
+            unexplained = [m["code"] for m in e["technical"]["messages"] if not m["known"]]
+            checks["UNEXPLAINED_REASON" if unexplained else "reasons_explained"] += 1
+            records.append({"category": pt["category"], "lat": lat, "lon": lon, **r,
+                            "message_ja": e["user"]["message_ja"], "message_version": e["technical"]["message_version"]})
         if (n + 1) % 100 == 0:
             log(f"shadow verify: {n + 1}/{len(points)} points")
     shadow.drain(30)

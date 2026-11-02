@@ -1,7 +1,7 @@
 # 洪水診断の提示契約（Stage 3案）
 
 - 状態: **設計案（未承認・未実装）**。Location API v0.1 には追加していない。
-- 前提: Phase 4-E のShadow統合と分類（`flood-diagnosis-adoption-v1`）。
+- 前提: Phase 4-E のShadow統合と分類（`flood-diagnosis-adoption-v1`）。理由コードの文言と、責務の分け方（`official_assessment`・`diagnostic_interpretation`・`reasons`・`messages`・`source`）は [Polygon判定理由の共通仕様 v0.1](polygon-reason-catalog-v0.1.md) に従う。
 
 ## 1. 目的
 
@@ -32,7 +32,9 @@
       "relation": "inside",
       "depth_class": {"class_code": "3", "label": "3.0～5.0m未満"},
       "certainty": "diagnostic_only",
-      "notice": "原典の形状に不整合があるため、正式な区域としては判定できません。参考の解釈です。"
+      "reasons": ["all_conditions_met"],
+      "message_ja": "参考の解釈です。正式な判定ではありません。",
+      "message_version": "v0.1"
     }
   ]
 }
