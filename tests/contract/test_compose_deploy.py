@@ -132,6 +132,13 @@ def test_flood_verify_is_one_shot_and_read_only() -> None:
     assert "ports:" not in v
 
 
+def test_flood_local_analysis_is_one_shot_and_read_only() -> None:
+    v = _service("flood-local-analysis")
+    assert 'profiles: ["verify"]' in v and "network_mode: none" in v and 'restart: "no"' in v
+    assert "${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro" in v and "flood-index:/var/lib/hererisk-flood:ro" in v
+    assert "${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports" in v and "ports:" not in v
+
+
 def test_data_inventory_is_admin_only_and_isolated() -> None:
     inv = _service("data-inventory")
     assert 'profiles: ["admin"]' in inv

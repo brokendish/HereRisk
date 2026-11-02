@@ -4,6 +4,7 @@ Location API flood provider. A local verification artifact, not a Publish / Data
     python -m hererisk.flood build --regions <regions.json> --output <index.sqlite>
     python -m hererisk.flood trace --index <index.sqlite> --zone-ref <loc-zn-...>
     python -m hererisk.flood verify ...   (hererisk.flood.verify: independent check against the source)
+    python -m hererisk.flood local-analysis ...   (hererisk.flood.local_analysis: Phase 4-C PoC, diagnosis only)
 
 Build (``build_index``), per registered source and file:
 
@@ -273,6 +274,9 @@ def main(argv: list[str] | None = None) -> int:
     if argv[:1] == ["verify"]:
         from hererisk.flood.verify import main as verify_main   # kept apart from the builder on purpose
         return verify_main(argv[1:])
+    if argv[:1] == ["local-analysis"]:
+        from hererisk.flood.local_analysis import main as local_main
+        return local_main(argv[1:])
     parser = argparse.ArgumentParser(prog="python -m hererisk.flood")
     sub = parser.add_subparsers(dest="cmd", required=True)
     b = sub.add_parser("build", help="build the local flood search index from the registered ZIPs")

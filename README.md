@@ -330,6 +330,89 @@ PYTHONPATH=src .venv/bin/python -m hererisk.flood verify --regions ~/hererisk-da
 - 地点: `PASS` 179、`FAIL` 0、`INDETERMINATE` 435、`OUT_OF_SCOPE` 118、`ERROR` 0。`INDETERMINATE` の原因は、すべてGEOSの無効形状である（関東地方整備局の「Ring Self-intersection」（頂点での自己接触）、東京都の「Interior is disconnected」と自己接触）。
 - 狛江市東和泉（35.625065, 139.573836）: 原典の有効な区域には該当がない。関東地方整備局の無効な9つの構成（多摩川・浅川・大栗川）の外接矩形に入るため、`unknown` になる。そのうち3つ（3河川のランク3「3.0～5.0m未満」）は、参考の3つの読み方がすべて「内部」と読む。自己接触の位置は地点から1.5〜3km離れている。つまり、原典に区域がないのではなく、無効形状のため確定できない。
 
+### 無効Polygonの局所解析 PoC（Phase 4-C、診断専用）
+
+無効Polygonについて、地点を中心に小さな範囲から解析範囲を広げ、原典の頂点だけで内外を読めるかを調べるPoCです（`hererisk.flood.local_analysis`）。**Flood Providerの判定・応答、索引、原典は変更しません。** 結果は診断情報であり、確定した浸水深としては使いません。
+
+```sh
+docker compose --profile verify run --rm flood-local-analysis       # 指定地点 35.625065,139.573836 を含む
+PYTHONPATH=src .venv/bin/python -m hererisk.flood local-analysis --regions ~/hererisk-data/regions.json \
+  [--index <index.sqlite>] [--settings <flood-settings.json>] [--source ID] [--per-category 30] [--per-rank 5] \
+  [--defect-points 40] [--seed 20261102] [--point LAT,LON] [--report-dir ~/.hererisk-local/reports]
+```
+
+**方式（`local`）**: 輪郭を切ったり、つないだり、作り直したりはしない。
+
+- 構成ごとに、事前に次を求める（データ登録時に移せる処理）。
+  - 線分
+  - 各リングの向き（符号付き面積）
+  - 問題箇所: 隣接しない線分が接する・交わる位置。自己接触、交差、リング同士の接触を含む
+- 地点ごとに、半径 5 → 10 → 25 → 50 → 100 m の順で次を判定する。
+
+| 状況 | 結果 |
+|---|---|
+| 半径内に問題箇所がある | 判定不能 `defect_within_radius` |
+| 半径内に輪郭がない | 次の半径へ（最大半径でもない場合は `no_boundary_within_max_radius`） |
+| 最寄りの輪郭がある | 輪郭のどちら側にあるかと、遠方を含む全輪郭の回転数（外周＋穴）が一致したときだけ inside / outside。一致しなければ `inconsistent_winding` |
+
+局所的に輪郭が正常であることだけを、内部の根拠にはしない。
+
+**比較する読み方（診断用）**: 次の読み方を、地点ごとに記録します。
+
+- GEOS `make_valid`
+- 偶奇規則（Phase 4-B）
+- 外周だけ
+- 回転数
+- 解析範囲で切り出した形状（`clip_rect`）
+- 比較専用の方針 `local_plus_far`: 最大半径でも輪郭がないとき、遠方の回転数を採用する
+
+**対照**: 同じ地点の有効な構成も同じ方式で解析し、GEOSの `contains` と比べる。
+
+**設定**: `{"local_analysis": {"enabled": false, "initial_radius_m": 5, "expansion_radii_m": [10, 25, 50, 100], "max_radius_m": 100}}` の形式です（`hererisk.flood.settings`）。
+
+- すべてのキーが必須です。
+- 半径は昇順で、最大半径は最後の半径と等しくします。
+- `enabled: true` は現版では拒否します。
+- `describe()` が、将来のData Managerの画面向けに項目の定義を返します。
+- Flood Providerはこの設定を読みません。
+
+**レポート**: `--report-dir` に次を保存します。
+
+- `summary.json`
+- `points.jsonl`: 全地点・全構成・半径ごとの結果
+- `cases.json`: 代表例
+- `svg/`: 原典の輪郭・問題箇所・解析半径の図
+
+**終了コード**:
+
+- 0: 正常
+- 1: 対照の不一致、半径による読みの反転、Providerの `unknowns` と解析対象の不一致
+- 2: 引数・設定の誤り
+- 3: 処理の失敗
+
+同じ環境（同じイメージ）では、同じSeedで同じ地点を抽出します。MacのホストとLinuxのコンテナでは、GEOSの演算のわずかな差により、重なりの形状から抽出する区分の途中から地点が変わることがあります。
+
+**東京都での結果（2026-11-02、Docker、Seed 20261102、601地点、約4.5分）**
+
+- **指定地点（35.625065, 139.573836）**: 無効な9構成の内訳は次のとおり。
+  - ランク3の3構成（多摩川・浅川・大栗川）: 25mの半径で、19m先の輪郭の内側と読めた。回転数は1。最寄りの問題箇所は212〜234m先（4-BでGEOSが示した1か所は、最初に見つかった問題箇所にすぎない）。
+  - ランク2の3構成: 100mの半径で、55〜57m先の輪郭の外側と読めた。
+  - 残るランク3の3構成: 100m以内に輪郭がなく、`local` では決まらない。遠方の回転数は0（外部）。
+  - したがって `local` では地点全体を確定できない。`local_plus_far` なら、3河川とも「3.0～5.0m未満」になる。
+- **無効構成と地点の組（2,113組）**:
+  - `local` で決まったのは1,008組（outside 681・inside 327）。決まった組は、make_valid・偶奇規則と全件一致した。
+  - 決まらなかった組の内訳は、100m以内に輪郭なし 976、半径内に問題箇所 67、輪郭上 46、最寄りの輪郭が複数で側が一致しない 16。
+  - 半径で読みが反転した組は0件。
+- **地点（無効構成を含む357地点）**: すべての構成が決まったのは、`local` で64地点（17.9%）、`local_plus_far` で273地点（76.5%）。
+- **対照**: 有効な構成1,104組で、決まった891組はGEOSの `contains` と全件一致した。
+- **Providerとの照合**: Providerの `unknowns` と解析対象は601地点すべてで一致した。Providerの応答は変わらない。
+- **処理時間**（無効構成を含む地点）:
+  - 地点あたり: 中央値1.8ms、p95 5.7ms、最大13.6ms
+  - 1半径あたり: 中央値 約0.05ms
+  - 事前処理（線分化・問題箇所の検出）: 構成あたり中央値0.3ms、最大0.7s（35万線分）
+  - `make_valid` の初回: 最大2.7s
+- **メモリ**: 事前処理の結果は1,486構成で379MiB。ピークは約2.5GiBで、大半は検証用に原典を全件読む部分。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
