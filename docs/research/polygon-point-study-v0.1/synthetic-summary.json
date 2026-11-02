@@ -1,0 +1,3041 @@
+{
+ "study_version": "polygon-point-study-v0.1",
+ "kind": "synthetic",
+ "started_at": "2026-11-02T15:57:36.494854+00:00",
+ "program": {
+  "python": "3.14.3",
+  "shapely": "2.2.0",
+  "geos": "3.14.1",
+  "numpy": "2.5.4",
+  "machine": "aarch64",
+  "system": "Linux"
+ },
+ "origin": {
+  "lat": 35.0,
+  "lon": 139.0,
+  "m_per_deg": 111320.0
+ },
+ "cases": [
+  {
+   "name": "C01 square 50 m (valid)",
+   "note": "valid, small",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0005483177276 35, 139.0005483177276 35.000449155587496, 139 35.000449155587496, 139 35))",
+   "points": [
+    {
+     "label": "centre",
+     "x_m": 25,
+     "y_m": 25,
+     "lon": 139.00027415886382,
+     "lat": 35.000224577793745,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 24.9999,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "inside",
+       "radius_m": 25,
+       "edge_m": 25.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.065
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 25,
+       "edge_m": 25.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.038
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 25,
+       "edge_m": 25.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.031
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.093,
+      "interpretations_per_point": 0.043
+     }
+    },
+    {
+     "label": "outside",
+     "x_m": 80,
+     "y_m": 25,
+     "lon": 139.00087730836418,
+     "lat": 35.000224577793745,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 29.9999,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       0
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "outside",
+       "radius_m": 50,
+       "edge_m": 30.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.038
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 50,
+       "edge_m": 30.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.033
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 50,
+       "edge_m": 30.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.028
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "outside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.038,
+      "interpretations_per_point": 0.005
+     }
+    }
+   ]
+  },
+  {
+   "name": "C02 square 500 m (valid)",
+   "note": "valid, medium",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.00548317727615 35, 139.00548317727615 35.00449155587496, 139 35.00449155587496, 139 35))",
+   "points": [
+    {
+     "label": "centre",
+     "x_m": 250,
+     "y_m": 250,
+     "lon": 139.00274158863806,
+     "lat": 35.002245777937475,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 249.9931,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.013
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 249.993,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.037
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 249.993,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.034
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.03,
+      "interpretations_per_point": 0.004
+     }
+    }
+   ]
+  },
+  {
+   "name": "C03 square 5 km (valid)",
+   "note": "valid, large: no boundary within 100 m at the centre",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.05483177276147 35, 139.05483177276147 35.04491555874955, 139 35.04491555874955, 139 35))",
+   "points": [
+    {
+     "label": "centre",
+     "x_m": 2500,
+     "y_m": 2500,
+     "lon": 139.02741588638074,
+     "lat": 35.022457779374776,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 2499.3137,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.013
+      },
+      "r500": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 500,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.015
+      },
+      "r1000": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 1000,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.017
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.029,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "near edge",
+     "x_m": 2500,
+     "y_m": 30,
+     "lon": 139.02741588638074,
+     "lat": 35.0002694933525,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 30.0,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "inside",
+       "radius_m": 50,
+       "edge_m": 30.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.034
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 50,
+       "edge_m": 30.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.028
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 50,
+       "edge_m": 30.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.026
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.029,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "outside",
+     "x_m": 5100,
+     "y_m": 2500,
+     "lon": 139.05592840821672,
+     "lat": 35.022457779374776,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 99.9725,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       0
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "outside",
+       "radius_m": 100,
+       "edge_m": 99.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.035
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 100,
+       "edge_m": 99.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.031
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 100,
+       "edge_m": 99.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.031
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "outside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.026,
+      "interpretations_per_point": 0.002
+     }
+    }
+   ]
+  },
+  {
+   "name": "C04 corridor 300 m x 5 km (valid)",
+   "note": "valid, long and thin: the parallel sides are 150 m away, the ends 2.5 km",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.05483177276147 35, 139.05483177276147 35.00269493352497, 139 35.00269493352497, 139 35))",
+   "points": [
+    {
+     "label": "middle",
+     "x_m": 2500,
+     "y_m": 150,
+     "lon": 139.02741588638074,
+     "lat": 35.00134746676249,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 150.0,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.012
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 150.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.036
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 150.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.068
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.03,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C05 U shape (valid)",
+   "note": "valid U: the notch is 200 m from both arms",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0109663545523 35, 139.0109663545523 35.00898311174991, 139.0076764481866 35.00898311174991, 139.0076764481866 35.00269493352497, 139.0032899063657 35.00269493352497, 139.0032899063657 35.00898311174991, 139 35.00898311174991, 139 35))",
+   "points": [
+    {
+     "label": "arm",
+     "x_m": 150,
+     "y_m": 600,
+     "lon": 139.00164495318285,
+     "lat": 35.00538986704995,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 149.9901,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.013
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 149.99,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.035
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 149.99,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.034
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.031,
+      "interpretations_per_point": 0.004
+     }
+    },
+    {
+     "label": "notch",
+     "x_m": 500,
+     "y_m": 700,
+     "lon": 139.00548317727615,
+     "lat": 35.006288178224935,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 199.9846,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       0
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.013
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 250,
+       "edge_m": 199.985,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.034
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 250,
+       "edge_m": 199.985,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.032
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "outside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.029,
+      "interpretations_per_point": 0.007
+     }
+    },
+    {
+     "label": "base",
+     "x_m": 500,
+     "y_m": 150,
+     "lon": 139.00548317727615,
+     "lat": 35.00134746676249,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 150.0,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.012
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 150.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.033
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 150.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.032
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.027,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C06 5 km square with a 1 km hole (valid)",
+   "note": "valid with a hole",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.05483177276147 35, 139.05483177276147 35.04491555874955, 139 35.04491555874955, 139 35), (139.0219327091046 35.01796622349982, 139.03289906365688 35.01796622349982, 139.03289906365688 35.02694933524973, 139.0219327091046 35.02694933524973, 139.0219327091046 35.01796622349982))",
+   "points": [
+    {
+     "label": "hole centre",
+     "x_m": 2500,
+     "y_m": 2500,
+     "lon": 139.02741588638074,
+     "lat": 35.022457779374776,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 499.8627,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       1
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.014
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 500,
+       "edge_m": 499.863,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.042
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 500,
+       "edge_m": 499.863,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.035
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "outside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.036,
+      "interpretations_per_point": 0.009
+     }
+    },
+    {
+     "label": "between",
+     "x_m": 1000,
+     "y_m": 1000,
+     "lon": 139.0109663545523,
+     "lat": 35.00898311174991,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 999.8902,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.012
+      },
+      "r500": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 500,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.014
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 1000,
+       "edge_m": 999.89,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.037
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.031,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "shell-hole gap 3 m",
+     "x_m": 1998.5,
+     "y_m": 2500,
+     "lon": 139.02191625957275,
+     "lat": 35.022457779374776,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 1.4996,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "inside",
+       "radius_m": 5,
+       "edge_m": 1.5,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.024
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 5,
+       "edge_m": 1.5,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.022
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 5,
+       "edge_m": 1.5,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.02
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.028,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C07 shell and hole 3 m apart (valid)",
+   "note": "valid: a thin band between shell and hole",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0109663545523 35, 139.0109663545523 35.00898311174991, 139 35.00898311174991, 139 35), (139.00003289906365 35.00002694933525, 139.01093345548864 35.00002694933525, 139.01093345548864 35.00895616241466, 139.00003289906365 35.00895616241466, 139.00003289906365 35.00002694933525))",
+   "points": [
+    {
+     "label": "in the 3 m band",
+     "x_m": 1.5,
+     "y_m": 500,
+     "lon": 139.00001644953184,
+     "lat": 35.00449155587496,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 1.4999,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "inside",
+       "radius_m": 5,
+       "edge_m": 1.5,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.025
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 5,
+       "edge_m": 1.5,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.022
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 5,
+       "edge_m": 1.5,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.022
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "inside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.027,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "in the hole",
+     "x_m": 500,
+     "y_m": 500,
+     "lon": 139.00548317727615,
+     "lat": 35.00449155587496,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 496.9727,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       1
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.013
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 500,
+       "edge_m": 496.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.037
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 500,
+       "edge_m": 496.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.035
+      }
+     },
+     "study": {
+      "class": "determinate",
+      "why": "valid geometry: GEOS contains",
+      "relation": "outside",
+      "interpretations_agree": true
+     },
+     "ms": {
+      "facts": 0.028,
+      "interpretations_per_point": 0.005
+     }
+    }
+   ]
+  },
+  {
+   "name": "C08 self-touch far away (pinch, inverted triangle)",
+   "note": "invalid (vertex self-touch at (1500,0)); the point 1.5 km away",
+   "valid": false,
+   "validity_reason": "Ring Self-intersection[139.016449531828 35]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.01644953182844 35, 139.01315962546275 35.00538986704995, 139.01973943819414 35.00538986704995, 139.01644953182844 35, 139.03289906365688 35, 139.03289906365688 35.02694933524973, 139 35.02694933524973, 139 35))",
+   "points": [
+    {
+     "label": "far inside",
+     "x_m": 1500,
+     "y_m": 1500,
+     "lon": 139.01644953182844,
+     "lat": 35.01347466762486,
+     "valid": false,
+     "validity_reason": "Ring Self-intersection[139.016449531828 35]",
+     "facts": {
+      "edge_m": 900.0,
+      "defect_m": 1500.0,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.029
+      },
+      "r500": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 500,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.03
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 1000,
+       "edge_m": 900.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.059
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.043,
+      "interpretations_per_point": 0.004
+     }
+    },
+    {
+     "label": "in the triangle",
+     "x_m": 1500,
+     "y_m": 300,
+     "lon": 139.01644953182844,
+     "lat": 35.00269493352497,
+     "valid": false,
+     "validity_reason": "Ring Self-intersection[139.016449531828 35]",
+     "facts": {
+      "edge_m": 134.1605,
+      "defect_m": 300.0,
+      "raw_winding_per_ring": [
+       0
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": 134.161,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.06
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 250,
+       "edge_m": 134.161,
+       "conditions_met": false,
+       "defect_within_max": true,
+       "ms": 0.08
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 250,
+       "edge_m": 134.161,
+       "conditions_met": false,
+       "defect_within_max": true,
+       "ms": 0.077
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "outside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.034,
+      "interpretations_per_point": 0.006
+     }
+    },
+    {
+     "label": "far corner",
+     "x_m": 2900,
+     "y_m": 2900,
+     "lon": 139.03180242820164,
+     "lat": 35.02605102407474,
+     "valid": false,
+     "validity_reason": "Ring Self-intersection[139.016449531828 35]",
+     "facts": {
+      "edge_m": 99.9682,
+      "defect_m": 3220.05,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "inside",
+       "radius_m": 100,
+       "edge_m": 99.968,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.045
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 100,
+       "edge_m": 99.968,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.041
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 100,
+       "edge_m": 99.968,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.039
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.034,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C09 self-crossing far away (small reversed corner lobe)",
+   "note": "invalid (edges cross at (3000,3000)); the lobe is traversed clockwise",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.032899063657 35.0269493352497]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.03289906365688 35, 139.03289906365688 35.027847646424725, 139.03399569911213 35.02694933524973, 139 35.02694933524973, 139 35))",
+   "points": [
+    {
+     "label": "far inside",
+     "x_m": 1500,
+     "y_m": 1500,
+     "lon": 139.01644953182844,
+     "lat": 35.01347466762486,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0269493352497]",
+     "facts": {
+      "edge_m": 1499.7529,
+      "defect_m": 2121.15,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.025
+      },
+      "r500": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 500,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.03
+      },
+      "r1000": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 1000,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.034
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.034,
+      "interpretations_per_point": 0.004
+     }
+    },
+    {
+     "label": "inside the reversed lobe",
+     "x_m": 3030,
+     "y_m": 3030,
+     "lon": 139.03322805429346,
+     "lat": 35.02721882860223,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0269493352497]",
+     "facts": {
+      "edge_m": 28.2796,
+      "defect_m": 42.42,
+      "raw_winding_per_ring": [
+       -1
+      ],
+      "winding_normalised": -1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": false,
+      "h2_per_ring_unit": false
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "outside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "defect_within_radius",
+       "radius_m": 50,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": true,
+       "ms": 0.038
+      },
+      "r500": {
+       "outcome": "defect_within_radius",
+       "radius_m": 50,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": true,
+       "ms": 0.036
+      },
+      "r1000": {
+       "outcome": "defect_within_radius",
+       "radius_m": 50,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": true,
+       "ms": 0.034
+      }
+     },
+     "study": {
+      "class": "interpretation_dependent",
+      "why": "the interpretations differ",
+      "by_rule": {
+       "even_odd": "inside",
+       "nonzero": "inside",
+       "make_valid_linework": "inside",
+       "make_valid_structure": "inside",
+       "buffer0": "outside"
+      }
+     },
+     "ms": {
+      "facts": 0.032,
+      "interpretations_per_point": 0.004
+     }
+    }
+   ]
+  },
+  {
+   "name": "C10 self-crossing, large unequal lobes (figure eight)",
+   "note": "invalid; each lobe is a face; the small one is reversed: interpretation decides the point",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.032899063657 35.0161696011498]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.05483177276147 35.02694933524973, 139.05483177276147 35.00898311174991, 139 35.02694933524973, 139 35))",
+   "points": [
+    {
+     "label": "big lobe, 1.5 km from the crossing",
+     "x_m": 4500,
+     "y_m": 2000,
+     "lon": 139.04934859548533,
+     "lat": 35.01796622349982,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0161696011498]",
+     "facts": {
+      "edge_m": 499.8902,
+      "defect_m": 1512.95,
+      "raw_winding_per_ring": [
+       -1
+      ],
+      "winding_normalised": -1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": false,
+      "h2_per_ring_unit": false
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "outside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": 600.21,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.057
+      },
+      "r500": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 500,
+       "edge_m": 499.89,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.092
+      },
+      "r1000": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 500,
+       "edge_m": 499.89,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.087
+      }
+     },
+     "study": {
+      "class": "interpretation_dependent",
+      "why": "the interpretations differ",
+      "by_rule": {
+       "even_odd": "inside",
+       "nonzero": "inside",
+       "make_valid_linework": "inside",
+       "make_valid_structure": "inside",
+       "buffer0": "outside"
+      }
+     },
+     "ms": {
+      "facts": 0.032,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "small lobe, 1.2 km from the crossing",
+     "x_m": 600,
+     "y_m": 2400,
+     "lon": 139.0065798127314,
+     "lat": 35.02155946819978,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0161696011498]",
+     "facts": {
+      "edge_m": 334.2395,
+      "defect_m": 2473.25,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": 334.239,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.056
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 334.239,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.093
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 334.239,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.084
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.03,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C11 hole touching the shell at two far points",
+   "note": "invalid (interior disconnected); membership need not change",
+   "valid": false,
+   "validity_reason": "Interior is disconnected[139.032899063657 35.0134746676249]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.03289906365688 35, 139.03289906365688 35.02694933524973, 139 35.02694933524973, 139 35), (139 35.01347466762486, 139.01644953182844 35.00898311174991, 139.03289906365688 35.01347466762486, 139.01644953182844 35.01796622349982, 139 35.01347466762486))",
+   "points": [
+    {
+     "label": "upper part",
+     "x_m": 1500,
+     "y_m": 2700,
+     "lon": 139.01644953182844,
+     "lat": 35.02425440172476,
+     "valid": false,
+     "validity_reason": "Interior is disconnected[139.032899063657 35.0134746676249]",
+     "facts": {
+      "edge_m": 300.0,
+      "defect_m": 1920.59,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 2,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.028
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 300.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.052
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 300.0,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.049
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.033,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "in the hole",
+     "x_m": 1500,
+     "y_m": 1500,
+     "lon": 139.01644953182844,
+     "lat": 35.01347466762486,
+     "valid": false,
+     "validity_reason": "Interior is disconnected[139.032899063657 35.0134746676249]",
+     "facts": {
+      "edge_m": 474.3338,
+      "defect_m": 1499.75,
+      "raw_winding_per_ring": [
+       1,
+       1
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 2,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": 474.334,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.057
+      },
+      "r500": {
+       "outcome": "outside",
+       "radius_m": 500,
+       "edge_m": 474.334,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.092
+      },
+      "r1000": {
+       "outcome": "outside",
+       "radius_m": 500,
+       "edge_m": 474.334,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.089
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "outside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.033,
+      "interpretations_per_point": 0.006
+     }
+    }
+   ]
+  },
+  {
+   "name": "C12 hole crossing the shell far away",
+   "note": "invalid; the part of the hole outside the shell is read differently",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.032899063657 35.0089831117499]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.03289906365688 35, 139.03289906365688 35.02694933524973, 139 35.02694933524973, 139 35), (139.02741588638074 35.00898311174991, 139.03838224093303 35.00898311174991, 139.03838224093303 35.01796622349982, 139.02741588638074 35.01796622349982, 139.02741588638074 35.00898311174991))",
+   "points": [
+    {
+     "label": "hole inside shell",
+     "x_m": 2750,
+     "y_m": 1500,
+     "lon": 139.0301574750188,
+     "lat": 35.01347466762486,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0089831117499]",
+     "facts": {
+      "edge_m": 249.9588,
+      "defect_m": 559.0,
+      "raw_winding_per_ring": [
+       1,
+       1
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 2,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.025
+      },
+      "r500": {
+       "outcome": "ambiguous_nearest",
+       "radius_m": 250,
+       "edge_m": 249.959,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.04
+      },
+      "r1000": {
+       "outcome": "ambiguous_nearest",
+       "radius_m": 250,
+       "edge_m": 249.959,
+       "conditions_met": null,
+       "defect_within_max": true,
+       "ms": 0.037
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "outside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.033,
+      "interpretations_per_point": 0.006
+     }
+    },
+    {
+     "label": "hole outside shell",
+     "x_m": 3250,
+     "y_m": 1500,
+     "lon": 139.03564065229494,
+     "lat": 35.01347466762486,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0089831117499]",
+     "facts": {
+      "edge_m": 249.9588,
+      "defect_m": 559.0,
+      "raw_winding_per_ring": [
+       0,
+       1
+      ],
+      "winding_normalised": -1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 2,
+      "defects_unlocated": false,
+      "h_winding_parity": false,
+      "h2_per_ring_unit": false
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "outside",
+      "buffer0": "outside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.024
+      },
+      "r500": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 250,
+       "edge_m": 249.959,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.048
+      },
+      "r1000": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 250,
+       "edge_m": 249.959,
+       "conditions_met": null,
+       "defect_within_max": true,
+       "ms": 0.046
+      }
+     },
+     "study": {
+      "class": "interpretation_dependent",
+      "why": "the interpretations differ",
+      "by_rule": {
+       "even_odd": "inside",
+       "nonzero": "inside",
+       "make_valid_linework": "inside",
+       "make_valid_structure": "outside",
+       "buffer0": "outside"
+      }
+     },
+     "ms": {
+      "facts": 0.032,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "far inside",
+     "x_m": 500,
+     "y_m": 500,
+     "lon": 139.00548317727615,
+     "lat": 35.00449155587496,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0089831117499]",
+     "facts": {
+      "edge_m": 499.9726,
+      "defect_m": 2549.38,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 2,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.025
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 499.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.051
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 499.973,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.048
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.033,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C13 zero-area hole ring",
+   "note": "invalid; a ring with no orientation",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.013159625463 35.0089831117499]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0219327091046 35, 139.0219327091046 35.01796622349982, 139 35.01796622349982, 139 35), (139.0109663545523 35.00898311174991, 139.01644953182844 35.00898311174991, 139.01315962546275 35.00898311174991, 139.0109663545523 35.00898311174991))",
+   "points": [
+    {
+     "label": "near the flat ring",
+     "x_m": 1200,
+     "y_m": 1040,
+     "lon": 139.01315962546275,
+     "lat": 35.0093424362199,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.013159625463 35.0089831117499]",
+     "facts": {
+      "edge_m": 40.0,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 1,
+      "defects": 0,
+      "defects_unlocated": true,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "defect_location_unknown",
+       "radius_m": 5,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.002
+      },
+      "r500": {
+       "outcome": "defect_location_unknown",
+       "radius_m": 5,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.001
+      },
+      "r1000": {
+       "outcome": "defect_location_unknown",
+       "radius_m": 5,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.001
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.029,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "far",
+     "x_m": 300,
+     "y_m": 300,
+     "lon": 139.0032899063657,
+     "lat": 35.00269493352497,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.013159625463 35.0089831117499]",
+     "facts": {
+      "edge_m": 299.9901,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1,
+       0
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 1,
+      "defects": 0,
+      "defects_unlocated": true,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "defect_location_unknown",
+       "radius_m": 5,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.002
+      },
+      "r500": {
+       "outcome": "defect_location_unknown",
+       "radius_m": 5,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.001
+      },
+      "r1000": {
+       "outcome": "defect_location_unknown",
+       "radius_m": 5,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.001
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.028,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C14 MultiPolygon with overlapping components",
+   "note": "feature-level invalidity: union vs parity",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.010966354552 35.0179662234998]",
+   "wkt_lonlat": "MULTIPOLYGON (((139 35, 139.0219327091046 35, 139.0219327091046 35.01796622349982, 139 35.01796622349982, 139 35)), ((139.0109663545523 35.00898311174991, 139.03289906365688 35.00898311174991, 139.03289906365688 35.02694933524973, 139.0109663545523 35.02694933524973, 139.0109663545523 35.00898311174991)))",
+   "points": [
+    {
+     "label": "in the overlap",
+     "x_m": 1500,
+     "y_m": 1500,
+     "lon": 139.01644953182844,
+     "lat": 35.01347466762486,
+     "feature_valid": false,
+     "components": [
+      {
+       "valid": true,
+       "validity_reason": "Valid Geometry",
+       "facts": {
+        "edge_m": 499.9176,
+        "defect_m": null,
+        "raw_winding_per_ring": [
+         1
+        ],
+        "winding_normalised": 1,
+        "parity_inside": true,
+        "zero_area_rings": 0,
+        "defects": 0,
+        "defects_unlocated": false,
+        "h_winding_parity": true,
+        "h2_per_ring_unit": true
+       },
+       "interpretations": {
+        "even_odd": "inside",
+        "nonzero": "inside",
+        "make_valid_linework": "inside",
+        "make_valid_structure": "inside",
+        "buffer0": "inside",
+        "geos_raw": "inside"
+       },
+       "local": {
+        "r100": {
+         "outcome": "no_boundary_within_max_radius",
+         "radius_m": 100,
+         "edge_m": null,
+         "conditions_met": null,
+         "defect_within_max": false,
+         "ms": 0.013
+        },
+        "r500": {
+         "outcome": "inside",
+         "radius_m": 500,
+         "edge_m": 499.918,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.036
+        },
+        "r1000": {
+         "outcome": "inside",
+         "radius_m": 500,
+         "edge_m": 499.918,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.032
+        }
+       },
+       "study": {
+        "class": "insufficient_evidence",
+        "why": "feature-level invalidity: the component alone is not the area"
+       },
+       "ms": {
+        "facts": 0.027,
+        "interpretations_per_point": 0.002
+       }
+      },
+      {
+       "valid": true,
+       "validity_reason": "Valid Geometry",
+       "facts": {
+        "edge_m": 499.9176,
+        "defect_m": null,
+        "raw_winding_per_ring": [
+         1
+        ],
+        "winding_normalised": 1,
+        "parity_inside": true,
+        "zero_area_rings": 0,
+        "defects": 0,
+        "defects_unlocated": false,
+        "h_winding_parity": true,
+        "h2_per_ring_unit": true
+       },
+       "interpretations": {
+        "even_odd": "inside",
+        "nonzero": "inside",
+        "make_valid_linework": "inside",
+        "make_valid_structure": "inside",
+        "buffer0": "inside",
+        "geos_raw": "inside"
+       },
+       "local": {
+        "r100": {
+         "outcome": "no_boundary_within_max_radius",
+         "radius_m": 100,
+         "edge_m": null,
+         "conditions_met": null,
+         "defect_within_max": false,
+         "ms": 0.012
+        },
+        "r500": {
+         "outcome": "inside",
+         "radius_m": 500,
+         "edge_m": 499.918,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.034
+        },
+        "r1000": {
+         "outcome": "inside",
+         "radius_m": 500,
+         "edge_m": 499.918,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.032
+        }
+       },
+       "study": {
+        "class": "insufficient_evidence",
+        "why": "feature-level invalidity: the component alone is not the area"
+       },
+       "ms": {
+        "facts": 0.026,
+        "interpretations_per_point": 0.002
+       }
+      }
+     ],
+     "feature_interpretations": {
+      "union": "inside",
+      "parity_over_components": "outside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "inside"
+     },
+     "feature_class": "interpretation_dependent"
+    },
+    {
+     "label": "only in the first",
+     "x_m": 500,
+     "y_m": 500,
+     "lon": 139.00548317727615,
+     "lat": 35.00449155587496,
+     "feature_valid": false,
+     "components": [
+      {
+       "valid": true,
+       "validity_reason": "Valid Geometry",
+       "facts": {
+        "edge_m": 499.9726,
+        "defect_m": null,
+        "raw_winding_per_ring": [
+         1
+        ],
+        "winding_normalised": 1,
+        "parity_inside": true,
+        "zero_area_rings": 0,
+        "defects": 0,
+        "defects_unlocated": false,
+        "h_winding_parity": true,
+        "h2_per_ring_unit": true
+       },
+       "interpretations": {
+        "even_odd": "inside",
+        "nonzero": "inside",
+        "make_valid_linework": "inside",
+        "make_valid_structure": "inside",
+        "buffer0": "inside",
+        "geos_raw": "inside"
+       },
+       "local": {
+        "r100": {
+         "outcome": "no_boundary_within_max_radius",
+         "radius_m": 100,
+         "edge_m": null,
+         "conditions_met": null,
+         "defect_within_max": false,
+         "ms": 0.012
+        },
+        "r500": {
+         "outcome": "inside",
+         "radius_m": 500,
+         "edge_m": 499.973,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.035
+        },
+        "r1000": {
+         "outcome": "inside",
+         "radius_m": 500,
+         "edge_m": 499.973,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.033
+        }
+       },
+       "study": {
+        "class": "insufficient_evidence",
+        "why": "feature-level invalidity: the component alone is not the area"
+       },
+       "ms": {
+        "facts": 0.027,
+        "interpretations_per_point": 0.002
+       }
+      },
+      {
+       "valid": true,
+       "validity_reason": "Valid Geometry",
+       "facts": {
+        "edge_m": 707.0874,
+        "defect_m": null,
+        "raw_winding_per_ring": [
+         0
+        ],
+        "winding_normalised": 0,
+        "parity_inside": false,
+        "zero_area_rings": 0,
+        "defects": 0,
+        "defects_unlocated": false,
+        "h_winding_parity": true,
+        "h2_per_ring_unit": true
+       },
+       "interpretations": {
+        "even_odd": "outside",
+        "nonzero": "outside",
+        "make_valid_linework": "outside",
+        "make_valid_structure": "outside",
+        "buffer0": "outside",
+        "geos_raw": "outside"
+       },
+       "local": {
+        "r100": {
+         "outcome": "no_boundary_within_max_radius",
+         "radius_m": 100,
+         "edge_m": null,
+         "conditions_met": null,
+         "defect_within_max": false,
+         "ms": 0.012
+        },
+        "r500": {
+         "outcome": "no_boundary_within_max_radius",
+         "radius_m": 500,
+         "edge_m": 707.087,
+         "conditions_met": null,
+         "defect_within_max": false,
+         "ms": 0.022
+        },
+        "r1000": {
+         "outcome": "outside",
+         "radius_m": 1000,
+         "edge_m": 707.087,
+         "conditions_met": true,
+         "defect_within_max": false,
+         "ms": 0.047
+        }
+       },
+       "study": {
+        "class": "insufficient_evidence",
+        "why": "feature-level invalidity: the component alone is not the area"
+       },
+       "ms": {
+        "facts": 0.026,
+        "interpretations_per_point": 0.002
+       }
+      }
+     ],
+     "feature_interpretations": {
+      "union": "inside",
+      "parity_over_components": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside"
+     },
+     "feature_class": "interpretation_consistent"
+    }
+   ]
+  },
+  {
+   "name": "C15 point on the boundary",
+   "note": "valid",
+   "valid": true,
+   "validity_reason": "Valid Geometry",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0109663545523 35, 139.0109663545523 35.00898311174991, 139 35.00898311174991, 139 35))",
+   "points": [
+    {
+     "label": "on an edge",
+     "x_m": 500,
+     "y_m": 0,
+     "lon": 139.00548317727615,
+     "lat": 35.0,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 0.0,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "on_boundary",
+      "nonzero": "on_boundary",
+      "make_valid_linework": "on_boundary",
+      "make_valid_structure": "on_boundary",
+      "buffer0": "on_boundary",
+      "geos_raw": "on_boundary"
+     },
+     "local": {
+      "r100": {
+       "outcome": "on_boundary",
+       "radius_m": 5,
+       "edge_m": 0.0,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.011
+      },
+      "r500": {
+       "outcome": "on_boundary",
+       "radius_m": 5,
+       "edge_m": 0.0,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.01
+      },
+      "r1000": {
+       "outcome": "on_boundary",
+       "radius_m": 5,
+       "edge_m": 0.0,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.009
+      }
+     },
+     "study": {
+      "class": "on_boundary",
+      "why": "the point is on (or within 1 mm of) a ring"
+     },
+     "ms": {
+      "facts": 0.027,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "on a vertex",
+     "x_m": 1000,
+     "y_m": 1000,
+     "lon": 139.0109663545523,
+     "lat": 35.00898311174991,
+     "valid": true,
+     "validity_reason": "Valid Geometry",
+     "facts": {
+      "edge_m": 0.0,
+      "defect_m": null,
+      "raw_winding_per_ring": [
+       0
+      ],
+      "winding_normalised": 0,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 0,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "on_boundary",
+      "nonzero": "on_boundary",
+      "make_valid_linework": "on_boundary",
+      "make_valid_structure": "on_boundary",
+      "buffer0": "on_boundary",
+      "geos_raw": "on_boundary"
+     },
+     "local": {
+      "r100": {
+       "outcome": "on_boundary",
+       "radius_m": 5,
+       "edge_m": 0.0,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.011
+      },
+      "r500": {
+       "outcome": "on_boundary",
+       "radius_m": 5,
+       "edge_m": 0.0,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.009
+      },
+      "r1000": {
+       "outcome": "on_boundary",
+       "radius_m": 5,
+       "edge_m": 0.0,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.009
+      }
+     },
+     "study": {
+      "class": "on_boundary",
+      "why": "the point is on (or within 1 mm of) a ring"
+     },
+     "ms": {
+      "facts": 0.025,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C17 figure eight of C10 with the ring order reversed",
+   "note": "same set of points and edges as C10, opposite stored orientation: which rules follow the storage order",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.032899063657 35.0161696011498]",
+   "wkt_lonlat": "POLYGON ((139 35, 139 35.02694933524973, 139.05483177276147 35.00898311174991, 139.05483177276147 35.02694933524973, 139 35))",
+   "points": [
+    {
+     "label": "big lobe, 1.5 km from the crossing",
+     "x_m": 4500,
+     "y_m": 2000,
+     "lon": 139.04934859548533,
+     "lat": 35.01796622349982,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0161696011498]",
+     "facts": {
+      "edge_m": 499.8902,
+      "defect_m": 1512.95,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": -1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": false,
+      "h2_per_ring_unit": false
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "outside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": 600.21,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.056
+      },
+      "r500": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 500,
+       "edge_m": 499.89,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.086
+      },
+      "r1000": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 500,
+       "edge_m": 499.89,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.083
+      }
+     },
+     "study": {
+      "class": "interpretation_dependent",
+      "why": "the interpretations differ",
+      "by_rule": {
+       "even_odd": "inside",
+       "nonzero": "inside",
+       "make_valid_linework": "inside",
+       "make_valid_structure": "inside",
+       "buffer0": "outside"
+      }
+     },
+     "ms": {
+      "facts": 0.031,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "small lobe, 1.2 km from the crossing",
+     "x_m": 600,
+     "y_m": 2400,
+     "lon": 139.0065798127314,
+     "lat": 35.02155946819978,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.032899063657 35.0161696011498]",
+     "facts": {
+      "edge_m": 334.2395,
+      "defect_m": 2473.25,
+      "raw_winding_per_ring": [
+       -1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 1,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": 334.239,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.056
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 334.239,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.086
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 500,
+       "edge_m": 334.239,
+       "conditions_met": true,
+       "defect_within_max": false,
+       "ms": 0.083
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.03,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C18 curl outside the main area (a loop traversed in the same direction)",
+   "note": "invalid (crossing); the curl has winding +1",
+   "valid": false,
+   "validity_reason": "Ring Self-intersection[139.021932709105 35.0080848005749]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0219327091046 35, 139.0219327091046 35.00898311174991, 139.02851252183598 35.00898311174991, 139.02851252183598 35.014372978799855, 139.02522261547028 35.014372978799855, 139.02522261547028 35.00808480057492, 139.0219327091046 35.00808480057492, 139.0219327091046 35.01796622349982, 139 35.01796622349982, 139 35))",
+   "points": [
+    {
+     "label": "in the curl",
+     "x_m": 2450,
+     "y_m": 1300,
+     "lon": 139.02686756865313,
+     "lat": 35.011678045274884,
+     "valid": false,
+     "validity_reason": "Ring Self-intersection[139.021932709105 35.0080848005749]",
+     "facts": {
+      "edge_m": 149.9786,
+      "defect_m": 335.4,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 3,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.025
+      },
+      "r500": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 149.979,
+       "conditions_met": false,
+       "defect_within_max": true,
+       "ms": 0.049
+      },
+      "r1000": {
+       "outcome": "inside",
+       "radius_m": 250,
+       "edge_m": 149.979,
+       "conditions_met": false,
+       "defect_within_max": true,
+       "ms": 0.046
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.032,
+      "interpretations_per_point": 0.003
+     }
+    },
+    {
+     "label": "main area",
+     "x_m": 1000,
+     "y_m": 1000,
+     "lon": 139.0109663545523,
+     "lat": 35.00898311174991,
+     "valid": false,
+     "validity_reason": "Ring Self-intersection[139.021932709105 35.0080848005749]",
+     "facts": {
+      "edge_m": 999.8902,
+      "defect_m": 999.89,
+      "raw_winding_per_ring": [
+       1
+      ],
+      "winding_normalised": 1,
+      "parity_inside": true,
+      "zero_area_rings": 0,
+      "defects": 3,
+      "defects_unlocated": false,
+      "h_winding_parity": true,
+      "h2_per_ring_unit": true
+     },
+     "interpretations": {
+      "even_odd": "inside",
+      "nonzero": "inside",
+      "make_valid_linework": "inside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "inside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.024
+      },
+      "r500": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 500,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.03
+      },
+      "r1000": {
+       "outcome": "defect_within_radius",
+       "radius_m": 1000,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": true,
+       "ms": 0.032
+      }
+     },
+     "study": {
+      "class": "interpretation_consistent",
+      "relation": "inside",
+      "why": "every interpretation gives the same relation (not the author's intent)"
+     },
+     "ms": {
+      "facts": 0.032,
+      "interpretations_per_point": 0.003
+     }
+    }
+   ]
+  },
+  {
+   "name": "C16 doubly wound ring (winding 2)",
+   "note": "invalid; a ring that winds twice around the inner area",
+   "valid": false,
+   "validity_reason": "Self-intersection[139.000109663546 35.0000898311175]",
+   "wkt_lonlat": "POLYGON ((139 35, 139.0219327091046 35, 139.0219327091046 35.01796622349982, 139 35.01796622349982, 139 35.0000898311175, 139.02182304555907 35.0000898311175, 139.02182304555907 35.01787639238232, 139.00010966354552 35.01787639238232, 139.00010966354552 35, 139 35))",
+   "points": [
+    {
+     "label": "inner square",
+     "x_m": 1000,
+     "y_m": 1000,
+     "lon": 139.0109663545523,
+     "lat": 35.00898311174991,
+     "valid": false,
+     "validity_reason": "Self-intersection[139.000109663546 35.0000898311175]",
+     "facts": {
+      "edge_m": 989.8913,
+      "defect_m": 1399.99,
+      "raw_winding_per_ring": [
+       2
+      ],
+      "winding_normalised": 2,
+      "parity_inside": false,
+      "zero_area_rings": 0,
+      "defects": 2,
+      "defects_unlocated": false,
+      "h_winding_parity": false,
+      "h2_per_ring_unit": false
+     },
+     "interpretations": {
+      "even_odd": "outside",
+      "nonzero": "inside",
+      "make_valid_linework": "outside",
+      "make_valid_structure": "inside",
+      "buffer0": "inside",
+      "geos_raw": "outside"
+     },
+     "local": {
+      "r100": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 100,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.071
+      },
+      "r500": {
+       "outcome": "no_boundary_within_max_radius",
+       "radius_m": 500,
+       "edge_m": null,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.032
+      },
+      "r1000": {
+       "outcome": "inconsistent_winding",
+       "radius_m": 1000,
+       "edge_m": 989.891,
+       "conditions_met": null,
+       "defect_within_max": false,
+       "ms": 0.079
+      }
+     },
+     "study": {
+      "class": "interpretation_dependent",
+      "why": "the interpretations differ",
+      "by_rule": {
+       "even_odd": "outside",
+       "nonzero": "inside",
+       "make_valid_linework": "outside",
+       "make_valid_structure": "inside",
+       "buffer0": "inside"
+      }
+     },
+     "ms": {
+      "facts": 0.031,
+      "interpretations_per_point": 0.005
+     }
+    }
+   ]
+  }
+ ],
+ "fuzz": {
+  "seed": 20261103,
+  "geometries": 3000,
+  "points_tested": 59473,
+  "points_with_H": 56888,
+  "skipped": 26,
+  "by_class": {
+   "H=yes consistent": 56879,
+   "H=no dependent": 2567,
+   "H=no consistent": 18,
+   "H=yes dependent": 9
+  },
+  "by_class_h2": {
+   "H2=yes consistent": 56879,
+   "H2=no dependent": 2576,
+   "H2=no consistent": 18
+  },
+  "dependent_by_winding": {
+   "-1": 2024,
+   "2": 507,
+   "-2": 36,
+   "1": 9
+  },
+  "violations": [
+   {
+    "wkt_lonlat": "POLYGON ((139.00058723258996 35.003179494646, 139.01010727250087 35.001227292434805, 139.0032304448352 35.00059566708133, 139.010003904318 35.00686053137098, 139.00983790723075 35.00092525447919, 139.00768015536974 35.0022133885677, 139.00916971207485 35.00302197645562, 139.00737479760278 35.0067554989883, 139.00481546721593 35.0052611541988, 139.00146660245815 35.00012646467312, 139.00170434438328 35.003370061628914, 139.00317213214538 35.00104393300259, 139.00058723258996 35.003179494646), (139.0030441924144 35.0043498133396, 139.0024080119685 35.00461105059363, 139.00040396530446 35.003778553441634, 139.00029642251957 35.00343417733838, 139.00074807406108 35.002308624431194, 139.00238558140882 35.00191319564137, 139.0030441924144 35.0043498133396))",
+    "lon": 139.00207941438123,
+    "lat": 35.00274247124677,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.01092677020335 35.00205486845401, 139.00059575177778 35.001978607789425, 139.0005110764535 35.00216792806941, 139.0108154766733 35.005296686953706, 139.00355678949498 35.000037155504444, 139.00022544602677 35.008259748354554, 139.00967061990366 35.000261069062155, 139.0029229238552 35.004780584220185, 139.0006715832984 35.00033781109063, 139.0010853503038 35.00713618655534, 139.00663667052837 35.00492769253313, 139.01092677020335 35.00205486845401), (139.00209297870802 35.00555651016733, 139.00402476216067 35.00374948413595, 139.00534405168412 35.00454018951413, 139.00551918576477 35.005135790547605, 139.00209297870802 35.00555651016733))",
+    "lon": 139.0027754457126,
+    "lat": 35.005062464600186,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.00451920121844 35.00087657424254, 139.0013232295175 35.00347468672515, 139.00961412169406 35.001554115000076, 139.000703117151 35.00535069474876, 139.00215017466056 35.0023892396946, 139.0078041600005 35.00141434587109, 139.00598776533957 35.008735690028395, 139.00451920121844 35.00087657424254), (139.00893174315132 35.00443364578904, 139.0039375759415 35.003638416440914, 139.00535458069893 35.001093539467455, 139.00543097390846 35.00106184315348, 139.00564708885716 35.00098464340217, 139.00816092857687 35.001193530845896, 139.00893174315132 35.00443364578904))",
+    "lon": 139.0052183521933,
+    "lat": 35.00290337267443,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.00451920121844 35.00087657424254, 139.0013232295175 35.00347468672515, 139.00961412169406 35.001554115000076, 139.000703117151 35.00535069474876, 139.00215017466056 35.0023892396946, 139.0078041600005 35.00141434587109, 139.00598776533957 35.008735690028395, 139.00451920121844 35.00087657424254), (139.00893174315132 35.00443364578904, 139.0039375759415 35.003638416440914, 139.00535458069893 35.001093539467455, 139.00543097390846 35.00106184315348, 139.00564708885716 35.00098464340217, 139.00816092857687 35.001193530845896, 139.00893174315132 35.00443364578904))",
+    "lon": 139.00673526843056,
+    "lat": 35.00245180945918,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.0085932515698 35.00314747662431, 139.0085910711297 35.00244634581126, 139.01065406444542 35.00073584338775, 139.008330483244 35.00381222387157, 139.00463822913318 35.00896015354694, 139.00371321986125 35.00219888187428, 139.01072856771495 35.00023830319117, 139.001879971408 35.005241762189634, 139.00752662383732 35.003179629961714, 139.00915392901405 35.00809916244768, 139.00106939875485 35.001007017029394, 139.00393493978157 35.001001942962546, 139.0085932515698 35.00314747662431), (139.00604006954433 35.00513425809443, 139.00368399989839 35.001355561154426, 139.0038921920512 35.00123439876617, 139.00408533324517 35.001142343009285, 139.00604006954433 35.00513425809443))",
+    "lon": 139.0055159788827,
+    "lat": 35.00415313688125,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.00412721748143 35.005851555742005, 139.0100222940676 35.00297261896688, 139.00847040945573 35.0073159548754, 139.00415178391634 35.00112087819726, 139.00495212763857 35.005522051377554, 139.001537268845 35.00405951406248, 139.00540770205097 35.00522051827018, 139.00563499783172 35.00894332878116, 139.00435304698115 35.001942222630674, 139.0022292799933 35.004755998484285, 139.0089314139828 35.00479339383445, 139.00412721748143 35.005851555742005), (139.00856723451975 35.00489146506302, 139.00720807524948 35.00576237531466, 139.0068870573411 35.00565342851029, 139.00753597560188 35.003982209436266, 139.00853594404725 35.00466990608865, 139.00855035505808 35.00472607161953, 139.00856723451975 35.00489146506302))",
+    "lon": 139.00818393948975,
+    "lat": 35.0048101141911,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.00682057800606 35.00854494165893, 139.0103286594832 35.000512919022135, 139.00320679122734 35.00282298856794, 139.00383068252535 35.00826142697806, 139.01091170713278 35.00341709858285, 139.00360268923436 35.00007884720236, 139.00276018797518 35.0042194956292, 139.00682057800606 35.00854494165893), (139.00304682856262 35.00718008860136, 139.0018833126694 35.004031843412314, 139.00664101949383 35.00477459985135, 139.00304682856262 35.00718008860136))",
+    "lon": 139.0045373116058,
+    "lat": 35.00597281345122,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.0078468028092 35.00826071146627, 139.00399453571737 35.00660025152223, 139.00126716907062 35.00831834319171, 139.0006151910369 35.0017937136306, 139.00471849478754 35.00082402087056, 139.00900239364287 35.00748947878188, 139.00003444247542 35.00617022928914, 139.0029847739559 35.001851592796875, 139.00470789913425 35.00372949405115, 139.00566019056586 35.002797016469806, 139.00375498150348 35.000167460807674, 139.0078468028092 35.00826071146627), (139.00441993108686 35.00342521616418, 139.0030425408039 35.002091149814014, 139.00365956481286 35.001445001017366, 139.00441993108686 35.00342521616418))",
+    "lon": 139.0040373605301,
+    "lat": 35.00301994193717,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   },
+   {
+    "wkt_lonlat": "POLYGON ((139.00818766203435 35.00830820790551, 139.00160792022774 35.00137454270851, 139.0045581354354 35.008589052136536, 139.00630704851207 35.00036482598867, 139.00881546106422 35.0051024242449, 139.00223888979488 35.0032301888858, 139.00791134824235 35.00825459731288, 139.00052856289582 35.0070702186797, 139.00021306400754 35.0080672411333, 139.00818766203435 35.00830820790551), (139.00619601817547 35.00475763281014, 139.00214120792856 35.005462496368594, 139.00133729924335 35.004920958746595, 139.00058588732026 35.00344850534301, 139.00080316821274 35.002296743204795, 139.00262155555538 35.00085760605535, 139.00619601817547 35.00475763281014))",
+    "lon": 139.00449309077757,
+    "lat": 35.00464651887876,
+    "winding": 1,
+    "by_rule": {
+     "even_odd": "inside",
+     "nonzero": "inside",
+     "make_valid_linework": "inside",
+     "make_valid_structure": "outside",
+     "buffer0": "inside",
+     "geos_raw": "outside"
+    }
+   }
+  ],
+  "violations_found": 9,
+  "violations_h2_found": 0
+ }
+}

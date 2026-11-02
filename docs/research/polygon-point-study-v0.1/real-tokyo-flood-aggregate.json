@@ -1,0 +1,326 @@
+{
+ "study_version": "polygon-point-study-v0.1",
+ "kind": "real",
+ "started_at": "2026-11-02T15:57:11.603921+00:00",
+ "program": {
+  "python": "3.14.3",
+  "shapely": "2.2.0",
+  "geos": "3.14.1",
+  "numpy": "2.5.4",
+  "machine": "aarch64",
+  "system": "Linux"
+ },
+ "radius_sets_m": {
+  "r100": [
+   5,
+   10,
+   25,
+   50,
+   100
+  ],
+  "r500": [
+   5,
+   10,
+   25,
+   50,
+   100,
+   250,
+   500
+  ],
+  "r1000": [
+   5,
+   10,
+   25,
+   50,
+   100,
+   250,
+   500,
+   1000
+  ]
+ },
+ "summary": {
+  "pairs_invalid": 2113,
+  "pairs_control_valid": 1104,
+  "study_class_invalid": {
+   "interpretation_consistent": 2063,
+   "on_boundary": 50
+  },
+  "study_class_control": {
+   "determinate": 973,
+   "on_boundary": 131
+  },
+  "control_interpretations_agree_with_geos": {
+   "true": 1074,
+   "false": 30
+  },
+  "invalid_rule_pairs_disagreeing": {
+   "even_odd!=nonzero": 0,
+   "even_odd!=make_valid_linework": 10,
+   "even_odd!=make_valid_structure": 10,
+   "even_odd!=buffer0": 10,
+   "nonzero!=make_valid_linework": 10,
+   "nonzero!=make_valid_structure": 10,
+   "nonzero!=buffer0": 10,
+   "make_valid_linework!=make_valid_structure": 0,
+   "make_valid_linework!=buffer0": 0,
+   "make_valid_structure!=buffer0": 0
+  },
+  "phase_4i_vs_study": {
+   "candidate_inside -> interpretation_consistent": 118,
+   "candidate_outside -> interpretation_consistent": 355,
+   "undetermined -> interpretation_consistent": 1590,
+   "undetermined -> on_boundary": 50
+  },
+  "no_local_boundary": {
+   "pairs": 976,
+   "study_class": {
+    "interpretation_consistent": 976
+   },
+   "winding_in_0_1_and_parity_agrees": 976,
+   "by_radius_set": {
+    "r100": {
+     "no_boundary_within_max_radius": 976
+    },
+    "r500": {
+     "defect_within_radius": 209,
+     "outside": 146,
+     "no_boundary_within_max_radius": 558,
+     "inside": 61,
+     "ambiguous_nearest": 2
+    },
+    "r1000": {
+     "defect_within_radius": 381,
+     "outside": 180,
+     "no_boundary_within_max_radius": 352,
+     "inside": 61,
+     "ambiguous_nearest": 2
+    }
+   },
+   "conditions_met_by_radius_set": {
+    "r100": 0,
+    "r500": 109,
+    "r1000": 41
+   },
+   "edge_m": {
+    "n": 976,
+    "median": 623.951,
+    "p95": 6065.868,
+    "max": 16994.231
+   },
+   "defect_m": {
+    "n": 976,
+    "median": 798.47,
+    "p95": 6162.81,
+    "max": 17083.1
+   },
+   "bbox_max_side_m": {
+    "n": 976,
+    "median": 10436.3,
+    "p95": 28762.3,
+    "max": 28762.3
+   },
+   "by_category": {
+    "given": 3,
+    "valid_interior": 142,
+    "rank_differs": 124,
+    "valid_overlap": 104,
+    "hole": 128,
+    "boundary": 86,
+    "pending_bbox": 105,
+    "multi_source": 116,
+    "region_edge": 37,
+    "defect_near": 131
+   }
+  },
+  "radius_sets_invalid": {
+   "r100": {
+    "no_boundary_within_max_radius": 976,
+    "inside": 327,
+    "outside": 681,
+    "defect_within_radius": 67,
+    "ambiguous_nearest": 16,
+    "on_boundary": 46
+   },
+   "r500": {
+    "defect_within_radius": 276,
+    "outside": 827,
+    "inside": 388,
+    "no_boundary_within_max_radius": 558,
+    "ambiguous_nearest": 18,
+    "on_boundary": 46
+   },
+   "r1000": {
+    "defect_within_radius": 448,
+    "outside": 861,
+    "inside": 388,
+    "no_boundary_within_max_radius": 352,
+    "ambiguous_nearest": 18,
+    "on_boundary": 46
+   }
+  },
+  "radius_sets_conditions_met_invalid": {
+   "r100": 487,
+   "r500": 128,
+   "r1000": 44
+  },
+  "radius_sets_control": {
+   "r100": {
+    "inside": 490,
+    "outside": 401,
+    "on_boundary": 131,
+    "no_boundary_within_max_radius": 60,
+    "defect_within_radius": 12,
+    "ambiguous_nearest": 10
+   },
+   "r500": {
+    "inside": 491,
+    "outside": 425,
+    "on_boundary": 131,
+    "defect_within_radius": 34,
+    "no_boundary_within_max_radius": 13,
+    "ambiguous_nearest": 10
+   },
+   "r1000": {
+    "inside": 491,
+    "outside": 427,
+    "on_boundary": 131,
+    "defect_within_radius": 41,
+    "ambiguous_nearest": 10,
+    "no_boundary_within_max_radius": 4
+   }
+  },
+  "local_vs_consistent_relation": {
+   "r100": {
+    "agrees": 487
+   },
+   "r500": {
+    "agrees": 128
+   },
+   "r1000": {
+    "agrees": 44
+   }
+  },
+  "diag_index_equals_prepared": {
+   "r100": {
+    "true": 2113
+   },
+   "r500": {
+    "true": 2113
+   },
+   "r1000": {
+    "true": 2113
+   }
+  },
+  "h_conditions_invalid": {
+   "H=True H2=True interpretation_consistent": 2063,
+   "H=True H2=True on_boundary": 50
+  },
+  "consistent_but_undetermined_by_reasons": {
+   "no_local_boundary": 936,
+   "defect_within_max_radius": 520,
+   "defect_within_decision_radius": 62,
+   "service_region_boundary,no_local_boundary": 40,
+   "ambiguous_nearest": 16,
+   "service_region_boundary": 14,
+   "service_region_boundary,defect_within_max_radius": 1,
+   "service_region_boundary,defect_within_decision_radius": 1
+  },
+  "zero_area_ring_components_pairs": 20,
+  "category_invalid": {
+   "given": 9,
+   "valid_interior": 331,
+   "rank_differs": 256,
+   "valid_overlap": 235,
+   "hole": 234,
+   "boundary": 210,
+   "pending_bbox": 263,
+   "multi_source": 228,
+   "region_edge": 47,
+   "defect_near": 300
+  },
+  "defect_kinds_note": "defect kinds are in the diagnosis index (Phase 4-D: all 52,602 are 'touch')"
+ },
+ "timing_ms": {
+  "facts": {
+   "n": 3217,
+   "median": 0.235,
+   "p95": 6.738,
+   "max": 15.046
+  },
+  "interpretations_per_point": {
+   "n": 3217,
+   "median": 0.077,
+   "p95": 0.686,
+   "max": 52.907
+  },
+  "local_r100": {
+   "n": 3217,
+   "median": 0.089,
+   "p95": 1.04,
+   "max": 4.969
+  },
+  "local_r500": {
+   "n": 3217,
+   "median": 0.078,
+   "p95": 1.276,
+   "max": 3.396
+  },
+  "local_r1000": {
+   "n": 3217,
+   "median": 0.074,
+   "p95": 1.43,
+   "max": 3.497
+  },
+  "diag_index_r100": {
+   "n": 2113,
+   "median": 0.439,
+   "p95": 3.425,
+   "max": 5.067
+  },
+  "diag_index_r500": {
+   "n": 2113,
+   "median": 0.423,
+   "p95": 4.512,
+   "max": 10.827
+  },
+  "diag_index_r1000": {
+   "n": 2113,
+   "median": 0.404,
+   "p95": 5.146,
+   "max": 8.441
+  },
+  "prepare_per_component": {
+   "n": 1439,
+   "median": 0.323,
+   "p95": 25.654,
+   "max": 623.476
+  },
+  "repair_make_valid_linework_per_component": {
+   "n": 1439,
+   "median": 0.061,
+   "p95": 69.928,
+   "max": 3605.444
+  },
+  "repair_make_valid_structure_per_component": {
+   "n": 1439,
+   "median": 0.091,
+   "p95": 38.46,
+   "max": 2250.456
+  },
+  "repair_buffer0_per_component": {
+   "n": 1439,
+   "median": 0.047,
+   "p95": 38.863,
+   "max": 35919.825
+  }
+ },
+ "memory": {
+  "rss_after_load_bytes": 154411008,
+  "peak_rss_bytes": 1923985408
+ },
+ "inputs": {
+  "points": 601,
+  "pairs": 3217,
+  "components": 1439
+ }
+}

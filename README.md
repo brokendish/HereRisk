@@ -616,6 +616,15 @@ Polygon共通基盤の責務を [ADR-002](docs/decisions/2026-11-03-polygon-engi
 - **参考解析API**: `message_version` が `v0.2` になり、各理由に `cause` が付きます。`schema_version` は据え置きました（[API仕様 2.4節](docs/api/flood-diagnostic-api-v0.1.md)）。
 - **東京都での確認（601地点・2,113組）**: 分類・理由コード・区域の識別子・内外・浸水深区分は Phase 4-G と全件一致しました。文言が変わったのは `no_local_boundary`（936組）、`defect_within_decision_radius`（66組）、`ambiguous_nearest`（16組）の代表メッセージだけです。Shadowの分類・集計も Phase 4-F と同一でした。
 
+### 現在地のPolygon内外判定の成立条件（Phase 4-J、研究・検証）
+
+無効なPolygonで、地点の内外をどの条件なら根拠をもって判断できるかを比較検証しました。報告は [polygon-point-determination-study-v0.1](docs/architecture/polygon-point-determination-study-v0.1.md)、コードは `hererisk.research.point_study`（製品からは使いません）。**正式判定・参考解析・採用条件・文言・索引は変えていません。**
+
+- 内外は、探索半径や不整合までの距離ではなく、地点を通る半直線で求める**リングごとの回転数**で決まります。遠方（0.5〜1.5km）の不整合で解釈が分かれる反例と、近くの不整合でも影響しない例を、合成形状で確認しました。
+- 「全体の回転数が0か1で偶奇と一致」だけでは足りず（反例35件）、**リングごとに0か1**（H2）を加えると、ランダム探索約17.8万点・合成形状・東京都の実データで反例はありませんでした（証明ではありません）。
+- 東京都・洪水の無効2,113組では、境界上の50組を除く2,063組で5つの解釈が一致しました。`no_local_boundary` の976組もすべて一致しています。ただし、解釈の一致は原典作成者の意図との一致ではなく、東京都の不整合は頂点の接触だけです。
+- 探索半径を500m・1,000mに広げると、現行の条件で判定できる組はかえって減ります（487 → 128 → 44）。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
