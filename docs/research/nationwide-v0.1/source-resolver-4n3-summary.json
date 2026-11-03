@@ -1,0 +1,123 @@
+{
+ "phase": "4-N.3",
+ "measured_at": "2026-11-03",
+ "base_commit": "cffa878af2e176b9d7ecd82c2a2a0679d7c1f0f0",
+ "container": "docker run -m 1g/2g, hererisk-app:local (Python 3.14.3, shapely 2.2.0, GEOS 3.14.1, SQLite 3.46.1), aarch64 Linux on Mac",
+ "source_compare_real (Tokyo+Kanagawa N03, flood 2 sources and tsunami 1 source registered for 13; FloodProvider/TsunamiProvider unchanged)": {
+  "points": 41506,
+  "point_kinds": {
+   "border_10.1m": 4000,
+   "border_15.0m": 4000,
+   "border_5.0m": 4000,
+   "border_9.9m": 4000,
+   "border_vertex": 2000,
+   "edge_10.1m": 4000,
+   "edge_15.0m": 4000,
+   "edge_5.0m": 4000,
+   "edge_9.9m": 4000,
+   "edge_vertex": 2000,
+   "flood_points": 601,
+   "micro_gap_0.0m": 181,
+   "micro_gap_10.1m": 181,
+   "micro_gap_15.0m": 181,
+   "micro_gap_5.0m": 181,
+   "micro_gap_9.9m": 181,
+   "tsunami_box_centre": 1000,
+   "tsunami_vertex": 1000,
+   "uniform": 2000
+  },
+  "checks": {
+   "flood:differs:o14_source_micro_gap": 85,
+   "flood:equal": 41421,
+   "flood:missing": 21146,
+   "flood:no_missing": 20360,
+   "tsunami:differs:o14_source_micro_gap": 85,
+   "tsunami:equal": 41421,
+   "tsunami:missing": 21146,
+   "tsunami:no_missing": 20360
+  },
+  "failed": [],
+  "differences_by_kind": {
+   "flood:edge_vertex:o14_source_micro_gap": 2,
+   "tsunami:edge_vertex:o14_source_micro_gap": 2,
+   "flood:edge_5.0m:o14_source_micro_gap": 4,
+   "tsunami:edge_5.0m:o14_source_micro_gap": 4,
+   "flood:edge_9.9m:o14_source_micro_gap": 4,
+   "tsunami:edge_9.9m:o14_source_micro_gap": 4,
+   "flood:edge_10.1m:o14_source_micro_gap": 4,
+   "tsunami:edge_10.1m:o14_source_micro_gap": 4,
+   "flood:micro_gap_0.0m:o14_source_micro_gap": 16,
+   "tsunami:micro_gap_0.0m:o14_source_micro_gap": 16,
+   "flood:micro_gap_5.0m:o14_source_micro_gap": 17,
+   "tsunami:micro_gap_5.0m:o14_source_micro_gap": 17,
+   "flood:micro_gap_9.9m:o14_source_micro_gap": 17,
+   "tsunami:micro_gap_9.9m:o14_source_micro_gap": 17,
+   "flood:micro_gap_10.1m:o14_source_micro_gap": 17,
+   "tsunami:micro_gap_10.1m:o14_source_micro_gap": 17,
+   "flood:micro_gap_15.0m:o14_source_micro_gap": 4,
+   "tsunami:micro_gap_15.0m:o14_source_micro_gap": 4
+  }
+ },
+ "resolver_compare_rerun_with_generalised_micro_gap_rule": {
+  "13-14": {
+   "checks": {
+    "locate_equal": 60601,
+    "region_differs:13+14:reference_union_depends_on_set": 38
+   },
+   "failed": [],
+   "parallel": {
+    "8": {
+     "points": 4000,
+     "identical": 3992,
+     "busy_or_failed": 8,
+     "computed_but_different": 0,
+     "seconds": 1.44,
+     "rss_cur_after": 725438464
+    }
+   }
+  },
+  "13": {
+   "checks": {
+    "locate_equal": 33601,
+    "region_differs:13:source_micro_gap": 7
+   },
+   "failed": [],
+   "parallel": {
+    "8": {
+     "points": 4000,
+     "identical": 3988,
+     "busy_or_failed": 12,
+     "computed_but_different": 0,
+     "seconds": 1.55,
+     "rss_cur_after": 458739712
+    }
+   }
+  }
+ },
+ "source_resolver_measure (60,601 points, 1 GB container)": {
+  "points": 60601,
+  "rss_mib": {
+   "before": 70.8,
+   "after_start": 71.6,
+   "after_select": 90.8,
+   "after_parallel": 164.5
+  },
+  "resolve_ms": {
+   "median": 0.3169,
+   "p95": 1.7256,
+   "max": 35.265
+  },
+  "select_flood_and_tsunami_ms": {
+   "median": 0.0499,
+   "p95": 1.3169,
+   "max": 52.074
+  },
+  "registry_entries": 3,
+  "parallel16": {
+   "points": 8000,
+   "identical": 7904,
+   "incomplete_busy": 96,
+   "computed_but_different": 0
+  }
+ }
+}

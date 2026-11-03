@@ -76,22 +76,30 @@ def got_locate(loc) -> tuple:
 MICRO_GAP_M2 = 1.0
 
 
-def micro_gap(loc, prefecture_set) -> bool:
-    """A gap smaller than ``MICRO_GAP_M2`` within the tolerance between the source features near the point
-    (holes of their union that are not holes of any single feature): the source's own geometry, checked
-    without the resolver's decision."""
-    feats = [a.geometry for a in loc._near if a.prefecture_code in prefecture_set]
-    if len(feats) < 2:
-        return False
-    u = shapely.union_all(feats)
-    own = {r.wkb for f in feats for p in getattr(f, "geoms", [f]) for r in p.interiors}
-    pt = shapely.Point(loc.lon, loc.lat)
-    k = 111320.0 ** 2 * math.cos(math.radians(loc.lat))
-    for p in getattr(u, "geoms", [u]):
-        for r in p.interiors:
-            if r.wkb not in own and shapely.Polygon(r).area * k < MICRO_GAP_M2 and r.distance(pt) <= loc.tolerance_deg:
-                return True
-    return False
+class MicroGap:
+    """ADR-003 ``source_micro_gap``, from the source features only (not the resolver's decision): within
+    ``box_tol`` tolerances around the point, every part of the box left uncovered by the registered N03
+    features of the set that lies within the tolerance of the point is smaller than ``MICRO_GAP_M2`` (and
+    there is at least one). A real outside (sea, another prefecture) is far larger than 1 m2 in that box;
+    a sliver between neighbours (closed or opening farther away) is not."""
+
+    def __init__(self, regions: Path, box_tol: float = 3.0) -> None:
+        self.box_tol = box_tol
+        self.feats = {r["prefecture_code"]: [g for _, g, _ in _read_file(r["address_n03"], r["prefecture_code"])[1]]
+                      for r in load_regions(regions)}
+        self.trees = {p: shapely.STRtree(g) for p, g in self.feats.items()}
+
+    def __call__(self, prefecture_set, x: float, y: float, tol: float) -> bool:
+        r = self.box_tol * tol
+        box = shapely.box(x - r, y - r, x + r, y + r)
+        feats = [self.feats[p][int(i)] for p in prefecture_set if p in self.trees for i in self.trees[p].query(box)]
+        if not feats:
+            return False
+        uncovered = box.difference(shapely.union_all(feats))
+        pt = shapely.Point(x, y)
+        k = 111320.0 ** 2 * math.cos(math.radians(y))
+        near = [q for q in getattr(uncovered, "geoms", [uncovered]) if not q.is_empty and q.distance(pt) <= tol]
+        return bool(near) and all(q.area * k < MICRO_GAP_M2 for q in near)
 
 
 def points(regions: Path, baseline: Path | None, tsunami_index: Path | None, per_kind: int) -> list[tuple]:
@@ -165,6 +173,7 @@ def run(regions: Path, admin_index: Path, baseline: Path | None, tsunami_index: 
     regions_ref = {s: (FloodRegion([g for p in sorted(s) for g in polys[p]]),
                        TsunamiRegion([g for p in sorted(s) for g in polys[p]])) for s in sets}
     del polys
+    gaps = MicroGap(regions)
     log(f"{len(pts)} points: resolver")
     db = sqlite3.connect(f"file:{admin_index}?mode=ro", uri=True)
     views, ms, cands, wkb_bytes = [], [], [], []
@@ -206,7 +215,7 @@ def run(regions: Path, admin_index: Path, baseline: Path | None, tsunami_index: 
             single = len(near_prefs) == 1 and frozenset(near_prefs) in regions_ref
             cls = ("reference_union_depends_on_set"
                    if single and regions_ref[frozenset(near_prefs)][0].relation(pt, y) == r else "UNCLASSIFIED")
-            if cls == "UNCLASSIFIED" and r == "boundary" and micro_gap(loc, s):
+            if cls == "UNCLASSIFIED" and r == "boundary" and gaps(s, x, y, loc.tolerance_deg):
                 cls = "source_micro_gap"
             checks[f"region_differs:{key}:{cls}"] += 1
             diffs.append({"kind": kind, "lon": x, "lat": y, "what": f"region {key}", "resolver": r, "region": a,
@@ -223,9 +232,11 @@ def run(regions: Path, admin_index: Path, baseline: Path | None, tsunami_index: 
         with cf.ThreadPoolExecutor(max_workers=n) as pool:
             again = list(pool.map(lambda item: res.resolve(item[0][1], item[0][0]).view(), sample))
         same = sum(1 for (p, a), b in zip(sample, again) if a == b)
-        par[str(n)] = {"points": len(sample), "identical": same, "busy_or_failed": sum(1 for b in again if not b["complete"]),
+        busy = sum(1 for b in again if not b["complete"])          # explicit failed (busy): not a wrong answer
+        wrong = sum(1 for (p, a), b in zip(sample, again) if b["complete"] and a != b)
+        par[str(n)] = {"points": len(sample), "identical": same, "busy_or_failed": busy, "computed_but_different": wrong,
                        "seconds": round(time.perf_counter() - t, 2), "rss_cur_after": _cur_rss()}
-        if same != len(sample):
+        if wrong:
             checks[f"PARALLEL_{n}_DIFFERS"] += 1
     res.close()
     out.update({"points": len(pts), "point_kinds": dict(sorted(kinds.items())), "checks": dict(sorted(checks.items())),

@@ -292,10 +292,10 @@ def test_resolver_depends_on_no_hazard_and_is_not_wired_in() -> None:
                          env={"PYTHONPATH": str(REPO / "src")})
     assert out.stdout.strip() == "[]"
     for path in (REPO / "src/hererisk").rglob("*.py"):
-        if "research" in path.parts or path.name in ("resolver.py", "admin_index.py"):
-            continue
+        if "research" in path.parts or path.name in ("resolver.py", "admin_index.py", "source_resolver.py"):
+            continue                                       # Phase 4-N.3: the Source Resolver is its only user
         text = path.read_text(encoding="utf-8")
-        assert "location.resolver" not in text and "admin_index" not in text, path       # not connected yet
+        assert "location.resolver" not in text and "admin_index" not in text, path       # no provider / API yet
     text = (REPO / "src/hererisk/location/resolver.py").read_text(encoding="utf-8")
     for banned in ("make_valid", "buffer(", "simplify(", "clip_by_rect("):
         assert banned not in text.split('"""')[-1], banned

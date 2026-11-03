@@ -681,6 +681,13 @@ python -m hererisk.location.admin_index resolve --index admin.sqlite --regions ~
 - 県境では候補の県をすべて返し、1つに確定しません。登録範囲の外は「海」とせず `outside_registered_area` です。
 - 東京・神奈川の実データの60,601点で、住所の市区町村判定と全点一致しました。対象地域の関係の差異は、原典の微小な隙間（1m²未満）の近くだけです（扱いはOWNER判断）。
 
+### 共通Source Resolver（Phase 4-N.3、製品から未使用）
+
+Location Resolver の結果と登録情報（`flood_sources`・`tsunami_sources`）から、地点で検索すべきハザードのソースを選ぶ共通部品です（[実装仕様](docs/api/source-resolver-impl-v0.1.md)）。Polygon・索引は読まず、属性を解釈せず、ソースを統合しません。**Providerには接続していません。**
+
+- 県境では関係する全ソースを選び、ソースのない候補の県を `missing` として明示します。検索対象が0件と、選択の失敗（`complete: false`）を区別します。都道府県コードによる分岐はなく、愛媛などの県も登録だけで選ばれます。
+- 東京・神奈川の実データ41,506点で、現在の洪水・津波Providerの選択と、原典のN03の微小な隙間の近く（85点）を除いて全点一致しました。差異はすべて OWNER決定 O-14（[ADR-003](docs/decisions/2026-11-03-n03-micro-gap-boundary.md)）に該当します。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

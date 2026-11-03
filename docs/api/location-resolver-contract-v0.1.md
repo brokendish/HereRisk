@@ -1,6 +1,6 @@
 # Location Resolver / Source Resolver / Regional Index Loader 契約 v0.1（案、Phase 4-N.1）
 
-- 状態: **契約案（OWNERレビュー待ち）**。第2章 Location Resolver は Phase 4-N.2 で実装済み・製品から未使用（[実装仕様](location-resolver-impl-v0.1.md)）。第3・4章は未実装。Python内部の契約で、HTTP APIは新設しない（必要になった段階で検討）。Location API の応答契約は変えない。
+- 状態: **契約案（OWNERレビュー待ち）**。第2章 Location Resolver は Phase 4-N.2 で、第3章 Source Resolver は Phase 4-N.3 で実装済み・製品から未使用（[Location Resolver 実装仕様](location-resolver-impl-v0.1.md)、[Source Resolver 実装仕様](source-resolver-impl-v0.1.md)）。第4章は未実装。Python内部の契約で、HTTP APIは新設しない（必要になった段階で検討）。Location API の応答契約は変えない。
 - 作成: 2026-11-03（Claude）。基準コミット `4519f1a017c9a4033af7ccdc4a772d316ac4ab85`
 - 設計: [全国対応の現在地判定・地域別データ参照基盤 設計 v0.1](../architecture/nationwide-location-index-design-v0.1.md)
 - 関連: [Location API v0.1](location-api-v0.1.md)、[Polygon Engine 共通契約 v0.2](polygon-engine-contract-v0.2.md)、[Dataset Registry](../architecture/dataset-registry-v0.1.md) 第6章、[Data Publish](../architecture/data-publish-v0.1.md) 第7・10章
@@ -69,7 +69,7 @@ rel = resolver.region_relation(loc, {"13", "14"})  # -> "inside" | "boundary" | 
 Phase 4-N.2 の実装で確定したこと:
 
 - 候補の区域は**切り取らずに**結合する。地点の周りの矩形で切ってから結合すると、隣り合うFeatureの共有辺が別々に作り直され、継ぎ目が残る（実データで確認、[実装仕様](location-resolver-impl-v0.1.md) 4節）。
-- 既存の `_Region` との差異は、原典のN03の微小な隙間（1m²未満）の近くだけで、Resolverは `boundary`、既存は全体の結合で隙間が消えると `inside`（結合する集合によって変わる）。扱いは OWNER判断（設計 O-14）。
+- 既存の `_Region` との差異は、原典のN03の微小な隙間（1m²未満）の近くだけで、Resolverは `boundary`、既存は全体の結合で隙間が消えると `inside`（結合する集合によって変わる）。扱いは OWNERが決定した（O-14、[ADR-003](../decisions/2026-11-03-n03-micro-gap-boundary.md)）: 修復・隙間の自動補完をせず、10m以内は `boundary`。既存との差異は原因（`source_micro_gap` / `reference_union_depends_on_set`）を明示した仕様上の差異として受け入れ、説明できない差異は許容しない。
 - `municipalities` の各要素は `code`・`prefecture_code`・`unassigned`・`name`・`prefecture`・`contains_point`。`failed` は `reason`（`read_failed` / `busy`）を持つ。`region_relation` は、空きがなければ `ResolverBusy`、`failed` の地点には ValueError（推測しない）。
 
 ## 3. Source Resolver
@@ -109,6 +109,12 @@ selection = source_resolver.select("tsunami", loc)    # -> SourceSelection
 
 | SR-8 | `missing` が空でない選択は `coverage: "partial"` とする。Providerは、選んだソースの関係に関わらず、この地点を**対象地域の境界**として扱う（`region_state: "region_boundary"`）。`inside` に読み替えない |
 | SR-9 | Location Resolver が `coverage: "partial"`（登録したN03が一部の都道府県だけ）のとき、未登録の県は `missing` に現れない（Resolverが知らない）。この場合の取りこぼしは、登録した区域の外縁から10m以内が `boundary` になること（2.4節）で防ぐ。外縁から10mより外は `outside_registered_area`（SR-5） |
+
+Phase 4-N.3 の実装で確定したこと（[実装仕様](source-resolver-impl-v0.1.md)）:
+
+- 入力の登録は共通の `SourceEntry(hazard, source_id, service_prefectures, index)`。各ハザードの検査済みの登録から `source_id`・`service_prefectures` だけを取り出す（`entries_from_registrations`）。`index` は呼び出し側が知る参照だけで、現在は `null`（推測しない）。
+- 出力は 3.2節の項目に加え、`hazard_registered`（ハザードにソースが1件でもあるか）、`region_state`（SR-8 を反映。ソースがなければ `null`）、`location_coverage`（SR-9 の区別）、`complete: false` のときの `reason`（`location_read_failed` / `location_busy`）を持つ。
+- 全対象都道府県が Location Resolver に登録されていない登録は、作成時に拒否する。
 
 ### 3.4 Location API の状態への対応（補正、2026-11-03）
 
