@@ -160,6 +160,8 @@ Providerは、`id`（文字列）と `lookup(lat, lon) -> dict`（第4・5章の
 
 Phase 2-Cで残ったBlocking（利用条件、認可、派生形状、精度プロファイル等）は、実データProviderの接続の前提として維持する。
 
+全国対応（Phase 4-N.1、設計のみ）: 現在地の行政区域の判定・検索ソースの選択・地域別の索引の読込みを、Providerから分ける設計案がある（[設計](../architecture/nationwide-location-index-design-v0.1.md)、[内部契約案](location-resolver-contract-v0.1.md)）。本書の応答の形は変えない。
+
 ### 8.1 ElevationProvider（Phase 3-B）
 
 `hererisk.location.elevation_provider.ElevationProvider` は、既存の標高APIの `POST /api/v1/elevation`（[標高API契約](elevation-contract-v0.1.md)）を呼び出す。

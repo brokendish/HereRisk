@@ -658,6 +658,14 @@ docker compose --profile tsunami up -d location-api-tsunami # 住所＋洪水＋
 - 区域に該当しないときは `no_match` に「津波の影響がないことを意味しません」と、原典の注意書き「実際の津波はこの津波浸水想定よりも大きい場合があります」を付けます。東京都のA40は島しょ部だけを収録しています。
 - 東京都の33,124 Featureで、GMLとの独立検証（属性・8桁の座標・分類・9,297地点）が全件一致しました。1GBのコンテナで、住所＋洪水＋津波のピークRSSは818MBです。
 
+### 全国対応のための現在地判定・地域別データ参照基盤（Phase 4-N.1、設計のみ）
+
+全国のデータを登録しても、全都道府県のPolygonを起動時にメモリへ展開しない構成の設計案です（[設計](docs/architecture/nationwide-location-index-design-v0.1.md)、[内部契約案](docs/api/location-resolver-contract-v0.1.md)）。**コード・索引・APIの応答は変えていません。実装はOWNERの承認後です。**
+
+- 現状: 各Providerが登録データを起動時にすべて展開し（東京の洪水だけで約350MiB）、東京のN03を住所・洪水（2ソース）・津波で4回読み込んでいます（[実測](docs/research/nationwide-v0.1/memory-breakdown-20261103.json)）。
+- 設計: Location Resolver（行政区域）→ Source Resolver（検索ソースの選択）→ Regional Index Loader（ソース別索引のR-treeから地点の候補だけを読む、上限つきキャッシュ）→ Provider → Polygon Engine（変更なし）。県境では候補の県を1つに確定せず、未登録・判定不能を区域外・安全にしません。
+- 移行: 4-N.2 Location Resolver → 4-N.3 Source Resolver → 4-N.4 Loader → 4-N.5 津波で実証 → 4-N.6 洪水（Polygon Engine 移行計画 Step 4 と統合）。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

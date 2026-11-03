@@ -1,0 +1,39 @@
+{
+ "measured_at": "2026-11-03",
+ "base_commit": "4519f1a017c9a4033af7ccdc4a772d316ac4ab85",
+ "container": "tsunami-verify service (mem_limit 1g), aarch64 Linux on Mac Docker, Python 3.14, shapely 2.x",
+ "method": "one process per part; VmRSS after the part is built minus VmRSS after imports (shapely, numpy, hererisk modules). Includes allocator memory retained after parsing (not returned to the OS)",
+ "n03_13_vertices": 484607,
+ "flood_index": {
+  "rows": {
+   "local-a31a-2025-13 usable": 259763,
+   "local-a31a-2025-13 pending": 1943,
+   "local-a31a-2025-83 usable": 123315,
+   "local-a31a-2025-83 pending": 3127
+  },
+  "file_mib": 391.1,
+  "wkb_mib": {
+   "local-a31a-2025-13": 94.7,
+   "local-a31a-2025-83": 109.2
+  }
+ },
+ "single_process_sequence_note": "a sequential single-process run gave smaller deltas for later parts because freed memory was reused; the per-part runs above are the reference",
+ "units": "MiB (2^20 bytes). Phase 4-M reported the same peaks in MB (10^6 bytes): 205 / 546 / 647 / 818",
+ "parts_delta_mib": {
+  "n03_municipalities_13": 105.0,
+  "n03_municipalities_13_14": 123.1,
+  "service_region_union_13_one_copy (flood_provider._Region)": 124.5,
+  "service_region_union_13_two_copies": 155.8,
+  "flood_usable_geometries_and_strtree (383,078 components)": 354.4,
+  "flood_provider_total (2 sources, both serving 13)": 396.9,
+  "tsunami_component_index_only (33,124 components)": 26.1,
+  "tsunami_provider_total": 137.9
+ },
+ "tsunami_index_file_mib": 15.0,
+ "whole_process_peak_rss_mib (Phase 4-M)": {
+  "tsunami": 195,
+  "flood": 521,
+  "flood+tsunami": 617,
+  "address+flood+tsunami (build_server)": 780
+ }
+}
