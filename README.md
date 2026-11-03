@@ -642,6 +642,22 @@ Polygon共通基盤の責務を [ADR-002](docs/decisions/2026-11-03-polygon-engi
 - `outside` は幾何学的な関係で、「安全」を意味しません。探索半径は使わず、Polygonの大小で判定の方法を変えません。ハザードの属性を読まず、構成・ソースを統合しません。
 - 洪水の合成索引で、既存の `flood.index.classify`・`FloodProvider` と完全一致。東京都・洪水の正式索引（読取専用）でも、388,148構成の有効性と4,153地点の検索結果が全件一致しました。Codexの反例 B1 は判定保留になります。
 
+### 津波（A40）Providerへの共通Polygon Engineの適用（Phase 4-M、ローカル検証のみ）
+
+国土数値情報 A40（津波浸水想定、東京都）を読み、共通の有効性検証（`validity`）で索引を作り、共通の内外判定（`relation`）で `hazards.tsunami` を返すProviderを実装しました（[津波API MVP契約](docs/api/tsunami-api-mvp-contract-v0.1.md)）。**既定では接続しません。利用条件は確認中で、一般公開・本番接続は承認されていません。** 洪水の判定・参考解析は変えていません。
+
+```sh
+# regions-tsunami.json: regions.json に "tsunami_sources" を加えたもの（Git管理外。ZIPは ~/hererisk-data/a40/）
+docker compose --profile init run --rm tsunami-index        # A40の索引（読取専用で原典を読む）
+docker compose --profile verify run --rm tsunami-verify     # GMLとの独立検証（共通Engineを使わない）
+docker compose --profile tsunami up -d location-api-tsunami # 住所＋洪水＋津波のLocation API（127.0.0.1:8013）
+```
+
+- 区域内なら原典の `A40_003` の文字列（例「5m以上 ～ 10m未満」）をそのまま返します。数値化・代表値・統合はしません。重なる区域・複数のソースは別々に返します。
+- 無効な76構成（頂点の自己接触）は、外接矩形に入る地点で判定保留（`unknown`）になります。区域外にはしません。
+- 区域に該当しないときは `no_match` に「津波の影響がないことを意味しません」と、原典の注意書き「実際の津波はこの津波浸水想定よりも大きい場合があります」を付けます。東京都のA40は島しょ部だけを収録しています。
+- 東京都の33,124 Featureで、GMLとの独立検証（属性・8桁の座標・分類・9,297地点）が全件一致しました。1GBのコンテナで、住所＋洪水＋津波のピークRSSは818MBです。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

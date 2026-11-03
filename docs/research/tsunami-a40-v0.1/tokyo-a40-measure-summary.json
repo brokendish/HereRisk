@@ -1,0 +1,126 @@
+{
+ "measured_at": "2026-11-03",
+ "container": "mem_limit 1g (tsunami-verify service), aarch64 Linux on Mac Docker",
+ "modes": {
+  "tsunami": {
+   "mode": "tsunami",
+   "start_s": 1.48,
+   "rss_before_bytes": 23781376,
+   "rss_after_start_bytes": 193400832,
+   "peak_rss_bytes": 204935168,
+   "tsunami_index_bytes": 15712256,
+   "lookup": {
+    "flood_points": {
+     "n": 601,
+     "median_ms": 0.011,
+     "p95_ms": 0.014,
+     "max_ms": 22.0601
+    },
+    "tsunami_points": {
+     "n": 2000,
+     "median_ms": 0.0153,
+     "p95_ms": 0.0213,
+     "max_ms": 0.082
+    }
+   },
+   "statuses": {
+    "flood_points:tsunami:no_match": 478,
+    "flood_points:tsunami:not_available": 92,
+    "flood_points:tsunami:unknown": 31,
+    "tsunami_points:tsunami:available": 1975,
+    "tsunami_points:tsunami:no_match": 3,
+    "tsunami_points:tsunami:not_available": 12,
+    "tsunami_points:tsunami:unknown": 10
+   },
+   "platform": "Linux-7.0.12-linuxkit-aarch64-with-glibc2.41"
+  },
+  "flood": {
+   "mode": "flood",
+   "start_s": 3.51,
+   "rss_before_bytes": 23732224,
+   "rss_after_start_bytes": 464900096,
+   "peak_rss_bytes": 545988608,
+   "tsunami_index_bytes": 15712256,
+   "lookup": {
+    "flood_points": {
+     "n": 601,
+     "median_ms": 0.0484,
+     "p95_ms": 0.099,
+     "max_ms": 60.6011
+    },
+    "tsunami_points": {
+     "n": 2000,
+     "median_ms": 0.0187,
+     "p95_ms": 0.0285,
+     "max_ms": 0.0744
+    }
+   },
+   "statuses": {},
+   "platform": "Linux-7.0.12-linuxkit-aarch64-with-glibc2.41"
+  },
+  "both": {
+   "mode": "both",
+   "start_s": 4.57,
+   "rss_before_bytes": 23740416,
+   "rss_after_start_bytes": 529985536,
+   "peak_rss_bytes": 646901760,
+   "tsunami_index_bytes": 15712256,
+   "lookup": {
+    "flood_points": {
+     "n": 601,
+     "median_ms": 0.0556,
+     "p95_ms": 0.1003,
+     "max_ms": 75.4558
+    },
+    "tsunami_points": {
+     "n": 2000,
+     "median_ms": 0.035,
+     "p95_ms": 0.0417,
+     "max_ms": 0.0953
+    }
+   },
+   "statuses": {
+    "flood_points:tsunami:no_match": 478,
+    "flood_points:tsunami:not_available": 92,
+    "flood_points:tsunami:unknown": 31,
+    "tsunami_points:tsunami:available": 1975,
+    "tsunami_points:tsunami:no_match": 3,
+    "tsunami_points:tsunami:not_available": 12,
+    "tsunami_points:tsunami:unknown": 10
+   },
+   "platform": "Linux-7.0.12-linuxkit-aarch64-with-glibc2.41"
+  },
+  "server": {
+   "mode": "server",
+   "start_s": 6.34,
+   "rss_before_bytes": 23736320,
+   "rss_after_start_bytes": 678506496,
+   "peak_rss_bytes": 817913856,
+   "tsunami_index_bytes": 15712256,
+   "lookup": {
+    "flood_points": {
+     "n": 601,
+     "median_ms": 0.6427,
+     "p95_ms": 0.9471,
+     "max_ms": 81.4625
+    },
+    "tsunami_points": {
+     "n": 2000,
+     "median_ms": 0.6139,
+     "p95_ms": 0.9216,
+     "max_ms": 9.1035
+    }
+   },
+   "statuses": {
+    "flood_points:tsunami:no_match": 478,
+    "flood_points:tsunami:not_available": 92,
+    "flood_points:tsunami:unknown": 31,
+    "tsunami_points:tsunami:available": 1975,
+    "tsunami_points:tsunami:no_match": 3,
+    "tsunami_points:tsunami:not_available": 12,
+    "tsunami_points:tsunami:unknown": 10
+   },
+   "platform": "Linux-7.0.12-linuxkit-aarch64-with-glibc2.41"
+  }
+ }
+}

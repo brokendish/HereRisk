@@ -305,4 +305,5 @@ def test_engine_depends_on_no_hazard_and_is_not_used_by_the_product() -> None:
         if "research" in path.parts or path.parts[-3:-1] == ("common", "polygon"):
             continue
         text = path.read_text(encoding="utf-8")
-        assert "hererisk.common.polygon." not in text and "hererisk.common.polygon import" not in text, path   # not wired in yet
+        for name in ("facts", "sqlite_reader"):          # Phase 4-M uses validity / relation only
+            assert f"hererisk.common.polygon.{name}" not in text and f"import {name}" not in text, path   # not wired in yet

@@ -37,6 +37,11 @@
   ``GET /api/v1/diagnostics/flood?lat=&lon=`` returns the official flood section and the diagnostic
   interpretation of the point side by side (``hererisk.location.flood_diagnostics``); ``/api/v1/location``
   is unchanged. ``--flood-diag-index`` is needed exactly when Shadow or the diagnostic API is on
+* ``--tsunami-index <index.sqlite>`` (Phase 4-M, with ``--address-regions``): the ``hazards.tsunami``
+  section comes from the ``tsunami_sources`` of the regions file, searched with the shared Polygon Engine
+  in the local index built by ``python -m hererisk.tsunami build`` (``hererisk.location.tsunami_provider``).
+  Off by default (``not_available``); local verification only. A registration / file / index that does
+  not match stops the start (exit 3)
 * no request line, path, query or position is logged (the stdlib access log is disabled)
 * the request body is never read; the API only accepts GET
 """
@@ -59,6 +64,7 @@ from hererisk.flood.registry import FloodRegistrationError
 from hererisk.location.elevation_provider import ElevationProvider
 from hererisk.location.orchestrator import Orchestrator
 from hererisk.location.providers import default_providers, sample_providers
+from hererisk.tsunami.errors import A40FormatError, TsunamiIndexError, TsunamiRegistrationError
 
 SOCKET_TIMEOUT_S = 10
 
@@ -98,7 +104,7 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
                  address_isj: Path | None = None, address_n03: Path | None = None,
                  address_regions: Path | None = None, flood_index: Path | None = None,
                  flood_settings: Path | None = None, flood_diag_index: Path | None = None,
-                 container: bool = False) -> ThreadingHTTPServer:
+                 tsunami_index: Path | None = None, container: bool = False) -> ThreadingHTTPServer:
     if not container and not ipaddress.ip_address(host).is_loopback:
         raise ValueError("the Location API skeleton is only served on a loopback address")
     if address_n03 and not address_isj:
@@ -107,6 +113,8 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
         raise ValueError("--address-regions replaces --address-isj / --address-n03")
     if flood_index and not address_regions:
         raise ValueError("--flood-index needs --address-regions")
+    if tsunami_index and not address_regions:
+        raise ValueError("--tsunami-index needs --address-regions")
     shadow = diag_api = False
     if flood_settings or flood_diag_index:
         from hererisk.flood.settings import load_settings
@@ -146,6 +154,9 @@ def build_server(host: str, port: int, *, sample_data: bool = False, elevation_a
                     providers["flood"] = ShadowFloodProvider(providers["flood"], flood_diag_index, flood_index,
                                                              radii(cfg["local_analysis"]))
                     diagnostics = providers["flood"].stats
+            if tsunami_index:
+                from hererisk.location.tsunami_provider import TsunamiProvider   # needs shapely
+                providers["tsunami"] = TsunamiProvider(address_regions, tsunami_index)
         elif address_isj:
             municipalities = None
             if address_n03:
@@ -186,6 +197,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                         help='flood settings ({"local_analysis": ..., "diagnosis": {"shadow_enabled": ...}})')
     parser.add_argument("--flood-diag-index", type=Path, metavar="SQLITE",
                         help="flood diagnosis index (python -m hererisk.flood diag build) for the Shadow diagnosis")
+    parser.add_argument("--tsunami-index", type=Path, metavar="SQLITE",
+                        help="local tsunami index (python -m hererisk.tsunami build) for the regions file's tsunami_sources")
     parser.add_argument("--container", action="store_true",
                         help="inside a container: allow a non-loopback bind and http://elevation-api:<port> "
                              "(expose only via a 127.0.0.1 port mapping)")
@@ -213,12 +226,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                               elevation_fixture=args.elevation_fixture, address_isj=args.address_isj,
                               address_n03=args.address_n03, address_regions=args.address_regions,
                               flood_index=args.flood_index, flood_settings=args.flood_settings,
-                              flood_diag_index=args.flood_diag_index, container=args.container)
+                              flood_diag_index=args.flood_diag_index, tsunami_index=args.tsunami_index,
+                              container=args.container)
     except ImportError:
         sys.stderr.write("hererisk-location-api: --address-n03 needs shapely (pip install -e '.[address]')\n")
         return 3
     except DiagIndexError as exc:
         sys.stderr.write(f"hererisk-location-api: flood diagnosis index rejected ({exc}); not serving\n")
+        return 3
+    except (TsunamiRegistrationError, TsunamiIndexError, A40FormatError) as exc:
+        sys.stderr.write(f"hererisk-location-api: tsunami data rejected ({exc}); not serving\n")
         return 3
     except (FloodRegistrationError, FloodIndexError) as exc:
         sys.stderr.write(f"hererisk-location-api: flood data rejected ({exc}); not serving\n")
@@ -236,7 +253,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                      f"{' (address regions: file)' if args.address_regions else ''}"
                      f"{' (municipality: N03 polygons)' if args.address_n03 else ''}"
                      f"{' (flood: connected, local verification)' if args.flood_index else ''}"
-                     f"{' (flood diagnosis index: Shadow / diagnostic API, diagnosis only)' if args.flood_diag_index else ''}\n")
+                     f"{' (flood diagnosis index: Shadow / diagnostic API, diagnosis only)' if args.flood_diag_index else ''}"
+                     f"{' (tsunami: connected, local verification)' if args.tsunami_index else ''}\n")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -1,6 +1,6 @@
 # Polygon Engine 有効性検証・正式な内外判定 実装仕様 v0.1（Phase 4-L）
 
-- 状態: **実装済み・製品から未使用**。`hererisk.common.polygon`（`validity.py`・`relation.py`）。Flood Provider・Location API・参考解析API・採用条件・理由コード・文言・索引からは呼び出していない（テストで確認）。洪水の製品コードへの切替はまだ行わない（移行計画 Step 4）。
+- 状態: **実装済み**。`hererisk.common.polygon`（`validity.py`・`relation.py`）。Phase 4-M から **Tsunami Provider（`hererisk.tsunami`・`location.tsunami_provider`、ローカル検証のみ）が利用**（[津波API MVP契約](tsunami-api-mvp-contract-v0.1.md)）。Flood Provider・参考解析API・採用条件・理由コード・文言・洪水の索引からは呼び出していない（テストで確認）。洪水の製品コードへの切替はまだ行わない（移行計画 Step 4）。共通部品は Phase 4-M で変更していない。
 - 作成: 2026-11-03（Claude）。基準コミット `be93241a05604696627669d85a0a3884e54717f3`
 - 上位: [Polygon Engine 共通契約 v0.2](polygon-engine-contract-v0.2.md)（3.1節・第4章）、[ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md)、[移行計画](../architecture/polygon-engine-migration-plan-v0.1.md) Step 2-1・2-2
 - 関連: [幾何の事実の取得 v0.1](polygon-engine-facts-v0.1.md)（Phase 4-K。本書の機能とは別のモジュール）

@@ -1,0 +1,68 @@
+{
+ "started_at": "2026-11-03T02:30:06.992420+00:00",
+ "tol_deg": 2e-08,
+ "offset_deg": 2e-06,
+ "checks": {
+  "attributes_equal": 33124,
+  "components_total": 33124,
+  "defect:ring_self_touch": 76,
+  "expect_inside": 4750,
+  "expect_near_boundary": 6397,
+  "expect_outside": 5427323,
+  "expect_pending_in_bbox": 864,
+  "expect_pending_out_of_bbox": 13498,
+  "feature_count_equal": 1,
+  "fid_equals_gml_id": 33124,
+  "geometry_round8_equal": 33124,
+  "index_invalid_geometry:ring_self_intersection": 76,
+  "near_boundary_not_strict": 6397,
+  "point_equals_independent": 9297,
+  "validity_equals_independent": 33124
+ },
+ "failed": [],
+ "depth_labels_in_gml": {
+  "～0.3m未満": 3110,
+  "0.3m以上 ～ 0.5m未満": 1802,
+  "0.5m以上 ～ 1m未満": 3603,
+  "1m以上 ～ 3m未満": 8184,
+  "3m以上 ～ 5m未満": 8407,
+  "5m以上 ～ 10m未満": 6079,
+  "10m以上 ～ 20m未満": 1783,
+  "20m以上": 156
+ },
+ "not_valid_by_depth_label": {
+  "～0.3m未満": 9,
+  "0.5m以上 ～ 1m未満": 7,
+  "1m以上 ～ 3m未満": 16,
+  "3m以上 ～ 5m未満": 18,
+  "5m以上 ～ 10m未満": 15,
+  "10m以上 ～ 20m未満": 11
+ },
+ "point_kinds": {
+  "edge_side_a:compared": 3021,
+  "edge_side_a:outside_service_region": 13,
+  "edge_side_b:compared": 3021,
+  "edge_side_b:outside_service_region": 13,
+  "hole_edge_side_a:compared": 51,
+  "hole_edge_side_a:outside_service_region": 1,
+  "hole_edge_side_b:compared": 51,
+  "hole_edge_side_b:outside_service_region": 1,
+  "pending_bbox_centre:compared": 75,
+  "pending_bbox_centre:outside_service_region": 5,
+  "pending_bbox_corner:compared": 63,
+  "pending_bbox_corner:outside_service_region": 17,
+  "vertex:compared": 3015,
+  "vertex:outside_service_region": 19
+ },
+ "points_with_several_zones": 0,
+ "lookup_ms": {
+  "n": 9366,
+  "median": 0.022,
+  "p95": 0.035
+ },
+ "not_verified": [
+  "interiors disconnected by touches over three or more rings",
+  "inside / outside within 2e-08 degree of the boundary",
+  "the meaning of A40_001..A40_003 beyond the product specification text"
+ ]
+}

@@ -11,8 +11,9 @@ Adding a prefecture means adding one entry; the address logic has no per-prefect
 Relative paths are resolved against the file's directory. Each data file is checked against its
 ``prefecture_code`` when it is loaded (file name and contents).
 
-The same file may also hold ``"flood_sources": [...]`` (Phase 4-A, ``hererisk.flood.registry``);
-the address provider ignores that key.
+The same file may also hold ``"flood_sources": [...]`` (Phase 4-A, ``hererisk.flood.registry``) and
+``"tsunami_sources": [...]`` (Phase 4-M, ``hererisk.tsunami.registry``); the address provider ignores
+those keys.
 """
 
 from __future__ import annotations
@@ -27,7 +28,8 @@ from hererisk.location.address_provider import AddressDataError
 MAX_REGIONS_FILE_BYTES = 64 * 1024
 _PREF = re.compile(r"(0[1-9]|[1-3][0-9]|4[0-7])\Z")
 KEYS = {"prefecture_code", "address_isj", "address_n03"}
-TOP_KEYS = ({"regions"}, {"regions", "flood_sources"})
+TOP_KEYS = ({"regions"}, {"regions", "flood_sources"}, {"regions", "tsunami_sources"},
+            {"regions", "flood_sources", "tsunami_sources"})
 
 
 def read_registration(path: Path) -> dict[str, Any]:

@@ -18,7 +18,8 @@ RUN pip install --only-binary=:all: --no-deps -r /tmp/requirements.txt \
  && groupadd --system --gid 10001 hererisk \
  && useradd --system --uid 10001 --gid 10001 --no-create-home --home-dir /nonexistent \
       --shell /usr/sbin/nologin hererisk \
- && install -d -o 10001 -g 10001 -m 0750 /var/lib/hererisk /var/lib/hererisk-flood /var/lib/hererisk-flood-diag
+ && install -d -o 10001 -g 10001 -m 0750 /var/lib/hererisk /var/lib/hererisk-flood /var/lib/hererisk-flood-diag \
+      /var/lib/hererisk-tsunami
 
 WORKDIR /app
 # root-owned and world-readable, never writable by the service user

@@ -155,7 +155,8 @@ Providerは、`id`（文字列）と `lookup(lat, lon) -> dict`（第4・5章の
 | `address` | 国土交通省「位置参照情報」 | 最寄りの代表点は `is_confirmed_address: false`、`precision`・`method` を必ず入れる |
 | `elevation` | 公開済みの標高API（Phase 1。`hererisk.elevation`）または同等の公開データの読取り | 公開済みのRegistryだけを読む（共通API契約 §5） |
 | `flood` | Flood API MVP契約の検索 | 区域・unknown・境界接触の扱いは個別契約に従う |
-| `tsunami` / `storm_surge` / `landslide` | 各ハザードの個別契約（未作成） | 個別契約・利用条件・認可が先に必要 |
+| `tsunami` | [Tsunami API MVP契約 v0.1（案）](tsunami-api-mvp-contract-v0.1.md)（Phase 4-M、`--tsunami-index` を明示したときだけ。ローカル検証のみ） | 利用条件は `review_required`。一般公開・本番接続は未承認 |
+| `storm_surge` / `landslide` | 各ハザードの個別契約（未作成） | 個別契約・利用条件・認可が先に必要 |
 
 Phase 2-Cで残ったBlocking（利用条件、認可、派生形状、精度プロファイル等）は、実データProviderの接続の前提として維持する。
 

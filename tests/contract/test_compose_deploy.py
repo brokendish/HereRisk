@@ -100,7 +100,9 @@ def test_data_inventory_container_bind(no_bind, monkeypatch, tmp_path) -> None:
 def test_host_ports_are_loopback_only() -> None:
     ports = re.findall(r'^\s+- "([^"]*:\d+:\d+)"$', COMPOSE, re.M)
     assert sorted(ports) == ["127.0.0.1:8000:8000", "127.0.0.1:8001:8001", "127.0.0.1:8011:8001", "127.0.0.1:8012:8001",
-                            "127.0.0.1:8090:8090"]
+                            "127.0.0.1:8013:8001", "127.0.0.1:8090:8090"]
+    assert "--tsunami-index" not in _service("location-api")                  # Phase 4-M: tsunami only when asked
+    assert 'profiles: ["tsunami"]' in _service("location-api-tsunami")
     for forbidden in ("network_mode: host", "privileged", "docker.sock", "/var/run/docker", "cap_add",
                       "pid: host", "ipc: host", "0.0.0.0:", "--private-experiment", "--production"):
         assert forbidden not in COMPOSE, forbidden

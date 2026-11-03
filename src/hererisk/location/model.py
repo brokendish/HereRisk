@@ -41,6 +41,7 @@ ERROR_MESSAGES = {
     "upstream_rejected": "接続先のAPIが要求を受け付けませんでした。",
     "upstream_retrieval_failed": "接続先のAPIがデータを取得できませんでした。",
     "flood_response_limit_exceeded": "該当する区域が多すぎるため、一部だけを返すことはせず、結果を返しません。",
+    "tsunami_response_limit_exceeded": "該当する区域が多すぎるため、一部だけを返すことはせず、結果を返しません。",
 }
 
 

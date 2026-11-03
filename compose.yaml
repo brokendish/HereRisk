@@ -13,6 +13,10 @@
 #   docker compose --profile verify run --rm flood-shadow-verify  # Phase 4-E automated Shadow checks
 #   docker compose --profile diagnostic-api up -d location-api-diagnostic  # Phase 4-G: + diagnostic API (127.0.0.1:8012)
 #   docker compose --profile verify run --rm flood-diag-api-verify  # Phase 4-G automated diagnostic API checks
+#   docker compose --profile init run --rm tsunami-index   # Phase 4-M: A40 index (regions file with tsunami_sources)
+#   docker compose --profile verify run --rm tsunami-verify  # Phase 4-M: independent check against the A40 GML
+#   docker compose --profile tsunami up -d location-api-tsunami  # Phase 4-M: + tsunami, local only (127.0.0.1:8013)
+#   (HERERISK_TSUNAMI_REGIONS: the regions file holding tsunami_sources, default regions-tsunami.json)
 #
 # Host exposure is 127.0.0.1 only. Official data, the regions file and the token stay outside Git
 # and outside the image; they are mounted read only. See README "Docker Compose".
@@ -289,6 +293,55 @@ services:
       - flood-diag:/var/lib/hererisk-flood-diag:ro
       - ${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports
 
+  tsunami-index:   # Phase 4-M: builds the tsunami search index from the registered A40 ZIPs (read only)
+    <<: *hardening
+    profiles: ["init"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.tsunami", "build", "--regions", "/data/${HERERISK_TSUNAMI_REGIONS:-regions-tsunami.json}",
+              "--output", "/var/lib/hererisk-tsunami/tsunami-index.sqlite"]
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - tsunami-index:/var/lib/hererisk-tsunami
+
+  tsunami-verify:   # Phase 4-M: one-shot independent check of the tsunami index / provider against the GML
+    <<: *hardening
+    profiles: ["verify"]
+    network_mode: none
+    restart: "no"
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.tsunami", "verify", "--regions", "/data/${HERERISK_TSUNAMI_REGIONS:-regions-tsunami.json}",
+              "--index", "/var/lib/hererisk-tsunami/tsunami-index.sqlite", "--report-dir", "/reports"]
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - tsunami-index:/var/lib/hererisk-tsunami:ro
+      - ${HERERISK_REPORT_DIR:-${HOME}/.hererisk-local/reports}:/reports
+
+  location-api-tsunami:   # Phase 4-M local check only: the Location API with flood and tsunami (not the default)
+    <<: *hardening
+    profiles: ["tsunami"]
+    restart: "no"
+    mem_limit: 1g
+    command: ["python", "-m", "hererisk.location.server", "--host", "0.0.0.0", "--port", "8001", "--container",
+              "--address-regions", "/data/${HERERISK_TSUNAMI_REGIONS:-regions-tsunami.json}",
+              "--elevation-api", "http://elevation-api:8000", "--elevation-token-file", "/run/secrets/api_token",
+              "--elevation-fixture", "--flood-index", "/var/lib/hererisk-flood/flood-index.sqlite",
+              "--tsunami-index", "/var/lib/hererisk-tsunami/tsunami-index.sqlite"]
+    ports:
+      - "127.0.0.1:8013:8001"
+    volumes:
+      - ${HERERISK_DATA_DIR:-${HOME}/hererisk-data}:/data:ro
+      - flood-index:/var/lib/hererisk-flood:ro
+      - tsunami-index:/var/lib/hererisk-tsunami:ro
+    secrets:
+      - api_token
+    networks:
+      - public
+    depends_on:
+      elevation-api:
+        condition: service_healthy
+
   token:   # creates ${HERERISK_SECRET_DIR}/api-token (0600); refuses to overwrite
     <<: *hardening
     profiles: ["init"]
@@ -309,6 +362,8 @@ volumes:
     name: hererisk-flood-index
   flood-diag:
     name: hererisk-flood-diag
+  tsunami-index:
+    name: hererisk-tsunami-index
 
 secrets:
   api_token:

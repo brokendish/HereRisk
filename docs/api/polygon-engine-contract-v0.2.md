@@ -21,7 +21,7 @@
 | **案のまま** | 問題箇所の正当性 `legality` を判定に使うか（U-12） | 3.5節 |
 | **案のまま** | 全体の読み `far_reading` の採用（U-11）。記録することだけを確定 | 3.3節 |
 | **実装済み**（Phase 4-K、製品から未使用） | `far_reading` の事実（リングごとの回転数・面積の符号・役割・正規化した回転数・偶奇・H・H2・境界上・近傍の境界までの距離）を、既存の診断索引から塊ごとに取得する `hererisk.common.polygon` | 3.3節、[実装仕様](polygon-engine-facts-v0.1.md) |
-| **実装済み**（Phase 4-L、製品から未使用） | `geometry_state.validity` の分類（`validity.py`、`flood.index.classify` と同じ規則）と、`mode: official` の `inside` / `on_boundary` / `pending_geometry`・外側を列挙しないこと・`limit_exceeded` / `failed`（`relation.py`、`_Source.search` と同じ規則）。洪水の合成索引・東京都の実データで既存の洪水と一致 | 3.1節・3.3節・第4章、[実装仕様](polygon-engine-validity-relation-v0.1.md) |
+| **実装済み**（Phase 4-L。Phase 4-M から Tsunami Provider が利用、洪水は未使用） | `geometry_state.validity` の分類（`validity.py`、`flood.index.classify` と同じ規則）と、`mode: official` の `inside` / `on_boundary` / `pending_geometry`・外側を列挙しないこと・`limit_exceeded` / `failed`（`relation.py`、`_Source.search` と同じ規則）。洪水の合成索引・東京都の実データで既存の洪水と一致 | 3.1節・3.3節・第4章、[実装仕様](polygon-engine-validity-relation-v0.1.md) |
 | **未決定**（OWNER判断） | 精度プロファイル（整数・8桁）の採用、WGS84 と JGD2011 の扱い、局所輪郭法の正本、次のハザード、索引の世代管理（Data Publish）、共通の既定の採用方針 | ADR-002「この決定に含まれないこと」 |
 | **未検証** | 自己交差・同一直線上の重なり（洪水の実データで未観測）、他のハザード・他の地域での局所輪郭法の精度 | 設計レビュー 4.2節 |
 

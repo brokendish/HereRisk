@@ -461,9 +461,13 @@ def test_shared_modules_depend_on_no_hazard_and_repair_nothing() -> None:
         assert not any("぀" <= ch <= "鿿" for ch in text), name           # no user-facing Japanese text
 
 
-def test_not_wired_into_the_product() -> None:
+# Phase 4-M: the tsunami provider is the first user; flood (and everything else) still does not use it
+USERS = {("tsunami", "a40.py"), ("tsunami", "index.py"), ("location", "tsunami_provider.py")}
+
+
+def test_used_only_by_the_tsunami_provider() -> None:
     for path in (REPO / "src/hererisk").rglob("*.py"):
-        if "research" in path.parts or path.parts[-3:-1] == ("common", "polygon"):
+        if "research" in path.parts or path.parts[-3:-1] == ("common", "polygon") or path.parts[-2:] in USERS:
             continue
         text = path.read_text(encoding="utf-8")
         assert "hererisk.common.polygon." not in text and "hererisk.common.polygon import" not in text, path
