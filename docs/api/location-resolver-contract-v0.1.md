@@ -6,6 +6,7 @@
 - 関連: [Location API v0.1](location-api-v0.1.md)、[Polygon Engine 共通契約 v0.2](polygon-engine-contract-v0.2.md)、[Dataset Registry](../architecture/dataset-registry-v0.1.md) 第6章、[Data Publish](../architecture/data-publish-v0.1.md) 第7・10章
 - フィールド名・型は**PROVISIONAL**（例として示す）。確定するのは責務・状態・規則。
 - 改訂: 2026-11-03 Phase 4-N.1 追加要件 — 4.4節（同時実行）・4.5節（資源の設定）と試験項目 C-1〜C-7 を追加した
+- 補正: 2026-11-03 Phase 4-N.1 設計補正 — 3.4節（`missing` と Location API の状態の対応・不変条件）、4.5節（メモリ予算の式と予約）を補正した
 
 ## 1. 共通の規則
 
@@ -100,14 +101,40 @@ selection = source_resolver.select("tsunami", loc)    # -> SourceSelection
 | SR-6 | 選択は登録順（ソースの登録順）。優先順位・統合・代表を作らない（DP-11） |
 | SR-7 | 登録の正本は当面、地域ファイルの `flood_sources`・`tsunami_sources`。Dataset Registry の公開済みエントリへ移すときも、この契約の出力は変えない |
 
-Providerの対応（Location API の既存の状態を変えない）:
+| SR-8 | `missing` が空でない選択は `coverage: "partial"` とする。Providerは、選んだソースの関係に関わらず、この地点を**対象地域の境界**として扱う（`region_state: "region_boundary"`）。`inside` に読み替えない |
+| SR-9 | Location Resolver が `coverage: "partial"`（登録したN03が一部の都道府県だけ）のとき、未登録の県は `missing` に現れない（Resolverが知らない）。この場合の取りこぼしは、登録した区域の外縁から10m以内が `boundary` になること（2.4節）で防ぐ。外縁から10mより外は `outside_registered_area`（SR-5） |
 
-| 選択の結果 | 現在の応答への対応 |
+### 3.4 Location API の状態への対応（補正、2026-11-03）
+
+選択の結果と検索の結果から、ハザードのセクションの `status` を次の順に決める（上の行が優先）。**Location API の状態・理由の値は増やさない**（既存の `not_available`・`error`・`available`・`unknown`・`no_match` と、既存の理由 `outside_service_region`・`service_region_boundary`・`pending_geometry_zone`・`zone_boundary_contact` だけを使う）。
+
+| No | 条件 | `status` | 理由・付く情報 |
+|---|---|---|---|
+| S-1 | 選択が `complete: false`（Resolverの失敗、SR-4）、または選んだソースの1つでも検索が完了しない（索引を開けない・待ちの超過・上限・例外） | `error` | 一部のソースの結果だけを返さない（洪水 MVP 契約「1つのソースでも失敗したら全体をエラー」と同じ） |
+| S-2 | 選んだソースが0件（行政区域外・登録区域外・候補の県のどれにもソースがない） | `not_available` | `outside_service_region`。`missing` だけの地点もここ（例: 神奈川県内で、神奈川の津波ソースが未登録） |
+| S-3 | どれかのソースに区域（`zones`）がある | `available` | 見つかった区域はすべて返す（安全上の情報を隠さない、DP-08）。`missing` があれば `region_state: "region_boundary"`（SR-8）。**完全性は主張しない**（`candidate_completeness: "not_guaranteed"` は既存のまま） |
+| S-4 | 区域がなく、判定保留・境界上・対象地域の境界・**`missing` あり**のどれか | `unknown` | 既存の理由。`missing` ありは `service_region_boundary`（SR-8 により境界として扱うため） |
+| S-5 | 上のどれでもない | `no_match` | `scope_notice` つき（既存） |
+
+不変条件（実装段階の試験で必ず確かめる）:
+
+| No | 不変条件 |
 |---|---|
-| ソースなし（SR-5） | `not_available`（`outside_service_region`） |
-| `service_region_relation` に `boundary` がある | 区域がなければ `unknown`（`service_region_boundary`）。現状と同じ |
-| `missing` がある | 現在の規則では、県境の地点は対象地域の `boundary` になり `unknown` になる。`missing` を応答に出すかは O-6（設計 第12章） |
-| `complete: false` | `error` |
+| INV-1 | `no_match` になるのは、選択が `complete: true` かつ `missing` が空、かつ選んだ全ソースの関係が `inside`、かつ全ソースの検索が完了し、区域・判定保留・境界上がどれもないときだけ |
+| INV-2 | `missing` が空でない地点は、どの検索結果でも `no_match` にならない（S-3 か S-4、ソースがなければ S-2） |
+| INV-3 | 一部のソースの検索が失敗した地点は `error` で、他のソースの結果を `available`・`no_match` として返さない |
+| INV-4 | 県境の地点（候補の県が2つ以上）で、`region_state` が `inside` にならない。ただし、候補の県がすべて同じソースの対象地域に含まれ、そのソースの和の内側にある場合（県境の継ぎ目、2.4節）は `inside` でよい |
+| INV-5 | `not_available` は「区域外」「安全」を意味しない（既存の通知文のまま） |
+
+例（東京・神奈川の県境から5m、東京側。津波のソースは東京だけ登録）:
+
+| 東京のソースの検索 | `status` | 備考 |
+|---|---|---|
+| 区域あり | `available` | 東京の区域を返す。`region_state: region_boundary`。神奈川の区域があるかは分からない |
+| 区域なし・保留なし | `unknown`（`service_region_boundary`） | `no_match` にしない（神奈川側を検索していない） |
+| 失敗 | `error` | — |
+
+`missing` の詳細（どの県のソースが未登録か）を応答に出すのは、Location API の項目の追加になるため O-6 の判断を待つ。それまでは、上の対応により「不完全な検索を完全な判定として返さない」ことを状態だけで保証する。
 
 ## 4. Regional Index Loader
 
@@ -147,14 +174,16 @@ loader.release(index_ref)                                 # 参照が0になっ�
 | IL-11 | 形状キャッシュの要素の作成も single-flight。共有する形状は不変で、`prepare` はキャッシュに入れる前に1回だけ |
 | IL-12 | ハンドル・キャッシュの要素は参照数を持つ。検索の間は参照を保持し、参照数0のものだけを閉じる・追い出す |
 | IL-13 | リクエストは開始時に、各ソースの世代を1つ固定する。キャッシュの鍵は（ソース、世代、`feature_ref`）。1つの応答に同じソースの2つの世代を混ぜない |
-| IL-14 | 同時検索数はプロセス全体のセマフォ（`search.max_concurrent`）で抑える。枠の待ちが上限・残り時間を超えたら `LoaderBusy`。Providerはそのセクションを `error` にし、部分的な結果を返さない |
-| IL-15 | 1検索で読む候補のWKBの合計が `search.max_candidate_bytes` を超えたら `LoaderLimit`（`error`）。`MemoryError` も同じ扱いで、参照数0のキャッシュを捨てる |
+| IL-14 | 同時検索数はプロセス全体のセマフォ（`search.max_concurrent`、CPUのため）で抑える。枠の待ちが上限・残り時間を超えたら `LoaderBusy`。Providerはそのセクションを `error` にし、部分的な結果を返さない |
+| IL-15 | 一時メモリの予約: 検索は候補のWKBを読む前に、R-treeの検索と同時に各候補の `length(wkb)` を読み、キャッシュにない候補について `k × WKBの合計 ＋ 固定の部分` を `search.transient_budget_bytes` の枠から予約する。待てなければ `LoaderBusy`。必要量が枠全体を超える地点は `LoaderLimit`（`error`）。`MemoryError` は `error` とし、予約を返し、参照数0のキャッシュを捨てる |
+| IL-17 | 展開した形状は、キャッシュ（上限に計上）か、そのリクエストの一時（予約に計上）のどちらか一方にだけ属する。キャッシュに入れるときは予約から計上を移す。参照中の要素ばかりで空きが作れなければ、キャッシュに入れずに一時のまま使い、リクエストの終わりに捨てる |
 | IL-16 | 地点ごとの候補の列・`ComponentIndex`・結果はリクエストごとに作り、スレッド間で共有しない |
 
 ### 4.5 資源の設定（設計 第15章）
 
 - 定義・型・範囲・既定値は `conf/common/`、環境ごとの値は `env/`。共通 Configuration Manager で起動時に解決し、実行中は変えない。リクエストで上書きしない。
-- 起動時に、形状キャッシュ上限＋同時検索数×1検索の読出し上限＋SQLiteのキャッシュ×接続数（＋基本部分の見込み）が `memory.process_budget_bytes` を超える設定なら、起動しない。
+- 起動時の整合性検査（設計 9.3〜9.5節）: `M_base + C_hazard + C_admin + S_sqlite + R_transient + F ≤ B_process ≤ L_container × r` を満たさない、`search.expansion_factor × 最大の構成のWKB > search.transient_budget_bytes`、待ちの上限 ≥ リクエストの期限、のどれかなら起動しない。`S_sqlite` はプロセス全体の接続数の上限 × 1接続のキャッシュで数える（索引の数 × 接続数ではない）。
+- 数値の既定値は、設計 9.5節の手順と計測 MB-1〜MB-9 で決める（推測で確定しない）。
 - 応答の上限（`MAX_ITEMS`）・Orchestratorの期限（Location API 第7章の2秒）は契約の値で、環境の設定で変えない（変えるなら契約の改訂）。
 
 ## 5. 試験項目（実装段階で作る）
@@ -172,6 +201,9 @@ loader.release(index_ref)                                 # 参照が0になっ�
 | LR-9 | 既存との一致 | `locate()`（住所）・`_Region.relation`（洪水・津波）と全テスト地点で一致 |
 | SR-a | 県境で両県のソースを選ぶ | 両方選ぶ。重複しない |
 | SR-b | 候補の県にソースが未登録 | `missing` に入る。`no_match` にしない |
+| SR-c | 3.4節 S-1〜S-5 の全組合せ（選択の完了・`missing`・関係・区域・保留・境界上・失敗） | 表のとおりの `status`。INV-1〜INV-5 が成り立つ |
+| SR-d | 県境で片方の県のソースが未登録、区域なし | `unknown`（`service_region_boundary`）。`no_match` にならない |
+| SR-e | 県境で両方の県のソースがあり、片方の索引が開けない | `error` |
 | IL-a | R-treeの丸めの境界（外接矩形の辺・角ちょうどの地点） | 全件メモリの `ComponentIndex` と同じ結果 |
 | IL-b | 形状キャッシュの上限を極端に小さくした場合 | 結果が同じ |
 | IL-c | 索引なし・壊れた索引・別世代 | 開かない |

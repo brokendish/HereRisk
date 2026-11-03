@@ -666,6 +666,7 @@ docker compose --profile tsunami up -d location-api-tsunami # 住所＋洪水＋
 - 設計: Location Resolver（行政区域）→ Source Resolver（検索ソースの選択）→ Regional Index Loader（ソース別索引のR-treeから地点の候補だけを読む、上限つきキャッシュ）→ Provider → Polygon Engine（変更なし）。県境では候補の県を1つに確定せず、未登録・判定不能を区域外・安全にしません。
 - 移行: 4-N.2 Location Resolver → 4-N.3 Source Resolver → 4-N.4 Loader → 4-N.5 津波で実証 → 4-N.6 洪水（Polygon Engine 移行計画 Step 4 と統合）。
 - 追加要件（OWNER方針）: 全国47都道府県を初期設計から必須とし、MVPの検証地域の制限を設計上の制限にしません。同時アクセス（single-flight・参照数・同時検索数の上限・世代の固定）、資源の設定（`conf/common/` に定義、`env/` に環境の値）、スケールアウト（正本は永続ストレージ、キャッシュはインスタンスごと、Redis等は追加しない）を設計し、7つの観点を「実装済み・設計上対応・未検証」に分けて評価しました。数百の同時アクセスは未検証です。
+- 設計補正: メモリは「常駐＋キャッシュ＋SQLite＋検索の一時メモリの予約＋断片化 ≤ 予算」の式で抑え、数値の既定値は計測（MB-1〜MB-9）で決めます。県境で片方の県のソースが未登録の地点は、`no_match` にしません（区域がなければ `unknown`、あれば境界として `available`）。
 
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
