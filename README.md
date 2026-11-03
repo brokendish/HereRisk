@@ -625,6 +625,15 @@ Polygon共通基盤の責務を [ADR-002](docs/decisions/2026-11-03-polygon-engi
 - 東京都・洪水の無効2,113組では、境界上の50組を除く2,063組で5つの解釈が一致しました。`no_local_boundary` の976組もすべて一致しています。ただし、解釈の一致は原典作成者の意図との一致ではなく、東京都の不整合は頂点の接触だけです。
 - 探索半径を500m・1,000mに広げると、現行の条件で判定できる組はかえって減ります（487 → 128 → 44）。
 
+### 共通Polygon Engineの最小実装（Phase 4-K、製品から未使用）
+
+地点とPolygonのリングの幾何の事実を返す共通ライブラリ `hererisk.common.polygon` を実装しました（[実装仕様](docs/api/polygon-engine-facts-v0.1.md)）。**内外の確定・参考解析の採用はしません。既存の判定・API・索引は変えていません。**
+
+- 返すもの: リングごとの回転数・面積の符号・外周と穴の役割・正規化した回転数・偶奇・H・H2・境界上か（丸めない距離で1mm未満）・近傍の境界までの距離・処理の状態。
+- 既存の洪水診断索引を読取専用で使い、塊（chunk）を1行ずつ処理します。上限・時間切れ・失敗のときは、不完全な結果を返しません。洪水のモジュールにも shapely にも依存しません。
+- **H2 は内外の確定条件ではありません**（[Codex監査](docs/reviews/polygon-point-determination-codex-review-v0.1.md) の反例 B1: 辺の往復で交差が相殺されると、H2 が成り立っても解釈が分かれる）。
+- 東京都・洪水の2,113組で、既存の `DiagIndex.winding` と Phase 4-J の値に全組一致しました。1組あたり中央値0.30ms・p95 2.6ms、プロセスのピークRSS 33.5MB。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

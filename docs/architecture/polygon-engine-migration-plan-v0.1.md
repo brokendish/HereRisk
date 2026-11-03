@@ -1,6 +1,6 @@
 # Polygon Engine 段階的移行計画 v0.1（Phase 4-H）
 
-- 状態: **計画案**。各段階の実施には、段階ごとの指示と承認が必要。2026-11-03 Phase 4-I で Step 1-1（責務の分け方: ADR-002）・1-4・1-5 を完了した。1-2（Codexの設計監査）・1-3 は未実施。
+- 状態: **計画案**。各段階の実施には、段階ごとの指示と承認が必要。2026-11-03 Phase 4-I で Step 1-1（責務の分け方: ADR-002）・1-4・1-5 を完了した。1-2（Codexの設計監査）・1-3 は未実施。Phase 4-J.1 で Codex が研究（H2）を監査し（反例 B1）、Phase 4-K で Step 2-0（幾何の事実の取得）を実装した。
 - 作成: 2026-11-02（Claude）。基準コミット `c8845dabde601c41eede00355518802cc3ebf3f2`
 - 改訂: 2026-11-03 Phase 4-H.1 — 原典の形状状態と探索・解析状態の分離に伴い、Step 1-4・1-5、Step 2-3の試験条件、Step 5（データ品質レポート）、回帰基準の注記を追加した
 - 関連: [設計レビュー](polygon-engine-review-v0.1.md)、[共通契約 v0.2](../api/polygon-engine-contract-v0.2.md)、[ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md)
@@ -32,6 +32,7 @@
 
 | 単位 | 内容 | テスト条件 |
 |---|---|---|
+| 2-0 | **完了（Phase 4-K）** `common/polygon/facts.py`・`sqlite_reader.py`: 地点とリングの幾何の事実（リングごとの回転数・偶奇・H・H2・境界上）を、既存の診断索引から塊ごとに取得。製品からは未使用。[実装仕様](../api/polygon-engine-facts-v0.1.md) | 角度の積分・既存の `DiagIndex.winding`・Phase 4-J の値と一致（東京都 2,113組を含む）。B1 で H2 が成り立っても内外を返さない。上限・失敗で不完全な結果を返さない |
 | 2-1 | `common/polygon/validity.py`: 構成Polygonの有効性の分類（`flood.index.classify` と同じ規則）・座標の検査（`a31a.check_coordinates` と同じ規則） | 洪水の合成データ・契約案の G-3〜G-5・G-12・G-20 で、洪水の関数と**結果が完全一致**。依存関係の規則 D-1〜D-6 のテスト |
 | 2-2 | `common/polygon/relation.py`: 使える形状の内外・境界接触、保留中の構成の外接矩形（`flood_provider._Source.search` の幾何部分と同じ規則） | G-1・G-2・G-18・G-21 と、洪水の合成データの全格子点で `FloodProvider` の `zones`・`boundary_contacts`・`unknowns` の zone_ref の集合と完全一致 |
 | 2-3 | （次のハザードが参考解析を使うと決めたときだけ）`common/polygon/local_contour.py`・`diag_store.py`: 局所輪郭法と診断索引の形式。正本はSQLite上の実装（U-2）。出力は `geometry_state` と `analysis_state` を分ける（契約案 3.3節） | G-6〜G-11・G-14〜G-17・G-22〜G-31 と、洪水の合成データで `DiagIndex.analyze` と全フィールド一致。Docker上で、診断索引を新しい部品で読み、601地点・2,113組の `analyze` の結果が完全一致（索引は既存のものを読取専用で使う。作り直さない） |

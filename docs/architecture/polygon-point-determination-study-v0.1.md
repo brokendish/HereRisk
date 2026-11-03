@@ -2,6 +2,7 @@
 
 - 状態: **研究・検証の記録**。本書の分類・条件は、正式判定・参考解析（`candidate / undetermined / rejected`）に採用していない。Flood Provider・Location API・参考解析API・採用条件・理由コード・文言・索引は変更していない。
 - 作成: 2026-11-03（Claude）。基準コミット `7c4abcebe95820ba51fa7a904cabbe5d030822ea`
+- **訂正（2026-11-03、Phase 4-J.1 Codex監査 B1）**: H2 が成り立っても解釈が分かれる反例（辺を往復して交差が相殺されるリング）が見つかった。本書の「H2 のもとで5つの解釈が一致した」は観測した範囲の記述であり、**H2 は解釈の一致（B）の十分条件ではない**。H2 が保証するのは偶奇と正規化した回転数の一致だけである。第0章2・第8〜11章の H2 から B へ進む記述は、この範囲に限定して読むこと。[監査](../reviews/polygon-point-determination-codex-review-v0.1.md)、[実装仕様 第4章](../api/polygon-engine-facts-v0.1.md)
 - 実装: `hererisk.research.point_study`（製品のモジュールからimportしない。テストで確認）
 - 記録: 合成形状 [synthetic-summary.json](../research/polygon-point-study-v0.1/synthetic-summary.json)、東京都・洪水の集計 [real-tokyo-flood-aggregate.json](../research/polygon-point-study-v0.1/real-tokyo-flood-aggregate.json)（集計だけ。地点・区域の識別子は含めない。地点ごとの記録はGitの外）
 - 関連: [Polygon Engine 共通契約 v0.2](../api/polygon-engine-contract-v0.2.md)、[設計レビュー 第13章](polygon-engine-review-v0.1.md)、[ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md)

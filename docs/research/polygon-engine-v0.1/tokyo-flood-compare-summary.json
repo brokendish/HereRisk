@@ -1,0 +1,44 @@
+{
+ "started_at": "2026-11-03T01:30:44.187849+00:00",
+ "pairs": 2113,
+ "status": {
+  "complete": 2113
+ },
+ "checks": {
+  "on_boundary_same_as_phase_4j": 2113,
+  "equals_diag_index_winding": 2063,
+  "raw_per_ring_equals_phase_4j": 2063,
+  "h_h2_equal_phase_4j": 2063,
+  "h2_true": 2063
+ },
+ "failed": [],
+ "timing_ms_per_pair": {
+  "n": 2113,
+  "median": 0.322,
+  "p95": 2.528,
+  "max": 4.274
+ },
+ "chunks_read": {
+  "n": 2113,
+  "median": 1,
+  "p95": 9,
+  "max": 50
+ },
+ "segments_read": {
+  "n": 2113,
+  "median": 64,
+  "p95": 402,
+  "max": 2533
+ },
+ "memory": {
+  "rss_before_open_bytes": 106885120,
+  "rss_after_open_bytes": 107278336,
+  "peak_rss_bytes": 108064768
+ },
+ "diag_index_bytes": 147697664,
+ "program": {
+  "python": "3.14.3",
+  "machine": "aarch64",
+  "system": "Linux"
+ }
+}
