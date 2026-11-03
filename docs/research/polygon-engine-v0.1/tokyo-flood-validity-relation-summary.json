@@ -1,0 +1,137 @@
+{
+ "started_at": "2026-11-03T01:59:22.387061+00:00",
+ "inputs": {
+  "flood_index": "/var/lib/hererisk-flood/flood-index.sqlite",
+  "baseline": "/reports/flood-local-analysis-20261102T095252Z",
+  "features": 387754,
+  "components": 388148,
+  "points": 4601
+ },
+ "geos": "3.14.1",
+ "checks": {
+  "geometry_unchanged": 388148,
+  "relate_equals_search": 5485,
+  "search_equals_provider": 4153,
+  "validity_equals_flood_classify": 388148,
+  "validity_equals_stored": 388148
+ },
+ "failed": [],
+ "validity_classes": {
+  "valid": 383078,
+  "invalid_geometry": 5070
+ },
+ "point_kinds": {
+  "pending_bbox_corner:compared": 1123,
+  "pending_bbox_corner:not_available": 224,
+  "pending_bbox_edge:compared": 526,
+  "pending_bbox_edge:not_available": 127,
+  "phase_4c:compared": 509,
+  "phase_4c:not_available": 92,
+  "valid_vertex:compared": 1995,
+  "valid_vertex:not_available": 5
+ },
+ "search_results": {
+  "evaluated:inside": 1324,
+  "evaluated:on_boundary": 4161,
+  "pending_geometry:None": 17658
+ },
+ "timing": {
+  "validity_per_feature": {
+   "n": 387754,
+   "median_ms": 0.0079,
+   "p95_ms": 0.0319,
+   "max_ms": 541.504
+  },
+  "flood_classify_per_feature": {
+   "n": 387754,
+   "median_ms": 0.0053,
+   "p95_ms": 0.0154,
+   "max_ms": 505.1149
+  },
+  "validity_by_vertices": {
+   "<100": {
+    "n": 378158,
+    "median_ms": 0.0078,
+    "p95_ms": 0.0239,
+    "max_ms": 1.3295
+   },
+   "<1000": {
+    "n": 8659,
+    "median_ms": 0.0967,
+    "p95_ms": 0.3747,
+    "max_ms": 12.0276
+   },
+   "<10000": {
+    "n": 824,
+    "median_ms": 1.1649,
+    "p95_ms": 4.5442,
+    "max_ms": 39.6231
+   },
+   "<100000": {
+    "n": 105,
+    "median_ms": 15.6917,
+    "p95_ms": 64.898,
+    "max_ms": 159.5783
+   },
+   ">=100000": {
+    "n": 8,
+    "median_ms": 93.9291,
+    "p95_ms": 260.1558,
+    "max_ms": 541.504
+   }
+  },
+  "common_index_build_s": 0.268,
+  "common_search_per_point": {
+   "n": 4153,
+   "median_ms": 0.0168,
+   "p95_ms": 0.0455,
+   "max_ms": 0.1725
+  },
+  "flood_search_per_point": {
+   "n": 4153,
+   "median_ms": 0.0287,
+   "p95_ms": 0.0612,
+   "max_ms": 0.1331
+  },
+  "relate_per_component": {
+   "n": 5485,
+   "median_ms": 0.0036,
+   "p95_ms": 0.0063,
+   "max_ms": 0.0601
+  },
+  "relate_by_vertices": {
+   "<100": {
+    "n": 4422,
+    "median_ms": 0.0035,
+    "p95_ms": 0.0043,
+    "max_ms": 0.0202
+   },
+   "<1000": {
+    "n": 745,
+    "median_ms": 0.0041,
+    "p95_ms": 0.0055,
+    "max_ms": 0.0109
+   },
+   "<10000": {
+    "n": 252,
+    "median_ms": 0.0072,
+    "p95_ms": 0.014,
+    "max_ms": 0.0252
+   },
+   "<100000": {
+    "n": 66,
+    "median_ms": 0.0244,
+    "p95_ms": 0.052,
+    "max_ms": 0.0601
+   }
+  }
+ },
+ "peak_rss_bytes": {
+  "start": 50806784,
+  "after_validity": 1113935872,
+  "after_common_index": 1225183232,
+  "after_provider": 1616900096,
+  "end": 1692266496
+ },
+ "platform": "Linux-7.0.12-linuxkit-aarch64-with-glibc2.41"
+}

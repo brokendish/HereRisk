@@ -1,6 +1,6 @@
 # Polygon Engine 共通契約 v0.2（Phase 4-I）
 
-- 状態: **責務・状態・識別子・エラー・世代・精度の扱いを確定**（[ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md)、2026-11-03 ACCEPTED）。**Engine本体（`hererisk.common.polygon`）は未実装**で、本書は共通Engineの内部の将来契約である。既存の Flood Provider・`/api/v1/location`・`/api/v1/diagnostics/flood` に、本書の `geometry_state`・`analysis_state` は追加しない。
+- 状態: **責務・状態・識別子・エラー・世代・精度の扱いを確定**（[ADR-002](../decisions/2026-11-03-polygon-engine-responsibility.md)、2026-11-03 ACCEPTED）。Engineは一部を実装済みで、製品からは未使用（Phase 4-K: 幾何の事実、Phase 4-L: 有効性の分類と正式な内外判定）。本書は共通Engineの内部の契約である。既存の Flood Provider・`/api/v1/location`・`/api/v1/diagnostics/flood` に、本書の `geometry_state`・`analysis_state` は追加しない。
 - 作成: 2026-11-03（Claude）。基準コミット `43ba17003a7339cf616f5c2cebbd1487b1093c4b`
 - 前の版: [契約案 v0.1](polygon-engine-contract-draft-v0.1.md)（Phase 4-H・4-H.1、記録として残す）。v0.1 からの変更は第0章
 - 関連: [設計レビュー](../architecture/polygon-engine-review-v0.1.md)、[移行計画](../architecture/polygon-engine-migration-plan-v0.1.md)、[Polygon判定理由カタログ v0.2](polygon-reason-catalog-v0.2.md)、[洪水の参考解析API](flood-diagnostic-api-v0.1.md)、[共通API契約](common-contract-v0.1.md)
@@ -21,6 +21,7 @@
 | **案のまま** | 問題箇所の正当性 `legality` を判定に使うか（U-12） | 3.5節 |
 | **案のまま** | 全体の読み `far_reading` の採用（U-11）。記録することだけを確定 | 3.3節 |
 | **実装済み**（Phase 4-K、製品から未使用） | `far_reading` の事実（リングごとの回転数・面積の符号・役割・正規化した回転数・偶奇・H・H2・境界上・近傍の境界までの距離）を、既存の診断索引から塊ごとに取得する `hererisk.common.polygon` | 3.3節、[実装仕様](polygon-engine-facts-v0.1.md) |
+| **実装済み**（Phase 4-L、製品から未使用） | `geometry_state.validity` の分類（`validity.py`、`flood.index.classify` と同じ規則）と、`mode: official` の `inside` / `on_boundary` / `pending_geometry`・外側を列挙しないこと・`limit_exceeded` / `failed`（`relation.py`、`_Source.search` と同じ規則）。洪水の合成索引・東京都の実データで既存の洪水と一致 | 3.1節・3.3節・第4章、[実装仕様](polygon-engine-validity-relation-v0.1.md) |
 | **未決定**（OWNER判断） | 精度プロファイル（整数・8桁）の採用、WGS84 と JGD2011 の扱い、局所輪郭法の正本、次のハザード、索引の世代管理（Data Publish）、共通の既定の採用方針 | ADR-002「この決定に含まれないこと」 |
 | **未検証** | 自己交差・同一直線上の重なり（洪水の実データで未観測）、他のハザード・他の地域での局所輪郭法の精度 | 設計レビュー 4.2節 |
 
@@ -103,6 +104,8 @@ v0.1（案）からの変更:
 
 - `outside` の構成は**列挙しない**（外接矩形に入らない構成は数えきれないため）。外側であることは、その構成が `features` にないことで表す。Providerは、それを「該当なし」と読むか（評価済みの範囲がある場合）、「登録された区域に該当しない」と読むか（A31a）を決める。
 - 判定保留（`pending_geometry`）を外側として扱ってはならない。Providerは必ず `unknown` 相当の情報として返す。
+- 正式な内外判定に使うのは `validity: valid` の構成だけ（GEOS）。それ以外（`unverified`・有効性の情報なしを含む）は外接矩形（境界を含む）に地点が入るとき `pending_geometry`。外接矩形は保留の対象を選ぶためだけに使い、内外を表さない。Polygonの大小によって探索半径を変えない（正式判定は半径を使わない）。
+- 1構成を評価する内部の純粋関数（`relation.relate`）は、有効な構成に `outside` を返してよい。複数構成の検索の `features` には列挙しない（Phase 4-L）。`outside` は幾何学的な関係で、「安全」を意味しない。
 
 ### 3.2 参考の読み（`mode: diagnostic`）
 
@@ -269,7 +272,8 @@ v0.1（案）からの変更:
 
 | 本書 | 洪水の現状 |
 |---|---|
-| `mode: official` の `inside` / `on_boundary` / `pending_geometry` | `FloodProvider` の `zones` / `boundary_contacts` / `unknowns`（ソースごと） |
+| `mode: official` の `inside` / `on_boundary` / `pending_geometry` | `FloodProvider` の `zones` / `boundary_contacts` / `unknowns`（ソースごと）。共通の `relation.ComponentIndex.search` と zone_ref の集合が一致（Phase 4-L の差分テスト・東京都の実データ。洪水はまだ共通部品を使わない） |
+| `geometry_state.validity` | 索引の `usable`・`reason`（`flood.index.classify`）。共通の `validity.classify_components` と全構成一致（Phase 4-L） |
 | `status: limit_exceeded` | `flood_response_limit_exceeded`（500件超で `error`） |
 | `mode: diagnostic` の `reading` | `DiagIndex.analyze` の `local`（＋ `defect_within_max`） |
 | 採用方針 | `flood.adoption.classify` |

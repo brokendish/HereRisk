@@ -114,5 +114,5 @@ Reader.close()
 1. 採用方針（H2・`overlap`・境界の近く・Feature内の重なり）の判断と、`flood-diagnosis-adoption-v2` の要否（OWNER）。
 2. Provider への組み込み（参考解析APIの `far_reading` として事実を返すか）。
 3. 構成全体への最短距離（必要なら、拡大検索の実装と計測）。
-4. 正式な有効性の分類（`validity.py`）と、使える形状の内外（`relation.py`）の共通化（移行計画 Step 2-1・2-2）。
+4. ~~正式な有効性の分類（`validity.py`）と、使える形状の内外（`relation.py`）の共通化（移行計画 Step 2-1・2-2）。~~ Phase 4-L で実装（[実装仕様](polygon-engine-validity-relation-v0.1.md)）。
 5. 他の都道府県・他のハザードの索引での検証、VPS での計測。

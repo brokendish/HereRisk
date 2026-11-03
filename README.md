@@ -634,6 +634,14 @@ Polygon共通基盤の責務を [ADR-002](docs/decisions/2026-11-03-polygon-engi
 - **H2 は内外の確定条件ではありません**（[Codex監査](docs/reviews/polygon-point-determination-codex-review-v0.1.md) の反例 B1: 辺の往復で交差が相殺されると、H2 が成り立っても解釈が分かれる）。
 - 東京都・洪水の2,113組で、既存の `DiagIndex.winding` と Phase 4-J の値に全組一致しました。1組あたり中央値0.30ms・p95 2.6ms、プロセスのピークRSS 33.5MB。
 
+### 共通Polygonの有効性検証と正式な内外判定（Phase 4-L、製品から未使用）
+
+洪水・津波・高潮・土砂災害のProviderが共通に使える、Polygonの有効性の分類（`hererisk.common.polygon.validity`）と正式な内外判定（`hererisk.common.polygon.relation`）を実装しました（[実装仕様](docs/api/polygon-engine-validity-relation-v0.1.md)）。**洪水の製品コード・Location API・参考解析API・索引は変えていません。洪水はまだ共通部品を使いません。**
+
+- 有効なPolygonだけをGEOSで判定します（`inside` / `on_boundary` / `outside`）。無効なPolygonは、外接矩形に地点が入るとき判定保留（`pending_geometry`）にし、区域内・区域外を確定しません。修復はしません。
+- `outside` は幾何学的な関係で、「安全」を意味しません。探索半径は使わず、Polygonの大小で判定の方法を変えません。ハザードの属性を読まず、構成・ソースを統合しません。
+- 洪水の合成索引で、既存の `flood.index.classify`・`FloodProvider` と完全一致。東京都・洪水の正式索引（読取専用）でも、388,148構成の有効性と4,153地点の検索結果が全件一致しました。Codexの反例 B1 は判定保留になります。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。
