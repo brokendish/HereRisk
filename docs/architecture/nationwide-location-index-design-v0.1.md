@@ -250,8 +250,8 @@ M_base + C_hazard + C_admin + S_sqlite + R_transient + F  ≤  B_process  ≤  L
 | 段階 | 内容 | 受入条件（独立にテスト可能） |
 |---|---|---|
 | 4-N.1 | 本設計・契約案（**本工程**） | OWNERレビュー、Codexの設計監査（V-N1） |
-| 4-N.2 | Location Resolver: N03の索引（登録した都道府県のN03から作る SQLite＋R-tree。原典のPolygonは変えない）、`resolve`・`region_relation`。まだどのProviderも使わない | 住所の市区町村の判定（`locate`）と全テスト地点で一致。洪水・津波の `_Region.relation` と、601地点・津波の検査点・県境の合成地点で一致。常駐メモリが N03の量に比例しない |
-| 4-N.3 | Source Resolver: 地域ファイルの登録（`flood_sources`・`tsunami_sources`）から、地点のソース・関係・欠落を返す | 現在の洪水・津波Providerの `searched_sources`・`service_region_relation` と全テスト地点で一致。県境・未登録・判定不能の合成テスト。契約案 3.4節の S-1〜S-5 の全組合せと INV-1〜INV-5（SR-c〜SR-e） |
+| 4-N.2 | **完了（Phase 4-N.2、[実装仕様](../api/location-resolver-impl-v0.1.md)）** Location Resolver: N03の索引（登録した都道府県のN03から作る SQLite＋R-tree。原典のPolygonは変えない）、`resolve`・`region_relation`。まだどのProviderも使わない | 住所の市区町村の判定（`locate`）と全テスト地点で一致。洪水・津波の `_Region.relation` と、601地点・津波の検査点・県境の合成地点で一致。常駐メモリが N03の量に比例しない |
+| 4-N.3 | （前提: O-14 の判断）Source Resolver: 地域ファイルの登録（`flood_sources`・`tsunami_sources`）から、地点のソース・関係・欠落を返す | 現在の洪水・津波Providerの `searched_sources`・`service_region_relation` と全テスト地点で一致。県境・未登録・判定不能の合成テスト。契約案 3.4節の S-1〜S-5 の全組合せと INV-1〜INV-5（SR-c〜SR-e） |
 | 4-N.4 | Regional Index Loader: ソース別索引に R-tree を追加（津波の索引 `hererisk-tsunami-index-v0.2`）、候補の取得、形状キャッシュ（single-flight・参照数・上限）、同時検索数の上限、世代の照合、資源設定（第15章、`conf/common/` の定義と `env/` の値） | Loader＋`ComponentIndex` の結果が、全件メモリの `ComponentIndex` と全地点で一致（津波の全構成の頂点・外接矩形の角・辺の両側）。M-1〜M-5、C-1〜C-7（第17章）、**MB-1〜MB-9（9.5節）と、計測から導いた既定値の OWNER 承認** |
 | 4-N.5 | 津波ProviderをResolver・Loaderに切り替える | Phase 4-M の独立検証（9,297地点）・契約テスト・接続あり／なしの一致がすべて同じ。M-1・M-3。津波の応答のJSONが変わらない |
 | 4-N.6 | 洪水Providerの切替＝**移行計画 Step 4 と統合**（共通 `relation` への切替とLoaderへの切替を1回で行う）。洪水の正式索引にR-treeを追加した新形式。参考解析（診断索引・Shadow・診断API）は変えない | 回帰基準 RG-1〜RG-14（601地点・2,113組・118／355／1,640・ケースA 15／B 521 等）。Step 4 のロールバック条件のうち応答時間の条件は、方式Dでは見直しが必要（O-5） |
@@ -279,6 +279,8 @@ M_base + C_hazard + C_admin + S_sqlite + R_transient + F  ≤  B_process  ≤  L
 | O-11 | 過負荷・ロード待ちの超過を応答でどう表すか: 既存の `timeout` に寄せるか、`hazard_busy` 等の誤りコードを追加するか（Location APIの誤りコードの追加）。Location API 全体の受付制限（HTTP 503 等）を設けるか |
 | O-12 | 複数インスタンス時に、旧世代の索引をいつ消してよいか（Publish 7.3節「参照終了の判定」は未決定）。猶予時間方式にするか |
 | O-13 | 応答に索引の世代（`built_at` 等）を出すか（複数インスタンスの切替中に、どの世代の答えかを追跡するため。項目の追加） |
+| O-14 | （Phase 4-N.2）原典のN03の微小な隙間（隣り合うFeatureの間、1m²未満。東京48か所・神奈川133か所）の周り10mで、対象地域の関係をどうするか。Resolverは原典どおり `boundary`（ハザードは `unknown` 側）。既存の `_Region` は全体の結合で隙間が消えると `inside` になり、結合する集合で答えが変わる。隙間を埋めるのは原典の修正にあたる |
+| O-15 | （Phase 4-N.2）地点ごとにディスクから読む方式は、1回の検索が既存のメモリ上の方式の約5倍遅い（中央値0.33ms 対 0.06ms）。飽和の負荷で待ちの超過（`busy`）が出る。接続数・待ちの上限・キャッシュの要否を 4-N.4 の計測で決めることの承認 |
 
 ## 13. 未検証事項
 

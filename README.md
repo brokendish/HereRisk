@@ -668,6 +668,19 @@ docker compose --profile tsunami up -d location-api-tsunami # 住所＋洪水＋
 - 追加要件（OWNER方針）: 全国47都道府県を初期設計から必須とし、MVPの検証地域の制限を設計上の制限にしません。同時アクセス（single-flight・参照数・同時検索数の上限・世代の固定）、資源の設定（`conf/common/` に定義、`env/` に環境の値）、スケールアウト（正本は永続ストレージ、キャッシュはインスタンスごと、Redis等は追加しない）を設計し、7つの観点を「実装済み・設計上対応・未検証」に分けて評価しました。数百の同時アクセスは未検証です。
 - 設計補正: メモリは「常駐＋キャッシュ＋SQLite＋検索の一時メモリの予約＋断片化 ≤ 予算」の式で抑え、数値の既定値は計測（MB-1〜MB-9）で決めます。県境で片方の県のソースが未登録の地点は、`no_match` にしません（区域がなければ `unknown`、あれば境界として `available`）。
 
+### 共通Location Resolver（Phase 4-N.2、製品から未使用）
+
+N03（行政区域）をSQLite R-treeで索引にし、地点に関係する区域の形状だけを読んで、都道府県・市区町村・境界・対象地域との関係を返す共通部品です（[実装仕様](docs/api/location-resolver-impl-v0.1.md)）。**住所・洪水・津波Provider、Location API には接続していません。**
+
+```sh
+python -m hererisk.location.admin_index build   --regions ~/hererisk-data/regions.json --output admin.sqlite
+python -m hererisk.location.admin_index resolve --index admin.sqlite --regions ~/hererisk-data/regions.json --point 35.681236,139.767125 --region 13,14
+```
+
+- 起動時に形状をメモリへ展開しません。合成の47都道府県でも、常駐メモリは約46MiBで一定でした（既存の方式は830MiB）。
+- 県境では候補の県をすべて返し、1つに確定しません。登録範囲の外は「海」とせず `outside_registered_area` です。
+- 東京・神奈川の実データの60,601点で、住所の市区町村判定と全点一致しました。対象地域の関係の差異は、原典の微小な隙間（1m²未満）の近くだけです（扱いはOWNER判断）。
+
 ## Docker Compose（Phase 3-G、開発・実行環境）
 
 Location API・標高API・Data Inventoryを、それぞれコンテナで起動します。MacとLinux VPSで同じ [compose.yaml](compose.yaml) と [Dockerfile](deploy/app/Dockerfile) を使います。

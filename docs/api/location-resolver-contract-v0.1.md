@@ -1,6 +1,6 @@
 # Location Resolver / Source Resolver / Regional Index Loader 契約 v0.1（案、Phase 4-N.1）
 
-- 状態: **契約案（OWNERレビュー待ち）・未実装**。Python内部の契約で、HTTP APIは新設しない（必要になった段階で検討）。Location API の応答契約は変えない。
+- 状態: **契約案（OWNERレビュー待ち）**。第2章 Location Resolver は Phase 4-N.2 で実装済み・製品から未使用（[実装仕様](location-resolver-impl-v0.1.md)）。第3・4章は未実装。Python内部の契約で、HTTP APIは新設しない（必要になった段階で検討）。Location API の応答契約は変えない。
 - 作成: 2026-11-03（Claude）。基準コミット `4519f1a017c9a4033af7ccdc4a772d316ac4ab85`
 - 設計: [全国対応の現在地判定・地域別データ参照基盤 設計 v0.1](../architecture/nationwide-location-index-design-v0.1.md)
 - 関連: [Location API v0.1](location-api-v0.1.md)、[Polygon Engine 共通契約 v0.2](polygon-engine-contract-v0.2.md)、[Dataset Registry](../architecture/dataset-registry-v0.1.md) 第6章、[Data Publish](../architecture/data-publish-v0.1.md) 第7・10章
@@ -64,7 +64,13 @@ rel = resolver.region_relation(loc, {"13", "14"})  # -> "inside" | "boundary" | 
 - 集合の和の内側にあり、和の外縁から許容距離より遠い → `inside`（集合の内部の県境は境界ではない）
 - それ以外 → `boundary`
 
-全体の結合形状を常駐させない。地点の周り（許容距離の外接矩形）にある、集合に属する市区町村の形状だけで局所的に求める（局所の和の外縁＝全体の和の外縁、の範囲で同値。4-N.2 で全テスト地点の一致を確認する）。
+全体の結合形状を常駐させない。許容距離の中にある、集合に属する区域の形状だけを結合して求める（許容距離より遠い区域は結果を変えない）。
+
+Phase 4-N.2 の実装で確定したこと:
+
+- 候補の区域は**切り取らずに**結合する。地点の周りの矩形で切ってから結合すると、隣り合うFeatureの共有辺が別々に作り直され、継ぎ目が残る（実データで確認、[実装仕様](location-resolver-impl-v0.1.md) 4節）。
+- 既存の `_Region` との差異は、原典のN03の微小な隙間（1m²未満）の近くだけで、Resolverは `boundary`、既存は全体の結合で隙間が消えると `inside`（結合する集合によって変わる）。扱いは OWNER判断（設計 O-14）。
+- `municipalities` の各要素は `code`・`prefecture_code`・`unassigned`・`name`・`prefecture`・`contains_point`。`failed` は `reason`（`read_failed` / `busy`）を持つ。`region_relation` は、空きがなければ `ResolverBusy`、`failed` の地点には ValueError（推測しない）。
 
 ## 3. Source Resolver
 

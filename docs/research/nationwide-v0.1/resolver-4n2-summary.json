@@ -1,0 +1,368 @@
+{
+ "phase": "4-N.2",
+ "measured_at": "2026-11-03",
+ "base_commit": "cf0eea1d4c0dbd1a706c779ce1f35a0f77291432",
+ "units": "MiB (2^20 bytes) for *_bytes fields",
+ "container": "docker run -m 1g --memory-swap 1g, hererisk-app:local (Python 3.14.3, shapely 2.2.0, GEOS 3.14.1, SQLite 3.46.1), aarch64 Linux on Mac",
+ "comparison_real_n03": {
+  "13": {
+   "points": 33601,
+   "point_kinds": {
+    "edge_10.1m": 6000,
+    "edge_15.0m": 6000,
+    "edge_5.0m": 6000,
+    "edge_9.9m": 6000,
+    "edge_vertex": 3000,
+    "flood_points": 601,
+    "tsunami_box_centre": 1500,
+    "tsunami_vertex": 1500,
+    "uniform": 3000
+   },
+   "checks": {
+    "flood_tsunami_region_equal": 33601,
+    "locate_equal": 33601,
+    "region_differs:13:source_micro_gap": 7,
+    "region_equal:13": 33594,
+    "state:ambiguous": 24756,
+    "state:inside": 4114,
+    "state:outside": 4731
+   },
+   "failed": [],
+   "difference_classes": {
+    "region 13:source_micro_gap": 7
+   },
+   "resolve_ms": {
+    "n": 33601,
+    "median": 0.4366,
+    "p95": 5.7893,
+    "max": 33.0997
+   },
+   "rtree_candidates": {
+    "n": 33601,
+    "median": 1,
+    "p95": 3,
+    "max": 14
+   },
+   "candidate_wkb_bytes": {
+    "n": 33601,
+    "median": 160748,
+    "p95": 753020,
+    "max": 769676
+   },
+   "index_bytes": 9297920,
+   "resolver_start_s": 0.01,
+   "reference_n03_start_s": 0.964
+  },
+  "13-14": {
+   "points": 60601,
+   "point_kinds": {
+    "border_10.1m": 6000,
+    "border_15.0m": 6000,
+    "border_5.0m": 6000,
+    "border_9.9m": 6000,
+    "border_vertex": 3000,
+    "edge_10.1m": 6000,
+    "edge_15.0m": 6000,
+    "edge_5.0m": 6000,
+    "edge_9.9m": 6000,
+    "edge_vertex": 3000,
+    "flood_points": 601,
+    "tsunami_box_centre": 1500,
+    "tsunami_vertex": 1500,
+    "uniform": 3000
+   },
+   "checks": {
+    "flood_tsunami_region_equal": 181803,
+    "locate_equal": 60601,
+    "near_boundary_with_two_prefectures": 20757,
+    "region_differs:13+14:reference_union_depends_on_set": 38,
+    "region_equal:13": 60601,
+    "region_equal:13+14": 60563,
+    "region_equal:14": 60601,
+    "state:ambiguous": 45384,
+    "state:inside": 10775,
+    "state:outside": 4442
+   },
+   "failed": [],
+   "difference_classes": {
+    "region 13+14:reference_union_depends_on_set": 38
+   },
+   "resolve_ms": {
+    "n": 60601,
+    "median": 0.3522,
+    "p95": 1.5985,
+    "max": 33.9122
+   },
+   "rtree_candidates": {
+    "n": 60601,
+    "median": 2,
+    "p95": 4,
+    "max": 16
+   },
+   "candidate_wkb_bytes": {
+    "n": 60601,
+    "median": 162310,
+    "p95": 752470,
+    "max": 770098
+   },
+   "index_bytes": 12656640,
+   "resolver_start_s": 0.014,
+   "reference_n03_start_s": 1.158
+  }
+ },
+ "memory_time_real_n03 (60,601 points, one process per mode)": {
+  "13-resolver": {
+   "mode": "resolver",
+   "points": 60601,
+   "start_s": 0.111,
+   "rss_before_bytes": 51.4,
+   "rss_after_start_bytes": 75.0,
+   "rss_after_search_bytes": 93.7,
+   "peak_rss_bytes": 299.7,
+   "search_ms": {
+    "n": 60601,
+    "median": 0.2093,
+    "p95": 1.2129,
+    "max": 34.27
+   },
+   "parallel": {
+    "8": {
+     "identical": 60417,
+     "points": 60601,
+     "failed": {
+      "failed:busy": 184
+     },
+     "seconds": 23.36,
+     "rss_after_bytes": 230.3
+    },
+    "32": {
+     "identical": 59201,
+     "points": 60601,
+     "failed": {
+      "failed:busy": 1400
+     },
+     "seconds": 25.2,
+     "rss_after_bytes": 268.0
+    }
+   }
+  },
+  "13-n03": {
+   "mode": "n03",
+   "points": 60601,
+   "start_s": 1.253,
+   "rss_before_bytes": 51.4,
+   "rss_after_start_bytes": 179.8,
+   "rss_after_search_bytes": 188.1,
+   "peak_rss_bytes": 265.0,
+   "search_ms": {
+    "n": 60601,
+    "median": 0.0525,
+    "p95": 0.3538,
+    "max": 8.8055
+   },
+   "parallel": {
+    "8": {
+     "identical": 60601,
+     "points": 60601,
+     "failed": {},
+     "seconds": 4.02,
+     "rss_after_bytes": 250.2
+    },
+    "32": {
+     "identical": 60601,
+     "points": 60601,
+     "failed": {},
+     "seconds": 3.64,
+     "rss_after_bytes": 253.6
+    }
+   }
+  },
+  "13-14-resolver": {
+   "mode": "resolver",
+   "points": 60601,
+   "start_s": 0.125,
+   "rss_before_bytes": 51.4,
+   "rss_after_start_bytes": 74.9,
+   "rss_after_search_bytes": 94.3,
+   "peak_rss_bytes": 314.5,
+   "search_ms": {
+    "n": 60601,
+    "median": 0.3333,
+    "p95": 1.591,
+    "max": 34.5129
+   },
+   "parallel": {
+    "8": {
+     "identical": 60377,
+     "points": 60601,
+     "failed": {
+      "failed:busy": 224
+     },
+     "seconds": 28.21,
+     "rss_after_bytes": 228.0
+    },
+    "32": {
+     "identical": 59061,
+     "points": 60601,
+     "failed": {
+      "failed:busy": 1540
+     },
+     "seconds": 27.91,
+     "rss_after_bytes": 288.6
+    }
+   }
+  },
+  "13-14-n03": {
+   "mode": "n03",
+   "points": 60601,
+   "start_s": 1.325,
+   "rss_before_bytes": 50.9,
+   "rss_after_start_bytes": 203.4,
+   "rss_after_search_bytes": 211.9,
+   "peak_rss_bytes": 291.4,
+   "search_ms": {
+    "n": 60601,
+    "median": 0.06,
+    "p95": 0.2953,
+    "max": 7.7729
+   },
+   "parallel": {
+    "8": {
+     "identical": 60601,
+     "points": 60601,
+     "failed": {},
+     "seconds": 3.35,
+     "rss_after_bytes": 281.0
+    },
+    "32": {
+     "identical": 60601,
+     "points": 60601,
+     "failed": {},
+     "seconds": 3.53,
+     "rss_after_bytes": 287.1
+    }
+   }
+  }
+ },
+ "malloc_arena_experiment_13_14_resolver (before the slot bound: 8/32 threads RSS)": {
+  "default": {
+   "8": 362.3,
+   "32": 590.9,
+   "peak": 757.3
+  },
+  "MALLOC_ARENA_MAX=2": {
+   "8": 316.2,
+   "32": 384.5,
+   "peak": 495.3
+  }
+ },
+ "growth_synthetic (template: Kanagawa N03 1,247 features shifted on a grid; same 200 points in prefecture 01)": {
+  "1-resolver": {
+   "mode": "resolver",
+   "points": 200,
+   "start_s": 0.098,
+   "rss_before_bytes": 22.9,
+   "rss_after_start_bytes": 45.9,
+   "rss_after_search_bytes": 49.0,
+   "peak_rss_bytes": 66.6,
+   "search_ms": {
+    "n": 200,
+    "median": 0.3644,
+    "p95": 1.0171,
+    "max": 2.5082
+   }
+  },
+  "1-n03": {
+   "mode": "n03",
+   "points": 200,
+   "start_s": 0.303,
+   "rss_before_bytes": 22.9,
+   "rss_after_start_bytes": 73.3,
+   "rss_after_search_bytes": 75.4,
+   "peak_rss_bytes": 88.8,
+   "search_ms": {
+    "n": 200,
+    "median": 0.0721,
+    "p95": 0.2135,
+    "max": 1.3006
+   }
+  },
+  "10-resolver": {
+   "mode": "resolver",
+   "points": 200,
+   "start_s": 0.108,
+   "rss_before_bytes": 23.0,
+   "rss_after_start_bytes": 45.8,
+   "rss_after_search_bytes": 49.1,
+   "peak_rss_bytes": 64.2,
+   "search_ms": {
+    "n": 200,
+    "median": 0.3452,
+    "p95": 1.0637,
+    "max": 2.5207
+   }
+  },
+  "10-n03": {
+   "mode": "n03",
+   "points": 200,
+   "start_s": 2.125,
+   "rss_before_bytes": 23.0,
+   "rss_after_start_bytes": 237.1,
+   "rss_after_search_bytes": 237.2,
+   "peak_rss_bytes": 238.2,
+   "search_ms": {
+    "n": 200,
+    "median": 0.0723,
+    "p95": 0.2164,
+    "max": 1.1183
+   }
+  },
+  "47-resolver": {
+   "mode": "resolver",
+   "points": 200,
+   "start_s": 0.161,
+   "rss_before_bytes": 22.9,
+   "rss_after_start_bytes": 45.7,
+   "rss_after_search_bytes": 49.0,
+   "peak_rss_bytes": 65.7,
+   "search_ms": {
+    "n": 200,
+    "median": 0.3784,
+    "p95": 1.1265,
+    "max": 2.5815
+   }
+  },
+  "47-n03": {
+   "mode": "n03",
+   "points": 200,
+   "start_s": 9.875,
+   "rss_before_bytes": 22.9,
+   "rss_after_start_bytes": 830.2,
+   "rss_after_search_bytes": 830.3,
+   "peak_rss_bytes": 831.4,
+   "search_ms": {
+    "n": 200,
+    "median": 0.073,
+    "p95": 0.2286,
+    "max": 1.1804
+   }
+  }
+ },
+ "synthetic_index_bytes": {
+  "1": 3383296,
+  "10": 33558528,
+  "47": 157724672
+ },
+ "source_micro_gaps (holes < 1 m2 of the union of two adjacent N03 features)": {
+  "13": {
+   "features": 6904,
+   "gaps": 48,
+   "max_m2": 0.000487
+  },
+  "14": {
+   "features": 1247,
+   "gaps": 133,
+   "max_m2": 1.88e-06
+  }
+ }
+}
